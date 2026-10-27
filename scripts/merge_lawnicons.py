@@ -70,4 +70,5 @@ for src in sorted(GENERATED.rglob("*")):
             raise RuntimeError(f"Resource name collision; refusing to overwrite: {dst}")
         shutil.copy2(src, dst)
 
-print(f"Merged Lawnicons generated resources from {SOURCE} into {DEST}")
+count = sum(1 for path in GENERATED.rglob("*") if path.is_file())
+print(f"Merged {count} generated Lawnicons resource files from {SOURCE} into {DEST}")
