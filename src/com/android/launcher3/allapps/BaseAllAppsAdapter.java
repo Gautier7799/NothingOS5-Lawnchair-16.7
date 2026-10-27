@@ -48,6 +48,8 @@ import com.android.launcher3.model.data.AppInfo;
 import com.android.launcher3.model.data.FolderInfo;
 import com.android.launcher3.views.ActivityContext;
 
+import app.lawnchair.preferences.PreferenceManager;
+
 /**
  * Adapter for all the apps.
  *
@@ -264,9 +266,15 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             case VIEW_TYPE_FOLDER:
                 // LC-Feature: Folder support in All Apps
                 FrameLayout fl = new FrameLayout(mActivityContext);
+                int folderCardHeight = mActivityContext.getDeviceProfile()
+                        .getAllAppsProfile().getCellHeightPx();
+                // Keep the standard drawer unchanged; make Caddy category cards taller.
+                if (!PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
+                    folderCardHeight = Math.round(folderCardHeight * 1.4f);
+                }
                 fl.setLayoutParams(new RecyclerView.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
-                        mActivityContext.getDeviceProfile().getAllAppsProfile().getCellHeightPx()));
+                        folderCardHeight));
                 return new ViewHolder(fl);
             default:
                 if (mAdapterProvider.isViewSupported(viewType)) {
