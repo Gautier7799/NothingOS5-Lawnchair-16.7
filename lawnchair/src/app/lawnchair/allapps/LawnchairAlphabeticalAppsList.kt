@@ -12,7 +12,6 @@ import app.lawnchair.launcher
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.util.categorizeAppsWithSystemAndGoogle
-import app.lawnchair.util.observeOnce
 import com.android.launcher3.InvariantDeviceProfile.OnIDPChangeListener
 import com.android.launcher3.allapps.AllAppsStore
 import com.android.launcher3.allapps.AlphabeticalAppsList
@@ -25,6 +24,8 @@ import com.android.launcher3.model.data.ItemInfo
 import com.android.launcher3.util.ComponentKey
 import com.android.launcher3.views.ActivityContext
 import com.patrykmichalik.opto.core.onEach
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import java.util.function.Predicate
 
 @Suppress("SYNTHETIC_PROPERTY_WITHOUT_JAVA_ORIGIN")
@@ -67,11 +68,14 @@ class LawnchairAlphabeticalAppsList<T>(
     }
 
     private fun observeFolders() {
-        viewModel.folders.observeOnce(context as LifecycleOwner) { folders ->
-            if (folders != null) {
-                folderList.clear()
-                folderList.addAll(folders)
-                updateAdapterItems()
+        val lifecycleOwner = context as? LifecycleOwner ?: return
+        lifecycleOwner.lifecycleScope.launch {
+            viewModel.folders.collect { folders ->
+                if (folders != null) {
+                    folderList.clear()
+                    folderList.addAll(folders)
+                    updateAdapterItems()
+                }
             }
         }
     }
