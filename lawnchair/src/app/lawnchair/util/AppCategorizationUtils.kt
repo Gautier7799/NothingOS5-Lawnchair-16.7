@@ -4,14 +4,13 @@ import android.content.Context
 import app.lawnchair.flowerpot.Flowerpot
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.util.ApplicationInfoWrapper
-import com.android.launcher3.util.PackageManagerHelper
+import java.util.Locale
 
 /**
  * Categorizes apps into System Apps, Google Apps, and Flowerpot categories.
  *
- * @param apps List of apps to categorize
- * @param context Context for checking system apps and accessing Flowerpot
- * @return Map of category names to lists of apps in that category
+ * Each app is included at most once, and apps within a category are ordered
+ * consistently so the drawer does not jump between refreshes.
  */
 fun categorizeAppsWithSystemAndGoogle(
     apps: List<AppInfo>,
@@ -20,12 +19,16 @@ fun categorizeAppsWithSystemAndGoogle(
     val systemApps = mutableListOf<AppInfo>()
     val googleApps = mutableListOf<AppInfo>()
     val otherApps = mutableListOf<AppInfo>()
+    val seenKeys = mutableSetOf<String>()
 
     apps.forEach { app ->
         val packageName = app.targetPackage ?: return@forEach
+        val componentKey = app.toComponentKey().toString()
+        if (!seenKeys.add(componentKey)) return@forEach
+
         val intent = app.intent
 
-        // Check if it's a Google app first (Google apps can also be system apps)
+        // Check Google apps first because some are also preinstalled system apps.
         when {
             packageName.startsWith("com.google.") -> googleApps.add(app)
             intent != null && ApplicationInfoWrapper(context, intent).isSystem() -> systemApps.add(app)
@@ -33,23 +36,35 @@ fun categorizeAppsWithSystemAndGoogle(
         }
     }
 
-    // Use flowerpot to categorize other apps (non-system, non-Google)
-    val potsManager = Flowerpot.Manager.getInstance(context)
-    val categorizedApps = potsManager.categorizeApps(otherApps)
+    val result = linkedMapOf<String, List<AppInfo>>()
 
-    // Build final categorized apps map
-    val finalCategorizedApps = mutableMapOf<String, List<AppInfo>>()
-
-    if (systemApps.isNotEmpty()) {
-        finalCategorizedApps["System Apps"] = systemApps
+    fun addCategory(name: String, categoryApps: List<AppInfo>) {
+        if (categoryApps.isNotEmpty()) {
+            result[name] = categoryApps.sortedBy { it.title.toString().lowercase(Locale.ROOT) }
+        }
     }
 
-    if (googleApps.isNotEmpty()) {
-        finalCategorizedApps["Google Apps"] = googleApps
+    addCategory("System Apps", systemApps)
+    addCategory("Google Apps", googleApps)
+
+    // Categorize remaining apps using Lawnchair's existing Flowerpot rules.
+    val categorizedApps = Flowerpot.Manager.getInstance(context).categorizeApps(otherApps)
+    val categorizedKeys = seenKeys.filter { key ->
+        apps.any { it.toComponentKey().toString() == key && it !in otherApps }
+    }.toMutableSet()
+
+    categorizedApps.toSortedMap(String.CASE_INSENSITIVE_ORDER).forEach { (category, categoryApps) ->
+        val uniqueApps = categoryApps.filter { app ->
+            categorizedKeys.add(app.toComponentKey().toString())
+        }
+        addCategory(category, uniqueApps)
     }
 
-    // Add flowerpot categorized apps
-    finalCategorizedApps.putAll(categorizedApps)
+    // Keep any app that no rule recognized accessible in a catch-all category.
+    val categorizedOtherKeys = categorizedApps.values.flatten()
+        .mapTo(mutableSetOf()) { it.toComponentKey().toString() }
+    val uncategorized = otherApps.filter { it.toComponentKey().toString() !in categorizedOtherKeys }
+    addCategory("Other", uncategorized)
 
-    return finalCategorizedApps
+    return result
 }
