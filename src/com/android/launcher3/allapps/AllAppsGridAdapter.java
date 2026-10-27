@@ -41,6 +41,8 @@ import com.android.launcher3.allapps.search.SearchAdapterProvider;
 import com.android.launcher3.util.ScrollableLayoutManager;
 import com.android.launcher3.views.ActivityContext;
 
+import app.lawnchair.preferences.PreferenceManager;
+
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -228,6 +230,12 @@ public class AllAppsGridAdapter<T extends Context & ActivityContext> extends
             }
             int viewType = items.get(position).viewType;
             if (isIconViewType(viewType)) {
+                // In Caddy mode, let each category card occupy two grid columns.
+                // The default drawer layout keeps its original span behavior.
+                if (viewType == VIEW_TYPE_FOLDER
+                        && !PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
+                    return Math.min(totalSpans, (totalSpans / mAppsPerRow) * 2);
+                }
                 return totalSpans / mAppsPerRow;
             } else {
                 if (mAdapterProvider.isViewSupported(viewType)) {
