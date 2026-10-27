@@ -32,7 +32,7 @@ jobs:
       - name: Generate and bundle Lawnicons resources
         run: |
           git clone https://github.com/LawnchairLauncher/lawnicons.git /tmp/lawnicons
-          git -C /tmp/lawnicons checkout 6a75594bd0553e35118beb02b655f87e3ebd956a
+          git -C /tmp/lawnicons checkout "$(cat scripts/lawnicons-revision.txt)"
           /tmp/lawnicons/gradlew -p /tmp/lawnicons :svg-processor:run
           python3 scripts/merge_lawnicons.py /tmp/lawnicons
       - name: Build Lawnchair GitHub Debug APK
