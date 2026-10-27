@@ -1,1 +1,1 @@
-This marker triggers the workflow that imports the official Lawnchair 16-dev source.
+Trigger official Lawnchair 16-dev import. The workflow excludes upstream workflows to comply with GitHub token permissions.
