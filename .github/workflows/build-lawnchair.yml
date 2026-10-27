@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - foundation/lawnchair-16-dev
+      - feature/bundled-lawnicons
     paths-ignore:
       - '.github/**'
       - '**.md'
@@ -19,7 +20,7 @@ jobs:
       - name: Checkout source with submodules
         uses: actions/checkout@v4
         with:
-          ref: foundation/lawnchair-16-dev
+          ref: ${{ github.ref_name }}
           submodules: recursive
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -28,6 +29,12 @@ jobs:
           java-version: '21'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+      - name: Generate and bundle Lawnicons resources
+        run: |
+          git clone https://github.com/LawnchairLauncher/lawnicons.git /tmp/lawnicons
+          git -C /tmp/lawnicons checkout 6a75594bd0553e35118beb02b655f87e3ebd956a
+          /tmp/lawnicons/gradlew -p /tmp/lawnicons :svg-processor:run
+          python3 scripts/merge_lawnicons.py /tmp/lawnicons
       - name: Build Lawnchair GitHub Debug APK
         run: ./gradlew assembleLawnWithQuickstepGithubDebug --stacktrace
       - name: Upload APK artifact
