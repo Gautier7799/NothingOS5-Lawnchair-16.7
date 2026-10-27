@@ -49,9 +49,8 @@ fun categorizeAppsWithSystemAndGoogle(
 
     // Categorize remaining apps using Lawnchair's existing Flowerpot rules.
     val categorizedApps = Flowerpot.Manager.getInstance(context).categorizeApps(otherApps)
-    val categorizedKeys = seenKeys.filter { key ->
-        apps.any { it.toComponentKey().toString() == key && it !in otherApps }
-    }.toMutableSet()
+    val categorizedKeys = (systemApps + googleApps)
+        .mapTo(mutableSetOf()) { it.toComponentKey().toString() }
 
     categorizedApps.toSortedMap(String.CASE_INSENSITIVE_ORDER).forEach { (category, categoryApps) ->
         val uniqueApps = categoryApps.filter { app ->
