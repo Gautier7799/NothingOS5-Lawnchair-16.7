@@ -6,13 +6,13 @@ on:
       - foundation/lawnchair-16-dev
     paths:
       - IMPORT_UPSTREAM
+      - .github/workflows/import-lawnchair.yml
 
 permissions:
   contents: write
 
 jobs:
   import-source:
-    if: github.event.head_commit.message == 'Start upstream import'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout destination branch
@@ -26,7 +26,8 @@ jobs:
         run: |
           rsync -a --delete \
             --exclude='.git' \
-            --exclude='.github/workflows/import-lawnchair.yml' \
+            --exclude='.github/workflows/***' \
+            --exclude='IMPORT_UPSTREAM' \
             /tmp/lawnchair/ ./
           rm -f IMPORT_UPSTREAM
       - name: Commit and push imported source
