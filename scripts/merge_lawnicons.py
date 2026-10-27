@@ -84,11 +84,9 @@ for src in sorted(GENERATED.rglob("*")):
         continue
     rel = src.relative_to(GENERATED)
     if rel.parts[0].startswith("values") and src.suffix == ".xml":
-        # Merge values resources while preserving Lawnchair definitions on name conflicts.
         merge_values(src, DEST / rel)
         continue
     if rel.as_posix() == "xml/grayscale_icon_map.xml":
-        # Rewrite map references to any renamed Lawnicons drawables.
         temp = src.with_name("grayscale_icon_map.lawnchair-merge.xml")
         temp.write_bytes(rewrite_refs(src.read_bytes()))
         try:
@@ -109,6 +107,18 @@ for src in sorted(GENERATED.rglob("*")):
             continue
         raise RuntimeError(f"Resource name collision after renaming: {dst}")
     dst.write_bytes(data)
+
+# The SVG processor emits vector drawables that reference these two colors, but
+# those colors live in Lawnicons' app resources rather than app/src/runtime/res.
+# Define local fallbacks so the merged vectors compile in Lawnchair. The launcher
+# applies the actual themed-icon tint when rendering monochrome icons.
+colors_file = DEST / "values/colors_lawnicons.xml"
+colors_file.parent.mkdir(parents=True, exist_ok=True)
+if not colors_file.exists():
+    colors_root = ET.Element("resources")
+    ET.SubElement(colors_root, "color", {"name": "primaryForeground"}).text = "#FF000000"
+    ET.SubElement(colors_root, "color", {"name": "primaryBackground"}).text = "#FFFFFFFF"
+    ET.ElementTree(colors_root).write(colors_file, encoding="utf-8", xml_declaration=True)
 
 count = sum(1 for path in GENERATED.rglob("*") if path.is_file())
 print(f"Merged {count} generated Lawnicons resource files from {SOURCE} into {DEST}; renamed {len(rename_map)} colliding resources")
