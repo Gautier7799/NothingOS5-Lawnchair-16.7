@@ -210,12 +210,29 @@ public class Hotseat extends FrameLayout implements Insettable {
         var alphaValue = (transparency * 255) / 100;
         var baseColor = bgColor.getColorPreferenceEntry().getLightColor().invoke(getContext());
         var finalColor = Color.argb(alphaValue, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor));
+        // Automatic iOS-style dock capsule for this Nothing-style build.
+        // Preserve any non-default inset/radius preferences; supply a capsule geometry
+        // when the untouched Lawnchair defaults would otherwise make the background
+        // fill the entire hotseat and appear as if the feature did not work.
+        float density = getResources().getDisplayMetrics().density;
+        int defaultHorizontalInset = Math.round(16 * density);
+        int defaultVerticalInset = Math.round(7 * density);
         int insetHorizontalLeft = preferenceManager.getHotseatBGHorizontalInsetLeft().get();
         int insetHorizontalRight = preferenceManager.getHotseatBGHorizontalInsetRight().get();
         int insetVerticalTop = preferenceManager.getHotseatBGVerticalInsetTop().get();
         int insetVerticalBottom = preferenceManager.getHotseatBGVerticalInsetBottom().get();
+        if (insetHorizontalLeft == 0 && insetHorizontalRight == 0
+                && insetVerticalTop == 0 && insetVerticalBottom == 0) {
+            insetHorizontalLeft = defaultHorizontalInset;
+            insetHorizontalRight = defaultHorizontalInset;
+            insetVerticalTop = defaultVerticalInset;
+            insetVerticalBottom = defaultVerticalInset;
+        }
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
+        if (cornerRadiusDp < 28f) {
+            cornerRadiusDp = 28f;
+        }
         float cornerRadius = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
                 cornerRadiusDp,
