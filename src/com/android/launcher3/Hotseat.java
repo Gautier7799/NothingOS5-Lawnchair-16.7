@@ -202,7 +202,8 @@ public class Hotseat extends FrameLayout implements Insettable {
     }
 
     private void setUpBackground() {
-        if(!preferenceManager.getHotseatBG().get()) return;
+        // Automatically apply the rounded dock background for the Nothing-style build.
+        // Keep the existing color, opacity, radius, and inset preferences intact.
 
         var bgColor = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatBackgroundColor());
         var transparency = preferenceManager.getHotseatBGAlpha().get();
