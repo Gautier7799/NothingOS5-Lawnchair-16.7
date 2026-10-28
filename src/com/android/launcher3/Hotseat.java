@@ -254,11 +254,28 @@ public class Hotseat extends FrameLayout implements Insettable {
         GradientDrawable background = new GradientDrawable();
         background.setColor(finalColor);
         background.setCornerRadius(cornerRadius);
-        InsetDrawable bg = new InsetDrawable(background,
-                insetHorizontalLeft, insetVerticalTop, insetHorizontalRight, insetVerticalBottom);
-        // The hotseat root also hosts the QSB. Put the capsule on the icon container
-        // and leave enough room at the bottom so the search widget is not enclosed.
-        mIconsContainer.setBackground(bg);
+        // The icons container fills the entire Hotseat, so fixed small vertical
+        // insets leave a tall rectangular background. Instead, size the visible
+        // capsule to the dock row and anchor it immediately above the QSB.
+        final int capsuleHeight = Math.round(88 * density);
+        final int capsuleGap = Math.round(6 * density);
+        final int leftInset = insetHorizontalLeft;
+        final int rightInset = insetHorizontalRight;
+        background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
+        mIconsContainer.setBackground(new InsetDrawable(background,
+                leftInset, insetVerticalTop, rightInset, insetVerticalBottom));
+        addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> {
+            int containerHeight = mIconsContainer.getHeight();
+            if (containerHeight <= 0) return;
+            int qsbTop = mQsb.getTop();
+            // If the QSB has not been positioned yet, keep the initial safe layout.
+            if (qsbTop <= 0) return;
+            int capsuleTop = Math.max(0, qsbTop - capsuleHeight - capsuleGap);
+            int capsuleBottom = Math.max(0, containerHeight - capsuleTop - capsuleHeight);
+            mIconsContainer.setBackground(new InsetDrawable(background,
+                    leftInset, capsuleTop, rightInset, capsuleBottom));
+        });
         setBackground(null);
     }
 
