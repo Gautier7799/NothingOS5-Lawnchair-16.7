@@ -272,7 +272,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                         !PreferenceManager.getInstance(mActivityContext).getDrawerList().get();
                 // Give Caddy category cards enough vertical space for visibly larger content.
                 if (isCaddyDrawer) {
-                    folderCardHeight = Math.round(folderCardHeight * 1.7f);
+                    folderCardHeight = Math.round(folderCardHeight * 1.9f);
                 }
                 fl.setLayoutParams(new RecyclerView.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -380,8 +380,8 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 folderIcon.setOnLongClickListener(mOnIconLongClickListener);
                 // Scale only Caddy's category icon and label; the default drawer is untouched.
                 if (!PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
-                    folderIcon.setScaleX(1.12f);
-                    folderIcon.setScaleY(1.12f);
+                    folderIcon.setScaleX(1.18f);
+                    folderIcon.setScaleY(1.18f);
                 }
                 container.addView(folderIcon);
                 break;
