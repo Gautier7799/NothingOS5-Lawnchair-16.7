@@ -217,8 +217,8 @@ public class Hotseat extends FrameLayout implements Insettable {
         float density = getResources().getDisplayMetrics().density;
         int defaultHorizontalInset = Math.round(16 * density);
         int defaultVerticalTopInset = Math.round(7 * density);
-        // Keep the Google search widget outside the iOS-style dock capsule.
-        int defaultVerticalBottomInset = Math.round(72 * density);
+        // Leave a modest gap below the dock capsule so the Google search widget remains separate.
+        int defaultVerticalBottomInset = Math.round(18 * density);
         int insetHorizontalLeft = preferenceManager.getHotseatBGHorizontalInsetLeft().get();
         int insetHorizontalRight = preferenceManager.getHotseatBGHorizontalInsetRight().get();
         int insetVerticalTop = preferenceManager.getHotseatBGVerticalInsetTop().get();
