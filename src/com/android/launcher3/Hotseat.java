@@ -217,7 +217,7 @@ public class Hotseat extends FrameLayout implements Insettable {
         // when the untouched Lawnchair defaults would otherwise make the background
         // fill the entire hotseat and appear as if the feature did not work.
         float density = getResources().getDisplayMetrics().density;
-        int defaultHorizontalInset = Math.round(40 * density);
+        int defaultHorizontalInset = Math.round(24 * density);
         int defaultVerticalTopInset = Math.round(7 * density);
         // Leave a modest gap below the dock capsule so the Google search widget remains separate.
         int defaultVerticalBottomInset = Math.round(18 * density);
@@ -257,8 +257,8 @@ public class Hotseat extends FrameLayout implements Insettable {
         // The icons container fills the entire Hotseat, so fixed small vertical
         // insets leave a tall rectangular background. Instead, size the visible
         // capsule to the dock row and anchor it immediately above the QSB.
-        final int capsuleHeight = Math.round(80 * density);
-        final int capsuleGap = Math.round(6 * density);
+        final int capsuleHeight = Math.round(96 * density);
+        final int capsuleGap = Math.round(14 * density);
         final int leftInset = insetHorizontalLeft;
         final int rightInset = insetHorizontalRight;
         background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
