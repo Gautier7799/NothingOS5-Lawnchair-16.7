@@ -207,7 +207,9 @@ public class Hotseat extends FrameLayout implements Insettable {
 
         var bgColor = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatBackgroundColor());
         var transparency = preferenceManager.getHotseatBGAlpha().get();
-        var alphaValue = (transparency * 255) / 100;
+        // Keep the automatic capsule translucent even when the saved Lawnchair
+        // background opacity is 100%. Preserve lower user-selected opacity values.
+        var alphaValue = Math.min((transparency * 255) / 100, 64);
         var baseColor = bgColor.getColorPreferenceEntry().getLightColor().invoke(getContext());
         var finalColor = Color.argb(alphaValue, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor));
         // Automatic iOS-style dock capsule for this Nothing-style build.
@@ -223,11 +225,19 @@ public class Hotseat extends FrameLayout implements Insettable {
         int insetHorizontalRight = preferenceManager.getHotseatBGHorizontalInsetRight().get();
         int insetVerticalTop = preferenceManager.getHotseatBGVerticalInsetTop().get();
         int insetVerticalBottom = preferenceManager.getHotseatBGVerticalInsetBottom().get();
-        if (insetHorizontalLeft == 0 && insetHorizontalRight == 0
-                && insetVerticalTop == 0 && insetVerticalBottom == 0) {
+        // Resolve each unset inset independently. Saved preferences may contain
+        // only some values, and zero horizontal insets would stretch the capsule
+        // across the full screen (the defect visible in build #18).
+        if (insetHorizontalLeft <= 0) {
             insetHorizontalLeft = defaultHorizontalInset;
+        }
+        if (insetHorizontalRight <= 0) {
             insetHorizontalRight = defaultHorizontalInset;
+        }
+        if (insetVerticalTop <= 0) {
             insetVerticalTop = defaultVerticalTopInset;
+        }
+        if (insetVerticalBottom <= 0) {
             insetVerticalBottom = defaultVerticalBottomInset;
         }
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
