@@ -217,7 +217,7 @@ public class Hotseat extends FrameLayout implements Insettable {
         // when the untouched Lawnchair defaults would otherwise make the background
         // fill the entire hotseat and appear as if the feature did not work.
         float density = getResources().getDisplayMetrics().density;
-        int defaultHorizontalInset = Math.round(16 * density);
+        int defaultHorizontalInset = Math.round(28 * density);
         int defaultVerticalTopInset = Math.round(7 * density);
         // Leave a modest gap below the dock capsule so the Google search widget remains separate.
         int defaultVerticalBottomInset = Math.round(18 * density);
@@ -264,18 +264,24 @@ public class Hotseat extends FrameLayout implements Insettable {
         background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
         mIconsContainer.setBackground(new InsetDrawable(background,
                 leftInset, insetVerticalTop, rightInset, insetVerticalBottom));
-        addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> {
+        Runnable updateCapsuleBounds = () -> {
             int containerHeight = mIconsContainer.getHeight();
             if (containerHeight <= 0) return;
             int qsbTop = mQsb.getTop();
-            // If the QSB has not been positioned yet, keep the initial safe layout.
+            // Wait until the QSB has a real layout position before anchoring the capsule.
             if (qsbTop <= 0) return;
             int capsuleTop = Math.max(0, qsbTop - capsuleHeight - capsuleGap);
             int capsuleBottom = Math.max(0, containerHeight - capsuleTop - capsuleHeight);
             mIconsContainer.setBackground(new InsetDrawable(background,
                     leftInset, capsuleTop, rightInset, capsuleBottom));
-        });
+        };
+        // Recalculate when either the Hotseat or QSB is laid out; the QSB can move
+        // independently of the parent, so a parent-only listener can leave stale bounds.
+        addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+        mQsb.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+        mIconsContainer.post(updateCapsuleBounds);
         setBackground(null);
     }
 
