@@ -209,7 +209,7 @@ public class Hotseat extends FrameLayout implements Insettable {
         var transparency = preferenceManager.getHotseatBGAlpha().get();
         // Keep the automatic capsule translucent even when the saved Lawnchair
         // background opacity is 100%. Preserve lower user-selected opacity values.
-        var alphaValue = Math.min((transparency * 255) / 100, 64);
+        var alphaValue = Math.min((transparency * 255) / 100, 40);
         var baseColor = bgColor.getColorPreferenceEntry().getLightColor().invoke(getContext());
         var finalColor = Color.argb(alphaValue, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor));
         // Automatic iOS-style dock capsule for this Nothing-style build.
@@ -242,8 +242,10 @@ public class Hotseat extends FrameLayout implements Insettable {
         }
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
-        if (cornerRadiusDp < 28f) {
-            cornerRadiusDp = 28f;
+        // A dock capsule needs a radius close to half its visible height; a small
+        // preference radius leaves the wide background looking like a rectangle.
+        if (cornerRadiusDp < 48f) {
+            cornerRadiusDp = 48f;
         }
         float cornerRadius = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
