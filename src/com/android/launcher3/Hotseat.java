@@ -216,7 +216,9 @@ public class Hotseat extends FrameLayout implements Insettable {
         // fill the entire hotseat and appear as if the feature did not work.
         float density = getResources().getDisplayMetrics().density;
         int defaultHorizontalInset = Math.round(16 * density);
-        int defaultVerticalInset = Math.round(7 * density);
+        int defaultVerticalTopInset = Math.round(7 * density);
+        // Keep the Google search widget outside the iOS-style dock capsule.
+        int defaultVerticalBottomInset = Math.round(72 * density);
         int insetHorizontalLeft = preferenceManager.getHotseatBGHorizontalInsetLeft().get();
         int insetHorizontalRight = preferenceManager.getHotseatBGHorizontalInsetRight().get();
         int insetVerticalTop = preferenceManager.getHotseatBGVerticalInsetTop().get();
@@ -225,8 +227,8 @@ public class Hotseat extends FrameLayout implements Insettable {
                 && insetVerticalTop == 0 && insetVerticalBottom == 0) {
             insetHorizontalLeft = defaultHorizontalInset;
             insetHorizontalRight = defaultHorizontalInset;
-            insetVerticalTop = defaultVerticalInset;
-            insetVerticalBottom = defaultVerticalInset;
+            insetVerticalTop = defaultVerticalTopInset;
+            insetVerticalBottom = defaultVerticalBottomInset;
         }
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
@@ -242,7 +244,10 @@ public class Hotseat extends FrameLayout implements Insettable {
         background.setCornerRadius(cornerRadius);
         InsetDrawable bg = new InsetDrawable(background,
                 insetHorizontalLeft, insetVerticalTop, insetHorizontalRight, insetVerticalBottom);
-        setBackground(bg);
+        // The hotseat root also hosts the QSB. Put the capsule on the icon container
+        // and leave enough room at the bottom so the search widget is not enclosed.
+        mIconsContainer.setBackground(bg);
+        setBackground(null);
     }
 
     /** Provides translation X for hotseat icons for the channel. */
