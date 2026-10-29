@@ -205,7 +205,7 @@ public class Hotseat extends FrameLayout implements Insettable {
         var bgColor = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundColor());
         var transparency = preferenceManager.getHotseatBGAlpha().get();
-        // Keep opacity fully controlled by the existing Lawnchair preference.
+        // Opacity remains controlled by Lawnchair's existing setting.
         int alphaValue = Math.max(0, Math.min(255, (transparency * 255) / 100));
         var baseColor = bgColor.getColorPreferenceEntry().getLightColor().invoke(getContext());
         var finalColor = Color.argb(alphaValue, Color.red(baseColor),
@@ -213,21 +213,19 @@ public class Hotseat extends FrameLayout implements Insettable {
 
         float density = getResources().getDisplayMetrics().density;
         final int horizontalPadding = Math.round(16 * density);
-        final int verticalPadding = Math.round(14 * density);
+        final int verticalPadding = Math.round(12 * density);
+        // Dock icons are typically rendered around this size. Use their cell centers
+        // to infer the icon row's bounds; CellLayout children themselves span full cells.
+        final int iconSize = Math.round(56 * density);
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
         float cornerRadius = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                Math.max(cornerRadiusDp, 32f),
+                TypedValue.COMPLEX_UNIT_DIP, Math.max(cornerRadiusDp, 32f),
                 getResources().getDisplayMetrics());
 
         GradientDrawable background = new GradientDrawable();
         background.setColor(finalColor);
-        background.setCornerRadius(cornerRadius);
 
-        // Measure the actual dock icon row instead of deriving the capsule from the
-        // QSB position. The QSB can be moved/disabled independently and is not a
-        // reliable anchor for the dock background.
         Runnable updateCapsuleBounds = () -> {
             int containerWidth = mIconsContainer.getWidth();
             int containerHeight = mIconsContainer.getHeight();
@@ -237,29 +235,36 @@ public class Hotseat extends FrameLayout implements Insettable {
                 return;
             }
 
-            Rect iconBounds = new Rect();
-            boolean foundIcon = false;
+            float minCenterX = Float.MAX_VALUE;
+            float maxCenterX = Float.MIN_VALUE;
+            float iconCenterY = 0f;
+            int visibleIcons = 0;
             for (int i = 0; i < cellLayout.getChildCount(); i++) {
                 View child = cellLayout.getChildAt(i);
-                if (child == null || child.getVisibility() != VISIBLE) continue;
+                if (child == null || child.getVisibility() != VISIBLE
+                        || child.getWidth() <= 0 || child.getHeight() <= 0) {
+                    continue;
+                }
                 Rect childBounds = new Rect(0, 0, child.getWidth(), child.getHeight());
                 mIconsContainer.offsetDescendantRectToMyCoords(child, childBounds);
-                if (!foundIcon) {
-                    iconBounds.set(childBounds);
-                    foundIcon = true;
-                } else {
-                    iconBounds.union(childBounds);
-                }
+                float centerX = childBounds.exactCenterX();
+                float centerY = childBounds.exactCenterY();
+                minCenterX = Math.min(minCenterX, centerX);
+                maxCenterX = Math.max(maxCenterX, centerX);
+                iconCenterY += centerY;
+                visibleIcons++;
             }
-            if (!foundIcon || iconBounds.isEmpty()) return;
+            if (visibleIcons == 0) return;
+            iconCenterY /= visibleIcons;
 
-            int left = Math.max(0, iconBounds.left - horizontalPadding);
-            int top = Math.max(0, iconBounds.top - verticalPadding);
-            int right = Math.max(0, containerWidth - iconBounds.right - horizontalPadding);
-            int bottom = Math.max(0, containerHeight - iconBounds.bottom - verticalPadding);
+            int iconHalf = iconSize / 2;
+            int left = Math.max(0, Math.round(minCenterX - iconHalf - horizontalPadding));
+            int right = Math.max(0, Math.round(containerWidth - maxCenterX
+                    - iconHalf - horizontalPadding));
+            int top = Math.max(0, Math.round(iconCenterY - iconHalf - verticalPadding));
+            int bottom = Math.max(0, Math.round(containerHeight - iconCenterY
+                    - iconHalf - verticalPadding));
 
-            // Ensure a useful capsule shape while preserving clear padding around
-            // all four sides of the actual icon row.
             int visibleHeight = containerHeight - top - bottom;
             background.setCornerRadius(Math.max(cornerRadius, visibleHeight / 2f));
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
