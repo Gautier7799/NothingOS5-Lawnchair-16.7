@@ -202,84 +202,74 @@ public class Hotseat extends FrameLayout implements Insettable {
     }
 
     private void setUpBackground() {
-        // Automatically apply the rounded dock background for the Nothing-style build.
-        // Keep the existing color, opacity, radius, and inset preferences intact.
-
-        var bgColor = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatBackgroundColor());
+        var bgColor = PreferenceCacheExtensionsKt.firstCached(
+                preferenceManager2.getHotseatBackgroundColor());
         var transparency = preferenceManager.getHotseatBGAlpha().get();
-        // Keep the automatic capsule translucent even when the saved Lawnchair
-        // background opacity is 100%. Preserve lower user-selected opacity values.
-        var alphaValue = Math.min((transparency * 255) / 100, 34);
+        // Keep opacity fully controlled by the existing Lawnchair preference.
+        int alphaValue = Math.max(0, Math.min(255, (transparency * 255) / 100));
         var baseColor = bgColor.getColorPreferenceEntry().getLightColor().invoke(getContext());
-        var finalColor = Color.argb(alphaValue, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor));
-        // Automatic iOS-style dock capsule for this Nothing-style build.
-        // Preserve any non-default inset/radius preferences; supply a capsule geometry
-        // when the untouched Lawnchair defaults would otherwise make the background
-        // fill the entire hotseat and appear as if the feature did not work.
+        var finalColor = Color.argb(alphaValue, Color.red(baseColor),
+                Color.green(baseColor), Color.blue(baseColor));
+
         float density = getResources().getDisplayMetrics().density;
-        int defaultHorizontalInset = Math.round(24 * density);
-        int defaultVerticalTopInset = Math.round(7 * density);
-        // Leave a modest gap below the dock capsule so the Google search widget remains separate.
-        int defaultVerticalBottomInset = Math.round(18 * density);
-        int insetHorizontalLeft = preferenceManager.getHotseatBGHorizontalInsetLeft().get();
-        int insetHorizontalRight = preferenceManager.getHotseatBGHorizontalInsetRight().get();
-        int insetVerticalTop = preferenceManager.getHotseatBGVerticalInsetTop().get();
-        int insetVerticalBottom = preferenceManager.getHotseatBGVerticalInsetBottom().get();
-        // Resolve each unset inset independently. Saved preferences may contain
-        // only some values, and zero horizontal insets would stretch the capsule
-        // across the full screen (the defect visible in build #18).
-        if (insetHorizontalLeft <= 0) {
-            insetHorizontalLeft = defaultHorizontalInset;
-        }
-        if (insetHorizontalRight <= 0) {
-            insetHorizontalRight = defaultHorizontalInset;
-        }
-        if (insetVerticalTop <= 0) {
-            insetVerticalTop = defaultVerticalTopInset;
-        }
-        if (insetVerticalBottom <= 0) {
-            insetVerticalBottom = defaultVerticalBottomInset;
-        }
+        final int horizontalPadding = Math.round(16 * density);
+        final int verticalPadding = Math.round(14 * density);
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
-        // A dock capsule needs a radius close to half its visible height; a small
-        // preference radius leaves the wide background looking like a rectangle.
-        if (cornerRadiusDp < 48f) {
-            cornerRadiusDp = 48f;
-        }
         float cornerRadius = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
-                cornerRadiusDp,
+                Math.max(cornerRadiusDp, 32f),
                 getResources().getDisplayMetrics());
+
         GradientDrawable background = new GradientDrawable();
         background.setColor(finalColor);
         background.setCornerRadius(cornerRadius);
-        // The icons container fills the entire Hotseat, so fixed small vertical
-        // insets leave a tall rectangular background. Instead, size the visible
-        // capsule to the dock row and anchor it immediately above the QSB.
-        final int capsuleHeight = Math.round(96 * density);
-        final int capsuleGap = Math.round(14 * density);
-        final int leftInset = insetHorizontalLeft;
-        final int rightInset = insetHorizontalRight;
-        background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
-        mIconsContainer.setBackground(new InsetDrawable(background,
-                leftInset, insetVerticalTop, rightInset, insetVerticalBottom));
+
+        // Measure the actual dock icon row instead of deriving the capsule from the
+        // QSB position. The QSB can be moved/disabled independently and is not a
+        // reliable anchor for the dock background.
         Runnable updateCapsuleBounds = () -> {
+            int containerWidth = mIconsContainer.getWidth();
             int containerHeight = mIconsContainer.getHeight();
-            if (containerHeight <= 0) return;
-            int qsbTop = mQsb.getTop();
-            // Wait until the QSB has a real layout position before anchoring the capsule.
-            if (qsbTop <= 0) return;
-            int capsuleTop = Math.max(0, qsbTop - capsuleHeight - capsuleGap);
-            int capsuleBottom = Math.max(0, containerHeight - capsuleTop - capsuleHeight);
-            mIconsContainer.setBackground(new InsetDrawable(background,
-                    leftInset, capsuleTop, rightInset, capsuleBottom));
+            CellLayout cellLayout = mPagedView.getCurrentCellLayout();
+            if (containerWidth <= 0 || containerHeight <= 0 || cellLayout == null
+                    || cellLayout.getChildCount() == 0) {
+                return;
+            }
+
+            Rect iconBounds = new Rect();
+            boolean foundIcon = false;
+            for (int i = 0; i < cellLayout.getChildCount(); i++) {
+                View child = cellLayout.getChildAt(i);
+                if (child == null || child.getVisibility() != VISIBLE) continue;
+                Rect childBounds = new Rect(0, 0, child.getWidth(), child.getHeight());
+                mIconsContainer.offsetDescendantRectToMyCoords(child, childBounds);
+                if (!foundIcon) {
+                    iconBounds.set(childBounds);
+                    foundIcon = true;
+                } else {
+                    iconBounds.union(childBounds);
+                }
+            }
+            if (!foundIcon || iconBounds.isEmpty()) return;
+
+            int left = Math.max(0, iconBounds.left - horizontalPadding);
+            int top = Math.max(0, iconBounds.top - verticalPadding);
+            int right = Math.max(0, containerWidth - iconBounds.right - horizontalPadding);
+            int bottom = Math.max(0, containerHeight - iconBounds.bottom - verticalPadding);
+
+            // Ensure a useful capsule shape while preserving clear padding around
+            // all four sides of the actual icon row.
+            int visibleHeight = containerHeight - top - bottom;
+            background.setCornerRadius(Math.max(cornerRadius, visibleHeight / 2f));
+            mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
-        // Recalculate when either the Hotseat or QSB is laid out; the QSB can move
-        // independently of the parent, so a parent-only listener can leave stale bounds.
+
         addOnLayoutChangeListener((view, left, top, right, bottom,
                 oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
-        mQsb.addOnLayoutChangeListener((view, left, top, right, bottom,
+        mIconsContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+        mPagedView.addOnLayoutChangeListener((view, left, top, right, bottom,
                 oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
         mIconsContainer.post(updateCapsuleBounds);
         setBackground(null);
