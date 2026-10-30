@@ -238,7 +238,7 @@ public class Hotseat extends FrameLayout implements Insettable {
             }
 
             // CellLayout's direct child is the full grid container, not the icons.
-            // Measure each visible dock item so the capsule hugs the real icon row.
+            // Measure visible dock items and keep the capsule close to the icon row.
             ShortcutAndWidgetContainer shortcuts = cellLayout.getShortcutsAndWidgets();
             if (shortcuts == null || shortcuts.getChildCount() == 0) return;
 
