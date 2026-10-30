@@ -26,6 +26,11 @@ import static com.android.launcher3.allapps.UserProfileManager.STATE_DISABLED;
 import static com.android.launcher3.allapps.UserProfileManager.STATE_ENABLED;
 
 import android.content.Context;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.view.Gravity;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -46,6 +51,8 @@ import com.android.launcher3.allapps.search.SearchAdapterProvider;
 import com.android.launcher3.folder.FolderIcon;
 import com.android.launcher3.model.data.AppInfo;
 import com.android.launcher3.model.data.FolderInfo;
+import com.android.launcher3.model.data.ItemInfo;
+import com.android.launcher3.model.data.ItemInfoWithIcon;
 import com.android.launcher3.views.ActivityContext;
 
 import app.lawnchair.preferences.PreferenceManager;
@@ -370,18 +377,16 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 ((WorkEduCard) holder.itemView).setPosition(position);
                 break;
             case VIEW_TYPE_FOLDER:
-                // LC: Caddy/Folder in allapps 86b2b025a4f23a068818274020f37ad6d5268363
+                // Caddy uses a dedicated category-card presentation while retaining FolderIcon
+                // as the interaction host, so folder opening and accessibility stay native.
                 FolderInfo folderInfo = mApps.getAdapterItems().get(position).folderInfo;
                 ViewGroup container = (ViewGroup) holder.itemView;
                 container.removeAllViews();
-                // LC-Note: Implement long-press support for folder type for purposes like showing popup
                 FolderIcon folderIcon = FolderIcon.inflateFolderAndIcon(
                         R.layout.all_apps_folder_icon, mActivityContext, container, folderInfo);
                 folderIcon.setOnLongClickListener(mOnIconLongClickListener);
-                // Scale only Caddy's category icon and label; the default drawer is untouched.
                 if (!PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
-                    folderIcon.setScaleX(1.30f);
-                    folderIcon.setScaleY(1.30f);
+                    bindCaddyCategoryCard(folderIcon, folderInfo);
                 }
                 container.addView(folderIcon);
                 break;
@@ -390,6 +395,78 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                     mAdapterProvider.onBindView(holder, position);
                 }
         }
+    }
+
+
+    /**
+     * Renders a Caddy category as a compact card with real app shortcuts.
+     * The FolderIcon remains the root view so tapping the card opens the category folder.
+     */
+    private void bindCaddyCategoryCard(FolderIcon folderIcon, FolderInfo folderInfo) {
+        folderIcon.setIconVisible(false);
+        folderIcon.removeView(folderIcon.getFolderName());
+        folderIcon.setOrientation(LinearLayout.VERTICAL);
+        int horizontal = dp(14);
+        int vertical = dp(12);
+        folderIcon.setPadding(horizontal, vertical, horizontal, vertical);
+
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(0xFF252525);
+        background.setCornerRadius(dp(20));
+        background.setStroke(dp(1), 0x24FFFFFF);
+        folderIcon.setBackground(background);
+        folderIcon.setClipToOutline(true);
+
+        TextView title = new TextView(mActivityContext);
+        title.setText(folderInfo.title);
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(14);
+        title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+        title.setMaxLines(1);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        folderIcon.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout icons = new LinearLayout(mActivityContext);
+        icons.setOrientation(LinearLayout.HORIZONTAL);
+        icons.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams iconsParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        iconsParams.topMargin = dp(10);
+        folderIcon.addView(icons, iconsParams);
+
+        int shown = Math.min(folderInfo.getContents().size(), 5);
+        for (int i = 0; i < shown; i++) {
+            ItemInfo item = folderInfo.getContents().get(i);
+            if (!(item instanceof ItemInfoWithIcon)) continue;
+            ItemInfoWithIcon app = (ItemInfoWithIcon) item;
+            ImageView icon = new ImageView(mActivityContext);
+            icon.setImageDrawable(app.newIcon(mActivityContext));
+            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            icon.setTag(item);
+            icon.setContentDescription(item.title);
+            icon.setOnClickListener(mOnIconClickListener);
+            icon.setOnLongClickListener(mOnIconLongClickListener);
+            LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(34), dp(40));
+            iconParams.setMarginEnd(dp(7));
+            icons.addView(icon, iconParams);
+        }
+
+        if (folderInfo.getContents().size() > shown) {
+            TextView more = new TextView(mActivityContext);
+            more.setText("+" + (folderInfo.getContents().size() - shown));
+            more.setTextColor(0xFFD8D8D8);
+            more.setTextSize(12);
+            more.setGravity(Gravity.CENTER);
+            icons.addView(more, new LinearLayout.LayoutParams(dp(34), dp(40)));
+        }
+
+        folderIcon.setMinimumHeight(dp(116));
+        folderIcon.setGravity(Gravity.CENTER_VERTICAL);
+    }
+
+    private int dp(float value) {
+        return Math.round(value * mActivityContext.getResources().getDisplayMetrics().density);
     }
 
     @Override
