@@ -212,8 +212,8 @@ public class Hotseat extends FrameLayout implements Insettable {
                 Color.green(baseColor), Color.blue(baseColor));
 
         float density = getResources().getDisplayMetrics().density;
-        final int horizontalPadding = Math.round(16 * density);
-        final int verticalPadding = Math.round(14 * density);
+        final int horizontalPadding = Math.round(11 * density);
+        final int verticalPadding = Math.round(10 * density);
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
         float cornerRadius = TypedValue.applyDimension(
