@@ -279,7 +279,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                         !PreferenceManager.getInstance(mActivityContext).getDrawerList().get();
                 // Give Caddy category cards enough vertical space for visibly larger content.
                 if (isCaddyDrawer) {
-                    folderCardHeight = Math.max(folderCardHeight, Math.round(132f *
+                    folderCardHeight = Math.max(folderCardHeight, Math.round(148f *
                             mActivityContext.getResources().getDisplayMetrics().density));
                 }
                 fl.setLayoutParams(new RecyclerView.LayoutParams(
