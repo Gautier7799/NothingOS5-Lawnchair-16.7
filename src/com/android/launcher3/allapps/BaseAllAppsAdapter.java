@@ -422,6 +422,13 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         LinearLayout content = new LinearLayout(mActivityContext);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setGravity(Gravity.CENTER_VERTICAL);
+        // The custom content sits above FolderIcon and must forward card taps to the
+        // native folder-opening handler. App shortcut children keep their own click actions.
+        content.setTag(folderInfo);
+        content.setClickable(true);
+        content.setFocusable(true);
+        content.setOnClickListener(mOnIconClickListener);
+        content.setOnLongClickListener(mOnIconLongClickListener);
         FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT,
                 Gravity.CENTER_VERTICAL);
@@ -441,7 +448,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         icons.setOrientation(LinearLayout.HORIZONTAL);
         icons.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams iconsParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
         iconsParams.topMargin = dp(10);
         content.addView(icons, iconsParams);
 
@@ -458,7 +465,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             icon.setFocusable(true);
             icon.setOnClickListener(mOnIconClickListener);
             icon.setOnLongClickListener(mOnIconLongClickListener);
-            LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(34), dp(40));
+            LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(38), dp(44));
             iconParams.setMarginEnd(dp(7));
             icons.addView(icon, iconParams);
         }
@@ -469,10 +476,10 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             more.setTextColor(0xFFD8D8D8);
             more.setTextSize(12);
             more.setGravity(Gravity.CENTER);
-            icons.addView(more, new LinearLayout.LayoutParams(dp(34), dp(40)));
+            icons.addView(more, new LinearLayout.LayoutParams(dp(38), dp(44)));
         }
 
-        folderIcon.setMinimumHeight(dp(116));
+        folderIcon.setMinimumHeight(dp(148));
     }
 
     private int dp(float value) {
