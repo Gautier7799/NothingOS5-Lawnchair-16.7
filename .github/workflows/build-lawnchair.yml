@@ -8,9 +8,6 @@ on:
       - feature/bundled-lawnicons
       - fix/dock-auto-capsule-bounds
       - feature/caddy-smart-drawer
-    paths-ignore:
-      - '.github/**'
-      - '**.md'
 
 permissions:
   contents: read
