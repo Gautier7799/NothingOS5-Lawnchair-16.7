@@ -446,6 +446,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
             icon.setTag(item);
             icon.setContentDescription(item.title);
+            icon.setFocusable(true);
             icon.setOnClickListener(mOnIconClickListener);
             icon.setOnLongClickListener(mOnIconLongClickListener);
             LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(34), dp(40));
