@@ -6,6 +6,7 @@ on:
     branches:
       - foundation/lawnchair-16-dev
       - feature/bundled-lawnicons
+      - fix/dock-auto-capsule-bounds
     paths-ignore:
       - '.github/**'
       - '**.md'
