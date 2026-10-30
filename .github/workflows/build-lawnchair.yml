@@ -7,8 +7,8 @@ on:
       - foundation/lawnchair-16-dev
       - feature/bundled-lawnicons
       - fix/dock-auto-capsule-bounds
+      - fix/dock-ios-reference-proportions
     paths-ignore:
-      - '.github/**'
       - '**.md'
 
 permissions:
