@@ -406,7 +406,6 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
     private void bindCaddyCategoryCard(FolderIcon folderIcon, FolderInfo folderInfo) {
         folderIcon.setIconVisible(false);
         folderIcon.setTextVisible(false);
-        folderIcon.setOrientation(LinearLayout.VERTICAL);
         int horizontal = dp(14);
         int vertical = dp(12);
         folderIcon.setPadding(horizontal, vertical, horizontal, vertical);
@@ -418,6 +417,16 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         folderIcon.setBackground(background);
         folderIcon.setClipToOutline(true);
 
+        // FolderIcon extends FrameLayout, so place the custom vertical card content
+        // inside a dedicated LinearLayout instead of treating FolderIcon as a LinearLayout.
+        LinearLayout content = new LinearLayout(mActivityContext);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER_VERTICAL);
+        folderIcon.addView(content, contentParams);
+
         TextView title = new TextView(mActivityContext);
         title.setText(folderInfo.title);
         title.setTextColor(Color.WHITE);
@@ -425,7 +434,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
         title.setMaxLines(1);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        folderIcon.addView(title, new LinearLayout.LayoutParams(
+        content.addView(title, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout icons = new LinearLayout(mActivityContext);
@@ -434,7 +443,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         LinearLayout.LayoutParams iconsParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         iconsParams.topMargin = dp(10);
-        folderIcon.addView(icons, iconsParams);
+        content.addView(icons, iconsParams);
 
         int shown = Math.min(folderInfo.getContents().size(), 5);
         for (int i = 0; i < shown; i++) {
@@ -464,7 +473,6 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         }
 
         folderIcon.setMinimumHeight(dp(116));
-        folderIcon.setGravity(Gravity.CENTER_VERTICAL);
     }
 
     private int dp(float value) {
