@@ -266,8 +266,8 @@ public class Hotseat extends FrameLayout implements Insettable {
             // Match the iOS reference proportions on the Pixel 8 home screen.
             // The capsule is sized from the available dock width, not from the
             // icon view's measured padding, so the result is deterministic.
-            int capsuleWidth = Math.round(containerWidth * 0.95f);
-            int capsuleHeight = Math.round(containerWidth * 0.254f);
+            int capsuleWidth = containerWidth;
+            int capsuleHeight = Math.round(containerWidth * 0.264f);
             int left = (containerWidth - capsuleWidth) / 2;
             int right = containerWidth - capsuleWidth - left;
             int top = iconBounds.centerY() - capsuleHeight / 2;
