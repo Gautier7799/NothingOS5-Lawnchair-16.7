@@ -212,8 +212,6 @@ public class Hotseat extends FrameLayout implements Insettable {
                 Color.green(baseColor), Color.blue(baseColor));
 
         float density = getResources().getDisplayMetrics().density;
-        final int horizontalPadding = Math.round(24 * density);
-        final int verticalPadding = Math.round(24 * density);
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
         float cornerRadius = TypedValue.applyDimension(
@@ -266,15 +264,18 @@ public class Hotseat extends FrameLayout implements Insettable {
             }
             if (!foundIcon || iconBounds.isEmpty()) return;
 
-            int left = Math.max(0, iconBounds.left - horizontalPadding);
-            int top = Math.max(0, iconBounds.top - verticalPadding);
-            int right = Math.max(0, containerWidth - iconBounds.right - horizontalPadding);
-            int bottom = Math.max(0, containerHeight - iconBounds.bottom - verticalPadding);
+            // Match the iOS reference proportions on the Pixel 8 home screen.
+            // The capsule is sized from the available dock width, not from the
+            // icon view's measured padding, so the result is deterministic.
+            int capsuleWidth = Math.round(containerWidth * 0.95f);
+            int capsuleHeight = Math.round(containerWidth * 0.254f);
+            int left = (containerWidth - capsuleWidth) / 2;
+            int right = containerWidth - capsuleWidth - left;
+            int top = iconBounds.centerY() - capsuleHeight / 2;
+            int bottom = containerHeight - top - capsuleHeight;
 
-            // Ensure a useful capsule shape while preserving clear padding around
-            // all four sides of the actual icon row.
-            int visibleHeight = containerHeight - top - bottom;
-            background.setCornerRadius(Math.max(cornerRadius, visibleHeight / 2f));
+            // Keep the existing rounded appearance while matching the reference height.
+            background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
 
