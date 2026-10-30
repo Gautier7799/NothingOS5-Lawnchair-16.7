@@ -237,12 +237,25 @@ public class Hotseat extends FrameLayout implements Insettable {
                 return;
             }
 
+            // CellLayout's direct child is the full grid container, not the icons.
+            // Measure each visible dock item so the capsule hugs the real icon row.
+            ShortcutAndWidgetContainer shortcuts = cellLayout.getShortcutsAndWidgets();
+            if (shortcuts == null || shortcuts.getChildCount() == 0) return;
+
             Rect iconBounds = new Rect();
             boolean foundIcon = false;
-            for (int i = 0; i < cellLayout.getChildCount(); i++) {
-                View child = cellLayout.getChildAt(i);
+            for (int i = 0; i < shortcuts.getChildCount(); i++) {
+                View child = shortcuts.getChildAt(i);
                 if (child == null || child.getVisibility() != VISIBLE) continue;
-                Rect childBounds = new Rect(0, 0, child.getWidth(), child.getHeight());
+
+                Rect childBounds = new Rect();
+                if (child instanceof BubbleTextView bubbleTextView) {
+                    bubbleTextView.getIconBounds(childBounds);
+                } else {
+                    childBounds.set(0, 0, child.getWidth(), child.getHeight());
+                }
+                if (childBounds.isEmpty()) continue;
+
                 mIconsContainer.offsetDescendantRectToMyCoords(child, childBounds);
                 if (!foundIcon) {
                     iconBounds.set(childBounds);
