@@ -211,7 +211,6 @@ public class Hotseat extends FrameLayout implements Insettable {
         var finalColor = Color.argb(alphaValue, Color.red(baseColor),
                 Color.green(baseColor), Color.blue(baseColor));
 
-        float density = getResources().getDisplayMetrics().density;
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
         float cornerRadius = TypedValue.applyDimension(
