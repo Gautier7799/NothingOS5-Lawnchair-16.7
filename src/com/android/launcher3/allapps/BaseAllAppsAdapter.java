@@ -279,7 +279,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                         !PreferenceManager.getInstance(mActivityContext).getDrawerList().get();
                 // Give Caddy category cards enough vertical space for visibly larger content.
                 if (isCaddyDrawer) {
-                    folderCardHeight = Math.max(folderCardHeight, Math.round(148f *
+                    folderCardHeight = Math.max(folderCardHeight, Math.round(168f *
                             mActivityContext.getResources().getDisplayMetrics().density));
                 }
                 fl.setLayoutParams(new RecyclerView.LayoutParams(
@@ -400,86 +400,128 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
 
 
     /**
-     * Renders a Caddy category as a compact card with real app shortcuts.
-     * The FolderIcon remains the root view so tapping the card opens the category folder.
+     * Renders a Caddy category card while keeping FolderIcon as the native
+     * interaction host. App shortcuts retain their own click targets.
      */
     private void bindCaddyCategoryCard(FolderIcon folderIcon, FolderInfo folderInfo) {
         folderIcon.setIconVisible(false);
         folderIcon.setTextVisible(false);
-        int horizontal = dp(14);
-        int vertical = dp(12);
-        folderIcon.setPadding(horizontal, vertical, horizontal, vertical);
+        folderIcon.setPadding(dp(14), dp(12), dp(14), dp(12));
 
         GradientDrawable background = new GradientDrawable();
-        background.setColor(0xFF252525);
-        background.setCornerRadius(dp(20));
+        background.setColor(0xFF1E1F24);
+        background.setCornerRadius(dp(24));
         background.setStroke(dp(1), 0x24FFFFFF);
         folderIcon.setBackground(background);
         folderIcon.setClipToOutline(true);
+        folderIcon.setMinimumHeight(dp(168));
 
-        // FolderIcon extends FrameLayout, so place the custom vertical card content
-        // inside a dedicated LinearLayout instead of treating FolderIcon as a LinearLayout.
         LinearLayout content = new LinearLayout(mActivityContext);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setGravity(Gravity.CENTER_VERTICAL);
-        // The custom content sits above FolderIcon and must forward card taps to the
-        // native folder-opening handler. App shortcut children keep their own click actions.
-        content.setTag(folderInfo);
         content.setClickable(true);
         content.setFocusable(true);
-        content.setOnClickListener(mOnIconClickListener);
-        content.setOnLongClickListener(mOnIconLongClickListener);
+        // Delegate to the real FolderIcon; the standard click handler expects
+        // a FolderIcon, not a LinearLayout tagged with FolderInfo.
+        content.setOnClickListener(v -> folderIcon.performClick());
+        content.setOnLongClickListener(v -> folderIcon.performLongClick());
+
         FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER_VERTICAL);
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT);
         folderIcon.addView(content, contentParams);
 
         TextView title = new TextView(mActivityContext);
         title.setText(folderInfo.title);
         title.setTextColor(Color.WHITE);
-        title.setTextSize(14);
+        title.setTextSize(13.5f);
         title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
         title.setMaxLines(1);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
         content.addView(title, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        LinearLayout icons = new LinearLayout(mActivityContext);
-        icons.setOrientation(LinearLayout.HORIZONTAL);
-        icons.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams iconsParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
-        iconsParams.topMargin = dp(10);
-        content.addView(icons, iconsParams);
-
-        int shown = Math.min(folderInfo.getContents().size(), 5);
-        for (int i = 0; i < shown; i++) {
-            ItemInfo item = folderInfo.getContents().get(i);
-            if (!(item instanceof ItemInfoWithIcon)) continue;
-            ItemInfoWithIcon app = (ItemInfoWithIcon) item;
-            ImageView icon = new ImageView(mActivityContext);
-            icon.setImageDrawable(app.newIcon(mActivityContext));
-            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            icon.setTag(item);
-            icon.setContentDescription(item.title);
-            icon.setFocusable(true);
-            icon.setOnClickListener(mOnIconClickListener);
-            icon.setOnLongClickListener(mOnIconLongClickListener);
-            LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(38), dp(44));
-            iconParams.setMarginEnd(dp(7));
-            icons.addView(icon, iconParams);
+        java.util.ArrayList<ItemInfoWithIcon> apps = new java.util.ArrayList<>();
+        for (ItemInfo item : folderInfo.getContents()) {
+            if (item instanceof ItemInfoWithIcon) {
+                apps.add((ItemInfoWithIcon) item);
+            }
         }
 
-        if (folderInfo.getContents().size() > shown) {
-            TextView more = new TextView(mActivityContext);
-            more.setText("+" + (folderInfo.getContents().size() - shown));
-            more.setTextColor(0xFFD8D8D8);
-            more.setTextSize(12);
-            more.setGravity(Gravity.CENTER);
-            icons.addView(more, new LinearLayout.LayoutParams(dp(38), dp(44)));
-        }
+        LinearLayout topRow = new LinearLayout(mActivityContext);
+        topRow.setOrientation(LinearLayout.HORIZONTAL);
+        topRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        rowParams.topMargin = dp(8);
+        content.addView(topRow, rowParams);
+        addCaddyBigSlot(topRow, apps, 0);
+        addCaddyBigSlot(topRow, apps, 1);
 
-        folderIcon.setMinimumHeight(dp(148));
+        LinearLayout bottomRow = new LinearLayout(mActivityContext);
+        bottomRow.setOrientation(LinearLayout.HORIZONTAL);
+        bottomRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams bottomParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        bottomParams.topMargin = dp(5);
+        content.addView(bottomRow, bottomParams);
+        addCaddyBigSlot(bottomRow, apps, 2);
+        addCaddyMiniCluster(bottomRow, apps, folderIcon);
+    }
+
+    private void addCaddyBigSlot(LinearLayout row,
+            java.util.ArrayList<ItemInfoWithIcon> apps, int index) {
+        FrameLayout slot = new FrameLayout(mActivityContext);
+        LinearLayout.LayoutParams slotParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        row.addView(slot, slotParams);
+        if (index >= apps.size()) return;
+
+        ItemInfoWithIcon app = apps.get(index);
+        ImageView icon = new ImageView(mActivityContext);
+        icon.setImageDrawable(app.newIcon(mActivityContext));
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        icon.setTag(app);
+        icon.setContentDescription(app.title);
+        icon.setFocusable(true);
+        FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(
+                dp(44), dp(44), Gravity.CENTER);
+        slot.addView(icon, iconParams);
+        icon.setOnClickListener(mOnIconClickListener);
+        icon.setOnLongClickListener(mOnIconLongClickListener);
+    }
+
+    private void addCaddyMiniCluster(LinearLayout row,
+            java.util.ArrayList<ItemInfoWithIcon> apps, FolderIcon folderIcon) {
+        FrameLayout cluster = new FrameLayout(mActivityContext);
+        LinearLayout.LayoutParams clusterParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        row.addView(cluster, clusterParams);
+
+        android.widget.GridLayout miniGrid = new android.widget.GridLayout(mActivityContext);
+        miniGrid.setColumnCount(2);
+        miniGrid.setRowCount(2);
+        miniGrid.setUseDefaultMargins(false);
+        FrameLayout.LayoutParams gridParams = new FrameLayout.LayoutParams(
+                dp(44), dp(44), Gravity.CENTER);
+        cluster.addView(miniGrid, gridParams);
+        for (int i = 3; i < Math.min(apps.size(), 7); i++) {
+            ImageView miniIcon = new ImageView(mActivityContext);
+            miniIcon.setImageDrawable(apps.get(i).newIcon(mActivityContext));
+            miniIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            android.widget.GridLayout.LayoutParams miniParams =
+                    new android.widget.GridLayout.LayoutParams();
+            miniParams.width = dp(18);
+            miniParams.height = dp(18);
+            miniParams.setMargins(dp(1), dp(1), dp(1), dp(1));
+            miniGrid.addView(miniIcon, miniParams);
+        }
+        // The preview cluster represents the remaining category apps.
+        cluster.setClickable(true);
+        cluster.setFocusable(true);
+        cluster.setContentDescription(folderIcon.getContentDescription());
+        cluster.setOnClickListener(v -> folderIcon.performClick());
+        cluster.setOnLongClickListener(v -> folderIcon.performLongClick());
     }
 
     private int dp(float value) {
