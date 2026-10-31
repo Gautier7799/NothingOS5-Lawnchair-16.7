@@ -75,12 +75,21 @@ data class IconAnimationData(
 
                 // Match scale of icons in the preview of the items on the first page.
                 val previewIconScale = layoutRule.scaleForItem(numItemsOnPage, page)
-                val previewIconSize = layoutRule.iconSize * previewIconScale
+                val rawPreviewIconSize = layoutRule.iconSize * previewIconScale
+                val previewIconSize = rawPreviewIconSize
+                    .takeIf { it.isFinite() && it > 0f } ?: layoutRule.iconSize.toFloat().coerceAtLeast(1f)
                 val baseIconSize = getBubbleTextView(currentIcon).iconSize.toFloat()
-                val iconScale = previewIconSize / baseIconSize
+                    .takeIf { it.isFinite() && it > 0f } ?: previewIconSize
+                val iconScale = (previewIconSize / baseIconSize)
+                    .takeIf { it.isFinite() && it > 0f } ?: 1f
+                val folderScale = folderAnimationData.folderScale
+                    .takeIf { it.isFinite() && it > 0f } ?: 1f
 
-                // Scale when folder closed
-                val initialIconScale = iconScale / folderAnimationData.folderScale
+                // Scale when folder closed. Guard the denominator because Caddy cards can be
+                // rebound while RecyclerView is moving their FolderIcon between layout passes.
+                val rawInitialIconScale = iconScale / folderScale
+                val initialIconScale = rawInitialIconScale
+                    .takeIf { it.isFinite() && it > 0f } ?: 1f
                 // Scale when folder open
                 val finalIconScale = 1f
                 // Scale to start with in Animation
@@ -106,12 +115,12 @@ data class IconAnimationData(
                 // Calculate positions for each icon
                 val iconPositionX =
                     ((mTmpParams.transX - iconOffsetX + folderAnimationData.scaledPreviewOffsetX) /
-                            folderAnimationData.folderScale)
+                            folderScale)
                         .toInt()
                 val paddingTop = currentIcon.paddingTop * iconScale
                 val iconPositionY =
                     ((mTmpParams.transY + folderAnimationData.folderRadiusDifference - paddingTop) /
-                            folderAnimationData.folderScale)
+                            folderScale)
                         .toInt()
                 val xDistance = (iconPositionX - iconLayoutParams.x).toFloat()
                 val yDistance = (iconPositionY - iconLayoutParams.y).toFloat()
