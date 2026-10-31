@@ -425,6 +425,8 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         background.setStroke(dp(1), 0x24FFFFFF);
         folderIcon.setBackground(background);
         folderIcon.setClipToOutline(true);
+        // Use native View elevation for a subtle card shadow without adding a new UI dependency.
+        folderIcon.setElevation(dp(2));
         folderIcon.setMinimumHeight(dp(168));
 
         LinearLayout content = new LinearLayout(mActivityContext);
