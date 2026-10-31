@@ -378,6 +378,17 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 ((WorkEduCard) holder.itemView).setPosition(position);
                 break;
             case VIEW_TYPE_FOLDER:
+                // Recalculate height on every bind so recycled holders follow the active drawer mode.
+                boolean isCaddyDrawer =
+                        !PreferenceManager.getInstance(mActivityContext).getDrawerList().get();
+                ViewGroup.LayoutParams folderItemParams = holder.itemView.getLayoutParams();
+                if (folderItemParams != null) {
+                    int normalHeight = mActivityContext.getDeviceProfile()
+                            .getAllAppsProfile().getCellHeightPx();
+                    folderItemParams.height = isCaddyDrawer
+                            ? Math.max(normalHeight, dp(168)) : normalHeight;
+                    holder.itemView.setLayoutParams(folderItemParams);
+                }
                 // Caddy uses a dedicated category-card presentation while retaining FolderIcon
                 // as the interaction host, so folder opening and accessibility stay native.
                 FolderInfo folderInfo = mApps.getAdapterItems().get(position).folderInfo;
