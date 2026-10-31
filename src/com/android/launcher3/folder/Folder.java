@@ -1927,6 +1927,10 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
     public void onBackInvoked() {
         if (mIsEditingName) {
             mFolderName.dispatchBackKey();
+        } else if (mIsOpen && !mIsAnimatingClosed) {
+            // Caddy hosts drawer folders in the DragLayer; close the active folder
+            // directly instead of relying on the floating-view back delegation.
+            close(true);
         } else {
             super.onBackInvoked();
         }
@@ -1990,7 +1994,11 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
                         mFolderName.dispatchBackKey();
                     } else if (mPendingOutsideClose
                             && !dl.isEventOverView(this, ev)) {
-                        mLauncherDelegate.interceptOutsideTouch(ev, dl, this);
+                        // Close the Caddy folder directly. The launcher delegate's
+                        // outside-touch path may not own drawer-hosted folder views.
+                        if (mIsOpen && !mIsAnimatingClosed) {
+                            close(true);
+                        }
                     }
                 }
                 mPendingOutsideClose = false;
