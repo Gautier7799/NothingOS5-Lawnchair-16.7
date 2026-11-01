@@ -166,7 +166,8 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         }
 
         protected boolean isCountedForAccessibility() {
-            return viewType == VIEW_TYPE_ICON || viewType == VIEW_TYPE_FOLDER;
+            return viewType == VIEW_TYPE_ICON || viewType == VIEW_TYPE_FOLDER
+                    || viewType == VIEW_TYPE_CADDY_CATEGORY;
         }
 
         /**
@@ -619,32 +620,64 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         gridLp.topMargin = dp(8);
         card.addView(grid, gridLp);
 
-        int shown = Math.min(apps.size(), 7);
-        for (int i = 0; i < shown; i++) {
+        // The Nothing-style card uses two prominent icons on the first row,
+        // one prominent icon plus a compact 2x2 cluster on the second row.
+        for (int i = 0; i < Math.min(apps.size(), 3); i++) {
             AppInfo app = apps.get(i);
+            int column = i == 1 ? 1 : 0;
+            int row = i == 2 ? 1 : 0;
             FrameLayout cell = new FrameLayout(mActivityContext);
             android.widget.GridLayout.LayoutParams cellLp =
                     new android.widget.GridLayout.LayoutParams();
             cellLp.width = 0;
             cellLp.height = dp(52);
-            cellLp.columnSpec = android.widget.GridLayout.spec(i % 2, 1f);
-            cellLp.rowSpec = android.widget.GridLayout.spec(i / 2);
+            cellLp.columnSpec = android.widget.GridLayout.spec(column, 1f);
+            cellLp.rowSpec = android.widget.GridLayout.spec(row);
             grid.addView(cell, cellLp);
+            addCaddyAppIcon(cell, app, dp(48));
+        }
 
-            ImageView icon = new ImageView(mActivityContext);
-            icon.setImageDrawable(app.newIcon(mActivityContext));
-            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            int iconSize = i < 3 ? dp(48) : dp(25);
-            FrameLayout.LayoutParams iconLp = new FrameLayout.LayoutParams(
-                    iconSize, iconSize, Gravity.CENTER);
-            cell.addView(icon, iconLp);
-            icon.setTag(app);
-            icon.setContentDescription(app.title);
-            icon.setFocusable(true);
-            icon.setOnClickListener(mOnIconClickListener);
-            icon.setOnLongClickListener(mOnIconLongClickListener);
+        if (apps.size() > 3) {
+            FrameLayout clusterCell = new FrameLayout(mActivityContext);
+            android.widget.GridLayout.LayoutParams clusterLp =
+                    new android.widget.GridLayout.LayoutParams();
+            clusterLp.width = 0;
+            clusterLp.height = dp(52);
+            clusterLp.columnSpec = android.widget.GridLayout.spec(1, 1f);
+            clusterLp.rowSpec = android.widget.GridLayout.spec(1);
+            grid.addView(clusterCell, clusterLp);
+
+            android.widget.GridLayout miniGrid = new android.widget.GridLayout(mActivityContext);
+            miniGrid.setColumnCount(2);
+            miniGrid.setRowCount(2);
+            FrameLayout.LayoutParams miniGridLp = new FrameLayout.LayoutParams(
+                    dp(54), dp(48), Gravity.CENTER);
+            clusterCell.addView(miniGrid, miniGridLp);
+            for (int i = 3; i < Math.min(apps.size(), 7); i++) {
+                AppInfo app = apps.get(i);
+                FrameLayout miniCell = new FrameLayout(mActivityContext);
+                android.widget.GridLayout.LayoutParams miniCellLp =
+                        new android.widget.GridLayout.LayoutParams();
+                miniCellLp.width = dp(27);
+                miniCellLp.height = dp(24);
+                miniGrid.addView(miniCell, miniCellLp);
+                addCaddyAppIcon(miniCell, app, dp(21));
+            }
         }
         host.setContentDescription(item.caddyTitle);
+    }
+
+    private void addCaddyAppIcon(FrameLayout cell, AppInfo app, int iconSize) {
+        ImageView icon = new ImageView(mActivityContext);
+        icon.setImageDrawable(app.newIcon(mActivityContext));
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        cell.addView(icon, new FrameLayout.LayoutParams(
+                iconSize, iconSize, Gravity.CENTER));
+        icon.setTag(app);
+        icon.setContentDescription(app.title);
+        icon.setFocusable(true);
+        icon.setOnClickListener(mOnIconClickListener);
+        icon.setOnLongClickListener(mOnIconLongClickListener);
     }
 
     private int dp(float value) {
