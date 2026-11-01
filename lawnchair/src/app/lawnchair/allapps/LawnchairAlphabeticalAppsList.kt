@@ -115,11 +115,9 @@ class LawnchairAlphabeticalAppsList<T>(
             }
 
             caddyCategories.forEach { (category, apps) ->
-                val folderInfo = FolderInfo().apply {
-                    title = category
-                    apps.forEach { add(it) }
-                }
-                mAdapterItems.add(AdapterItem.asFolder(folderInfo))
+                // Caddy categories use their own adapter item and renderer; they are
+                // intentionally not wrapped in FolderInfo or FolderIcon.
+                mAdapterItems.add(AdapterItem.asCaddyCategory(category, apps))
                 position++
             }
         } else {
