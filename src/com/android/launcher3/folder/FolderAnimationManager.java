@@ -312,12 +312,10 @@ public class FolderAnimationManager implements FolderAnimationCreator {
 
                 mFolder.setClipChildren(false);
                 mFolder.setClipToPadding(false);
-                // Caddy draws its category card as custom children inside FolderIcon.
-                // Hide the card while expanded so its preview icons do not remain
-                // visible as a ghost layer behind the native folder.
-                if (mFolderIcon.getBackground() instanceof GradientDrawable) {
-                    mFolderIcon.setAlpha(0f);
-                }
+                // Hide the complete FolderIcon while the native Folder is expanded.
+                // Do not gate this on the background drawable: Caddy cards and preview
+                // content are drawn by FolderIcon itself and may have no GradientDrawable.
+                mFolderIcon.setAlpha(0f);
                 mContent.setClipChildren(false);
                 mContent.setClipToPadding(false);
                 mCellLayout.setClipChildren(false);
@@ -336,10 +334,9 @@ public class FolderAnimationManager implements FolderAnimationCreator {
                 mFolder.mFooter.setScaleY(1f);
                 mFolder.mFooter.setTranslationX(0f);
                 mFolder.getFolderName().setAlpha(1f);
-                // Restore the Caddy card only after the close animation reaches
-                // its FolderIcon anchor.
-                if (!mIsOpening
-                        && mFolderIcon.getBackground() instanceof GradientDrawable) {
+                // Restore the FolderIcon after the closing animation reaches its anchor.
+                // This must run for both regular folders and Caddy category cards.
+                if (!mIsOpening) {
                     mFolderIcon.setAlpha(1f);
                 }
 
