@@ -1038,6 +1038,10 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
     }
 
     private void animateClosed() {
+        final boolean traceCaddyClose = mFolderIcon != null && mFolderIcon.isCaddyCard();
+        final long caddyCloseStartMs = android.os.SystemClock.uptimeMillis();
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "close requested");
+
         if (mIsAnimatingClosed) {
             cancelRunningAnimations();
             return;
@@ -1052,11 +1056,19 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         }
 
         mContent.completePendingPageChanges();
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "pending pages completed +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
         mContent.snapToPageImmediately(mContent.getDestinationPage());
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "page snapped +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
 
         cancelRunningAnimations();
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "old animations cancelled +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
         AnimatorSet animatorSet = getFolderAnimationManager()
                 .createAnimatorSet(/* isOpening */ false);
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "animator set created +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
 
         animatorSet.addListener(new AnimatorListenerAdapter() {
             @Override
@@ -1065,6 +1077,8 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
                     setWindowInsetsAnimationCallback(null);
                 }
                 mIsAnimatingClosed = true;
+                if (traceCaddyClose) Log.d("CaddyCloseTrace", "animation start callback +" 
+                        + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
             }
 
             @Override
@@ -1080,13 +1094,22 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
             }
         });
         addAnimationStartListeners(animatorSet);
-        // Match the first-frame skip used by folder opening, but only for Caddy cards.
-        // This avoids a visually idle first frame without changing standard folders.
-        if (mFolderIcon != null && mFolderIcon.isCaddyCard()) {
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "listeners added +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
+        // Keep the one-frame alignment test isolated to Caddy cards.
+        if (traceCaddyClose) {
             animatorSet.setCurrentPlayTime(Math.min(
                     getSingleFrameMs(getContext()), animatorSet.getTotalDuration()));
+            Log.d("CaddyCloseTrace", "initial play time applied +" 
+                    + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
         }
         animatorSet.start();
+        if (traceCaddyClose) {
+            Log.d("CaddyCloseTrace", "start() returned +" 
+                    + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
+            postOnAnimation(() -> Log.d("CaddyCloseTrace", "first view frame after request +" 
+                    + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms"));
+        }
     }
 
     @Override
