@@ -1080,6 +1080,12 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
             }
         });
         addAnimationStartListeners(animatorSet);
+        if (mFolderIcon != null && mFolderIcon.isCaddyCard()) {
+            // Match the folder-open path: advance one frame before start so Caddy
+            // dismissal begins immediately instead of showing a one-frame pause.
+            animatorSet.setCurrentPlayTime(Math.min(
+                    getSingleFrameMs(getContext()), animatorSet.getTotalDuration()));
+        }
         animatorSet.start();
     }
 
