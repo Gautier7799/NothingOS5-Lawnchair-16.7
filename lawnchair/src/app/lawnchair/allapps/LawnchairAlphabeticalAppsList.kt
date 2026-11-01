@@ -102,17 +102,25 @@ class LawnchairAlphabeticalAppsList<T>(
             val validApps = appList.mapNotNull { it }
             val finalCategorizedApps = categorizeAppsWithSystemAndGoogle(validApps, context)
 
+            // Native Launcher folders automatically collapse when they contain one item.
+            // Keep Caddy cards compatible with that behavior by collecting singleton categories
+            // into Other, so every rendered category card contains at least two apps.
+            val caddyCategories = linkedMapOf<String, MutableList<AppInfo>>()
             finalCategorizedApps.forEach { (category, apps) ->
-                // Keep every app inside a category card, including singleton categories.
-                // This prevents loose app icons from appearing between Caddy cards.
-                if (apps.isNotEmpty()) {
-                    val folderInfo = FolderInfo().apply {
-                        title = category
-                        apps.forEach { add(it) }
-                    }
-                    mAdapterItems.add(AdapterItem.asFolder(folderInfo))
-                    position++
+                if (apps.size > 1) {
+                    caddyCategories.getOrPut(category) { mutableListOf() }.addAll(apps)
+                } else if (apps.size == 1) {
+                    caddyCategories.getOrPut("Other") { mutableListOf() }.addAll(apps)
                 }
+            }
+
+            caddyCategories.forEach { (category, apps) ->
+                val folderInfo = FolderInfo().apply {
+                    title = category
+                    apps.forEach { add(it) }
+                }
+                mAdapterItems.add(AdapterItem.asFolder(folderInfo))
+                position++
             }
         } else {
             folderList.forEach { folderEntry ->
