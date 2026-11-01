@@ -58,6 +58,9 @@ import com.android.launcher3.views.ActivityContext;
 import app.lawnchair.preferences.PreferenceManager;
 import app.lawnchair.util.LawnchairUtilsKt;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Adapter for all the apps.
  *
