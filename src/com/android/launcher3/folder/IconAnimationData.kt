@@ -62,8 +62,11 @@ data class IconAnimationData(
             val mTmpParams = PreviewItemDrawingParams(0f, 0f, 0f)
             val layoutRule = folderIcon.layoutRule
 
-            // We delay the animation of each icon from top left to bottom right
-            var iconDelay = if (isOpening) 0 else (numItemsOnPage * ICON_DELAY_INCREMENT)
+            // Keep the native stagger for standard folders, but start Caddy close
+            // icon animations immediately to avoid the initial visual pause.
+            val isCaddyCard = folderIcon.isCaddyCard()
+            var iconDelay =
+                if (isOpening || isCaddyCard) 0 else (numItemsOnPage * ICON_DELAY_INCREMENT)
             val iconDataList = mutableListOf<IconAnimationData>()
 
             for (i in 0..<numItemsOnPage) {
@@ -138,7 +141,7 @@ data class IconAnimationData(
                 )
                 if (isOpening) {
                     iconDelay += ICON_DELAY_INCREMENT
-                } else {
+                } else if (!isCaddyCard) {
                     iconDelay -= ICON_DELAY_INCREMENT
                 }
             }
