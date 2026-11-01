@@ -1080,6 +1080,12 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
             }
         });
         addAnimationStartListeners(animatorSet);
+        // Match the first-frame skip used by folder opening, but only for Caddy cards.
+        // This avoids a visually idle first frame without changing standard folders.
+        if (mFolderIcon != null && mFolderIcon.isCaddyCard()) {
+            animatorSet.setCurrentPlayTime(Math.min(
+                    getSingleFrameMs(getContext()), animatorSet.getTotalDuration()));
+        }
         animatorSet.start();
     }
 
