@@ -1113,8 +1113,17 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
             // Restore the Caddy folder card/icon after the expanded Folder is removed.
             mFolderIcon.setVisibility(View.VISIBLE);
             mFolderIcon.setAlpha(1f);
-            mFolderIcon.setIconVisible(true);
-            mFolderIcon.mFolderName.setTextVisibility(true);
+            if (mFolderIcon.isCaddyCard()) {
+                // Caddy draws its own card content inside FolderIcon. Keep the
+                // native folder preview and label hidden after the native Folder
+                // close animation; otherwise they appear on top of the card.
+                mFolderIcon.setIconVisible(false);
+                mFolderIcon.setTextVisible(false);
+            } else {
+                // Preserve the standard closed-folder appearance everywhere else.
+                mFolderIcon.setIconVisible(true);
+                mFolderIcon.setTextVisible(true);
+            }
             mFolderIcon.requestLayout();
             mFolderIcon.invalidate();
 
