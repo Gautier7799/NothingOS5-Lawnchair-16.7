@@ -84,10 +84,12 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
 
     // LC-Feature: Folder support in All Apps, can be any ID
     public static final int VIEW_TYPE_FOLDER = 1 << 10;
+    // Caddy owns a separate card type; it is not a native FolderIcon/FolderInfo.
+    public static final int VIEW_TYPE_CADDY_CATEGORY = 1 << 11;
 
     // Common view type masks
     public static final int VIEW_TYPE_MASK_DIVIDER = VIEW_TYPE_ALL_APPS_DIVIDER;
-    public static final int VIEW_TYPE_MASK_ICON = VIEW_TYPE_FOLDER | VIEW_TYPE_ICON;
+    public static final int VIEW_TYPE_MASK_ICON = VIEW_TYPE_CADDY_CATEGORY | VIEW_TYPE_FOLDER | VIEW_TYPE_ICON;
 
     public static final int VIEW_TYPE_MASK_PRIVATE_SPACE_HEADER =
             VIEW_TYPE_PRIVATE_SPACE_HEADER;
@@ -131,6 +133,8 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
 
         // LC-Feature: Folder support in All Apps
         public FolderInfo folderInfo = new FolderInfo();
+        public String caddyTitle;
+        public List<AppInfo> caddyApps;
 
         /**
          * Factory method for AppIcon AdapterItem
@@ -151,6 +155,13 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         public static AdapterItem asFolder(FolderInfo folderInfo) {
             AdapterItem item = new AdapterItem(VIEW_TYPE_FOLDER);
             item.folderInfo = folderInfo;
+            return item;
+        }
+
+        public static AdapterItem asCaddyCategory(String title, List<AppInfo> apps) {
+            AdapterItem item = new AdapterItem(VIEW_TYPE_CADDY_CATEGORY);
+            item.caddyTitle = title;
+            item.caddyApps = new ArrayList<>(apps);
             return item;
         }
 
@@ -271,6 +282,13 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                         R.layout.private_space_header, parent, false));
             case VIEW_TYPE_BOTTOM_VIEW_TO_SCROLL_TO:
                 return new ViewHolder(new View(mActivityContext));
+            case VIEW_TYPE_CADDY_CATEGORY:
+                FrameLayout caddyCard = new FrameLayout(mActivityContext);
+                int caddyHeight = Math.round(184f * mActivityContext.getResources()
+                        .getDisplayMetrics().density);
+                caddyCard.setLayoutParams(new RecyclerView.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, caddyHeight));
+                return new ViewHolder(caddyCard);
             case VIEW_TYPE_FOLDER:
                 // LC-Feature: Folder support in All Apps
                 FrameLayout fl = new FrameLayout(mActivityContext);
@@ -378,6 +396,11 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             case VIEW_TYPE_WORK_EDU_CARD:
                 ((WorkEduCard) holder.itemView).setPosition(position);
                 break;
+            case VIEW_TYPE_CADDY_CATEGORY: {
+                AdapterItem caddyItem = mApps.getAdapterItems().get(position);
+                bindIndependentCaddyCard((FrameLayout) holder.itemView, caddyItem);
+                break;
+            }
             case VIEW_TYPE_FOLDER:
                 // Recalculate height on every bind so recycled holders follow the active drawer mode.
                 boolean isCaddyDrawer =
@@ -544,6 +567,84 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         cluster.setContentDescription(folderIcon.getContentDescription());
         cluster.setOnClickListener(v -> folderIcon.performClick());
         cluster.setOnLongClickListener(v -> folderIcon.performLongClick());
+    }
+
+    /**
+     * Caddy card renderer. This view is deliberately independent from FolderIcon,
+     * FolderInfo and Folder's open/close lifecycle. Each app remains a real launcher
+     * AppInfo shortcut and keeps the normal click/long-click handlers.
+     */
+    private void bindIndependentCaddyCard(FrameLayout host, AdapterItem item) {
+        host.removeAllViews();
+        host.setClipToPadding(false);
+        host.setClipChildren(false);
+
+        int densityPadding = dp(14);
+        int cardColor = LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
+        int foreground = Color.luminance(cardColor) > 0.48f ? Color.BLACK : Color.WHITE;
+
+        LinearLayout card = new LinearLayout(mActivityContext);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(densityPadding, dp(12), densityPadding, dp(12));
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(cardColor);
+        background.setCornerRadius(dp(26));
+        background.setStroke(dp(1), Color.argb(34,
+                Color.red(foreground), Color.green(foreground), Color.blue(foreground)));
+        card.setBackground(background);
+        card.setClipToOutline(true);
+        card.setElevation(dp(1));
+        host.addView(card, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        TextView title = new TextView(mActivityContext);
+        title.setText(item.caddyTitle);
+        title.setTextColor(foreground);
+        title.setTextSize(14);
+        title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+        title.setMaxLines(1);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        card.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        List<AppInfo> apps = item.caddyApps == null ? java.util.Collections.emptyList()
+                : item.caddyApps;
+        android.widget.GridLayout grid = new android.widget.GridLayout(mActivityContext);
+        grid.setColumnCount(2);
+        grid.setRowCount(2);
+        grid.setUseDefaultMargins(false);
+        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(112));
+        gridLp.topMargin = dp(8);
+        card.addView(grid, gridLp);
+
+        int shown = Math.min(apps.size(), 7);
+        for (int i = 0; i < shown; i++) {
+            AppInfo app = apps.get(i);
+            FrameLayout cell = new FrameLayout(mActivityContext);
+            android.widget.GridLayout.LayoutParams cellLp =
+                    new android.widget.GridLayout.LayoutParams();
+            cellLp.width = 0;
+            cellLp.height = dp(52);
+            cellLp.columnSpec = android.widget.GridLayout.spec(i % 2, 1f);
+            cellLp.rowSpec = android.widget.GridLayout.spec(i / 2);
+            grid.addView(cell, cellLp);
+
+            ImageView icon = new ImageView(mActivityContext);
+            icon.setImageDrawable(app.newIcon(mActivityContext));
+            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            int iconSize = i < 3 ? dp(48) : dp(25);
+            FrameLayout.LayoutParams iconLp = new FrameLayout.LayoutParams(
+                    iconSize, iconSize, Gravity.CENTER);
+            cell.addView(icon, iconLp);
+            icon.setTag(app);
+            icon.setContentDescription(app.title);
+            icon.setFocusable(true);
+            icon.setOnClickListener(mOnIconClickListener);
+            icon.setOnLongClickListener(mOnIconLongClickListener);
+        }
+        host.setContentDescription(item.caddyTitle);
     }
 
     private int dp(float value) {
