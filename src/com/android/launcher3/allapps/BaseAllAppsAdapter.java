@@ -422,9 +422,16 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         folderIcon.setPadding(dp(14), dp(12), dp(14), dp(12));
 
         GradientDrawable background = new GradientDrawable();
-        background.setColor(LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext));
+        int cardColor = LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
+        // Reuse Lawnchair's folder color and preview-opacity preferences. The card
+        // foreground follows that color so custom/dynamic colors remain legible.
+        int cardForeground = Color.luminance(cardColor) > 0.48f
+                ? Color.BLACK : Color.WHITE;
+        background.setColor(cardColor);
         background.setCornerRadius(dp(24));
-        background.setStroke(dp(1), 0x24FFFFFF);
+        background.setStroke(dp(1), Color.argb(0x38,
+                Color.red(cardForeground), Color.green(cardForeground),
+                Color.blue(cardForeground)));
         folderIcon.setBackground(background);
         folderIcon.setClipToOutline(true);
         // Use native View elevation for a subtle card shadow without adding a new UI dependency.
@@ -448,7 +455,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
 
         TextView title = new TextView(mActivityContext);
         title.setText(folderInfo.title);
-        title.setTextColor(Color.WHITE);
+        title.setTextColor(cardForeground);
         title.setTextSize(13.5f);
         title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
         title.setMaxLines(1);
