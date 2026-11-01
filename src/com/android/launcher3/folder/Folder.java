@@ -1106,13 +1106,18 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         mActivityContext.getDragController().removeDropTarget(this);
         clearFocus();
         if (mFolderIcon != null) {
-            // Settle first-page preview before revealing the icon to avoid a rearrange flash.
-            if (wasAnimated) {
-                mFolderIcon.onFolderClose(mContent.getCurrentPage());
-            }
+            // Rebuild the first-page preview on every close, including non-animated
+            // closes, so stale preview animations cannot leave ghost icons behind.
+            mFolderIcon.onFolderClose(mContent.getCurrentPage());
+
+            // Restore the Caddy folder card/icon after the expanded Folder is removed.
             mFolderIcon.setVisibility(View.VISIBLE);
+            mFolderIcon.setAlpha(1f);
             mFolderIcon.setIconVisible(true);
             mFolderIcon.mFolderName.setTextVisibility(true);
+            mFolderIcon.requestLayout();
+            mFolderIcon.invalidate();
+
             if (wasAnimated) {
                 mFolderIcon.animateBgShadowAndStroke();
                 if (mFolderIcon.hasDot()) {
