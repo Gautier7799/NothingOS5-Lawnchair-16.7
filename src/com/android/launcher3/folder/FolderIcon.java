@@ -578,7 +578,6 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         mBackground.setInvalidateDelegate(this);
     }
 
-    @Override
     public void setCaddyCard(boolean isCaddyCard) {
         mIsCaddyCard = isCaddyCard;
     }
