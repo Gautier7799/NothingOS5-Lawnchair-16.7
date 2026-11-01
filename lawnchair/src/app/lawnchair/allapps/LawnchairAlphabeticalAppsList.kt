@@ -103,16 +103,16 @@ class LawnchairAlphabeticalAppsList<T>(
             val finalCategorizedApps = categorizeAppsWithSystemAndGoogle(validApps, context)
 
             finalCategorizedApps.forEach { (category, apps) ->
-                if (apps.size == 1) {
-                    mAdapterItems.add(AdapterItem.asApp(apps.first()))
-                } else {
+                // Keep every app inside a category card, including singleton categories.
+                // This prevents loose app icons from appearing between Caddy cards.
+                if (apps.isNotEmpty()) {
                     val folderInfo = FolderInfo().apply {
                         title = category
                         apps.forEach { add(it) }
                     }
                     mAdapterItems.add(AdapterItem.asFolder(folderInfo))
+                    position++
                 }
-                position++
             }
         } else {
             folderList.forEach { folderEntry ->
