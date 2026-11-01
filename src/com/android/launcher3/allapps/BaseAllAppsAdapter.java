@@ -56,6 +56,7 @@ import com.android.launcher3.model.data.ItemInfoWithIcon;
 import com.android.launcher3.views.ActivityContext;
 
 import app.lawnchair.preferences.PreferenceManager;
+import app.lawnchair.util.LawnchairUtilsKt;
 
 /**
  * Adapter for all the apps.
@@ -421,7 +422,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         folderIcon.setPadding(dp(14), dp(12), dp(14), dp(12));
 
         GradientDrawable background = new GradientDrawable();
-        background.setColor(0xFF1E1F24);
+        background.setColor(LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext));
         background.setCornerRadius(dp(24));
         background.setStroke(dp(1), 0x24FFFFFF);
         folderIcon.setBackground(background);
