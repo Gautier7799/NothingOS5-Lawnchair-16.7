@@ -582,10 +582,19 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         host.removeAllViews();
         host.setClipToPadding(false);
         host.setClipChildren(false);
+        // Add a small gutter between neighboring Caddy cards without changing
+        // the RecyclerView's grid sizing or the normal app drawer.
+        host.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         int densityPadding = dp(14);
-        int cardColor = LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
-        int foreground = Color.luminance(cardColor) > 0.48f ? Color.BLACK : Color.WHITE;
+        int themeColor = LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
+        // Nothing-inspired dark glass: a charcoal surface with a restrained tint
+        // from the user's existing folder color preference.
+        int glassRed = Math.round(Color.red(themeColor) * 0.16f + 35 * 0.84f);
+        int glassGreen = Math.round(Color.green(themeColor) * 0.16f + 38 * 0.84f);
+        int glassBlue = Math.round(Color.blue(themeColor) * 0.16f + 43 * 0.84f);
+        int cardColor = Color.argb(224, glassRed, glassGreen, glassBlue);
+        int foreground = Color.WHITE;
 
         LinearLayout card = new LinearLayout(mActivityContext);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -594,7 +603,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         GradientDrawable background = new GradientDrawable();
         background.setColor(cardColor);
         background.setCornerRadius(dp(26));
-        background.setStroke(dp(1), Color.argb(34,
+        background.setStroke(dp(1), Color.argb(42,
                 Color.red(foreground), Color.green(foreground), Color.blue(foreground)));
         card.setBackground(background);
         card.setClipToOutline(true);
