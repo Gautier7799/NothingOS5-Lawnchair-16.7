@@ -232,7 +232,7 @@ public class AllAppsGridAdapter<T extends Context & ActivityContext> extends
             if (isIconViewType(viewType)) {
                 // In Caddy mode, let each category card occupy two grid columns.
                 // The default drawer layout keeps its original span behavior.
-                if (viewType == VIEW_TYPE_FOLDER
+                if ((viewType == VIEW_TYPE_FOLDER || viewType == VIEW_TYPE_CADDY_CATEGORY)
                         && !PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
                     return Math.min(totalSpans, (totalSpans / mAppsPerRow) * 2);
                 }
