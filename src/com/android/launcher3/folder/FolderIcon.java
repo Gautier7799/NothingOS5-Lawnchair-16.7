@@ -580,6 +580,12 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
 
     public void setCaddyCard(boolean isCaddyCard) {
         mIsCaddyCard = isCaddyCard;
+        if (isCaddyCard) {
+            // Caddy cards live in the app drawer rather than a CellLayout, so refresh
+            // the folder color/preview opacity explicitly instead of relying on the
+            // normal workspace folder setup path.
+            mBackground.refreshFolderPreviewColor();
+        }
     }
 
     public boolean isCaddyCard() {
