@@ -588,23 +588,29 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
 
         int densityPadding = dp(14);
         int themeColor = LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
-        // Nothing-inspired dark glass: a charcoal surface with a restrained tint
-        // from the user's existing folder color preference.
-        int glassRed = Math.round(Color.red(themeColor) * 0.16f + 35 * 0.84f);
-        int glassGreen = Math.round(Color.green(themeColor) * 0.16f + 38 * 0.84f);
-        int glassBlue = Math.round(Color.blue(themeColor) * 0.16f + 43 * 0.84f);
-        int cardColor = Color.argb(224, glassRed, glassGreen, glassBlue);
+        // Translucent Nothing-style glass, tinted by Lawnchair's existing folder /
+        // preview color so the user's selected and dynamic colors remain visible.
+        int glassRed = Math.round(Color.red(themeColor) * 0.30f + 28 * 0.70f);
+        int glassGreen = Math.round(Color.green(themeColor) * 0.30f + 31 * 0.70f);
+        int glassBlue = Math.round(Color.blue(themeColor) * 0.30f + 38 * 0.70f);
+        int topGlass = Color.argb(184, glassRed, glassGreen, glassBlue);
+        int bottomGlass = Color.argb(148,
+                Math.max(12, glassRed - 10),
+                Math.max(14, glassGreen - 10),
+                Math.max(18, glassBlue - 10));
         int foreground = Color.WHITE;
+        int accentStroke = Color.argb(116, Color.red(themeColor),
+                Color.green(themeColor), Color.blue(themeColor));
 
         LinearLayout card = new LinearLayout(mActivityContext);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_VERTICAL);
         card.setPadding(densityPadding, dp(12), densityPadding, dp(12));
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(cardColor);
-        background.setCornerRadius(dp(26));
-        background.setStroke(dp(1), Color.argb(42,
-                Color.red(foreground), Color.green(foreground), Color.blue(foreground)));
+        GradientDrawable background = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] { topGlass, bottomGlass });
+        background.setCornerRadius(dp(28));
+        background.setStroke(dp(1), accentStroke);
         card.setBackground(background);
         card.setClipToOutline(true);
         card.setElevation(dp(1));
