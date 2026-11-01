@@ -126,6 +126,10 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
 
     boolean mAnimating = false;
 
+    // True only for Caddy category cards hosted by the app drawer.
+    // Their native folder preview and label are intentionally hidden.
+    private boolean mIsCaddyCard;
+
     private Alarm mOpenAlarm = new Alarm(Looper.getMainLooper());
 
     private boolean mForceHideDot;
@@ -575,6 +579,14 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     }
 
     @Override
+    public void setCaddyCard(boolean isCaddyCard) {
+        mIsCaddyCard = isCaddyCard;
+    }
+
+    public boolean isCaddyCard() {
+        return mIsCaddyCard;
+    }
+
     public void setIconVisible(boolean visible) {
         mBackgroundIsVisible = visible;
         invalidate();
