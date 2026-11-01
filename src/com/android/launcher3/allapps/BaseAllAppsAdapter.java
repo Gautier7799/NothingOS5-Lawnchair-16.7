@@ -398,6 +398,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                         R.layout.all_apps_folder_icon, mActivityContext, container, folderInfo);
                 folderIcon.setOnLongClickListener(mOnIconLongClickListener);
                 if (!PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
+                    folderIcon.setCaddyCard(true);
                     bindCaddyCategoryCard(folderIcon, folderInfo);
                 }
                 container.addView(folderIcon);
