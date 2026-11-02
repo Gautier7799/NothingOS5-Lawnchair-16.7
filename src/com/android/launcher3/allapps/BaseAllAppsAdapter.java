@@ -33,6 +33,7 @@ import android.view.Gravity;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -451,7 +452,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         folderIcon.setPadding(dp(14), dp(12), dp(14), dp(12));
 
         GradientDrawable background = new GradientDrawable();
-        int cardColor = LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
+        int cardColor = resolveCaddyDynamicColor();
         // Reuse Lawnchair's folder color and preview-opacity preferences. The card
         // foreground follows that color so custom/dynamic colors remain legible.
         int cardForeground = Color.luminance(cardColor) > 0.48f
@@ -589,7 +590,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         host.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         int densityPadding = dp(14);
-        int themeColor = LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
+        int themeColor = resolveCaddyDynamicColor();
         // Translucent Nothing-style glass, tinted by Lawnchair's existing folder /
         // preview color so the user's selected and dynamic colors remain visible.
         int glassRed = Math.round(Color.red(themeColor) * 0.30f + 28 * 0.70f);
@@ -706,7 +707,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(20), dp(18), dp(20), dp(16));
 
-        int dynamicAccent = LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
+        int dynamicAccent = resolveCaddyDynamicColor();
         int glassBase = Color.rgb(27, 35, 37);
         int glassTop = Color.rgb(39, 49, 51);
         int glassBottom = Color.rgb(25, 33, 35);
@@ -840,6 +841,31 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         // route their long-press gesture into the launcher drag controller.
         icon.setLongClickable(false);
         icon.setOnLongClickListener(null);
+    }
+
+    /**
+     * Resolve Android's themed accent so Caddy follows the system Monet palette
+     * (including wallpaper-based colors on Android 12+). Keep Lawnchair's folder
+     * tint as a compatibility fallback for themes that do not expose colorAccent.
+     */
+    private int resolveCaddyDynamicColor() {
+        TypedValue value = new TypedValue();
+        if (mActivityContext.getTheme().resolveAttribute(
+                android.R.attr.colorAccent, value, true)) {
+            if (value.resourceId != 0) {
+                try {
+                    return mActivityContext.getResources().getColor(
+                            value.resourceId, mActivityContext.getTheme());
+                } catch (RuntimeException ignored) {
+                    // Fall through to the resolved inline color or fallback below.
+                }
+            }
+            if (value.type >= TypedValue.TYPE_FIRST_COLOR_INT
+                    && value.type <= TypedValue.TYPE_LAST_COLOR_INT) {
+                return value.data;
+            }
+        }
+        return LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
     }
 
     private int dp(float value) {
