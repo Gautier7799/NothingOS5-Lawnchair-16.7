@@ -836,7 +836,10 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         icon.setContentDescription(app.title);
         icon.setFocusable(true);
         icon.setOnClickListener(mOnIconClickListener);
-        icon.setOnLongClickListener(mOnIconLongClickListener);
+        // Caddy preview icons are plain ImageViews, not DraggableViews. Do not
+        // route their long-press gesture into the launcher drag controller.
+        icon.setLongClickable(false);
+        icon.setOnLongClickListener(null);
     }
 
     private int dp(float value) {
