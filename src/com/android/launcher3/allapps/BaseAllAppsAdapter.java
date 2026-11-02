@@ -706,10 +706,29 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(20), dp(18), dp(20), dp(16));
 
-        GradientDrawable panelBackground = new GradientDrawable();
-        panelBackground.setColor(Color.rgb(38, 45, 47));
-        panelBackground.setCornerRadius(dp(28));
+        int dynamicAccent = LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
+        int glassBase = Color.rgb(27, 35, 37);
+        int glassTop = Color.rgb(39, 49, 51);
+        int glassBottom = Color.rgb(25, 33, 35);
+        int tintedTop = Color.rgb(
+                (Color.red(glassTop) * 3 + Color.red(dynamicAccent)) / 4,
+                (Color.green(glassTop) * 3 + Color.green(dynamicAccent)) / 4,
+                (Color.blue(glassTop) * 3 + Color.blue(dynamicAccent)) / 4);
+        GradientDrawable panelBackground = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {
+                        Color.argb(246, Color.red(tintedTop), Color.green(tintedTop),
+                                Color.blue(tintedTop)),
+                        Color.argb(250, Color.red(glassBase), Color.green(glassBase),
+                                Color.blue(glassBase)),
+                        Color.argb(252, Color.red(glassBottom), Color.green(glassBottom),
+                                Color.blue(glassBottom))
+                });
+        panelBackground.setCornerRadius(dp(30));
+        panelBackground.setStroke(dp(1), Color.argb(48, 255, 255, 255));
         panel.setBackground(panelBackground);
+        panel.setClipToOutline(true);
+        panel.setElevation(dp(12));
 
         TextView heading = new TextView(mActivityContext);
         heading.setText(item.caddyTitle);
@@ -771,26 +790,40 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             appGrid.addView(appCell, cellParams);
         }
 
+        int screenHeight = mActivityContext.getResources().getDisplayMetrics().heightPixels;
+        int maxPanelHeight = Math.max(dp(300), screenHeight - dp(176));
+        int contentRows = (apps.size() + 3) / 4;
+        int desiredPanelHeight = dp(76) + contentRows * dp(96) + dp(34);
+        int panelHeight = Math.min(desiredPanelHeight, maxPanelHeight);
         dialog.setContentView(panel);
         dialog.setCanceledOnTouchOutside(true);
+        dialog.setCancelable(true);
+        dialog.show();
+
         android.view.Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawableResource(android.R.color.transparent);
-            window.setLayout(
-                    Math.min(mActivityContext.getResources().getDisplayMetrics().widthPixels
-                            - dp(40), dp(520)),
-                    Math.min(mActivityContext.getResources().getDisplayMetrics().heightPixels
-                            - dp(160), dp(620)));
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            android.view.WindowManager.LayoutParams windowParams = window.getAttributes();
+            windowParams.width = Math.min(
+                    mActivityContext.getResources().getDisplayMetrics().widthPixels - dp(32),
+                    dp(560));
+            windowParams.height = panelHeight;
+            windowParams.gravity = Gravity.CENTER;
+            windowParams.dimAmount = 0.34f;
+            window.setAttributes(windowParams);
+            window.setDimAmount(0.34f);
         }
-        dialog.show();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-            dialog.getWindow().setLayout(
-                    Math.min(mActivityContext.getResources().getDisplayMetrics().widthPixels
-                            - dp(40), dp(520)),
-                    Math.min(mActivityContext.getResources().getDisplayMetrics().heightPixels
-                            - dp(160), dp(620)));
-        }
+
+        // A restrained scale/fade entrance makes the category panel feel connected
+        // to the drawer without changing the underlying category cards.
+        panel.setAlpha(0f);
+        panel.setScaleX(0.965f);
+        panel.setScaleY(0.965f);
+        panel.animate().alpha(1f).scaleX(1f).scaleY(1f)
+                .setDuration(190L)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .start();
     }
 
     private void addCaddyAppIcon(FrameLayout cell, AppInfo app, int iconSize) {
