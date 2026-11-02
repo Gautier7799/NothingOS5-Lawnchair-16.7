@@ -26,6 +26,7 @@ import static com.android.launcher3.allapps.UserProfileManager.STATE_DISABLED;
 import static com.android.launcher3.allapps.UserProfileManager.STATE_ENABLED;
 
 import android.content.Context;
+import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
@@ -40,6 +41,7 @@ import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -606,6 +608,9 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_VERTICAL);
         card.setPadding(densityPadding, dp(12), densityPadding, dp(12));
+        card.setClickable(true);
+        card.setFocusable(true);
+        card.setOnClickListener(v -> showCaddyCategory(item));
         GradientDrawable background = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[] { topGlass, bottomGlass });
@@ -683,6 +688,109 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             }
         }
         host.setContentDescription(item.caddyTitle);
+    }
+
+    /**
+     * Opens the selected Caddy category in its own lightweight app grid.
+     * This deliberately does not create or open a FolderInfo/FolderIcon.
+     */
+    private void showCaddyCategory(AdapterItem item) {
+        List<AppInfo> apps = item.caddyApps == null
+                ? java.util.Collections.emptyList() : item.caddyApps;
+        if (apps.isEmpty()) {
+            return;
+        }
+
+        Dialog dialog = new Dialog(mActivityContext);
+        LinearLayout panel = new LinearLayout(mActivityContext);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(18), dp(20), dp(16));
+
+        GradientDrawable panelBackground = new GradientDrawable();
+        panelBackground.setColor(Color.rgb(38, 45, 47));
+        panelBackground.setCornerRadius(dp(28));
+        panel.setBackground(panelBackground);
+
+        TextView heading = new TextView(mActivityContext);
+        heading.setText(item.caddyTitle);
+        heading.setTextColor(Color.WHITE);
+        heading.setTextSize(20);
+        heading.setTypeface(android.graphics.Typeface.DEFAULT,
+                android.graphics.Typeface.BOLD);
+        heading.setPadding(0, 0, 0, dp(14));
+        panel.addView(heading, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        ScrollView scrollView = new ScrollView(mActivityContext);
+        scrollView.setFillViewport(false);
+        panel.addView(scrollView, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        android.widget.GridLayout appGrid = new android.widget.GridLayout(mActivityContext);
+        appGrid.setColumnCount(4);
+        appGrid.setUseDefaultMargins(false);
+        scrollView.addView(appGrid, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        for (AppInfo app : apps) {
+            LinearLayout appCell = new LinearLayout(mActivityContext);
+            appCell.setOrientation(LinearLayout.VERTICAL);
+            appCell.setGravity(Gravity.CENTER);
+            appCell.setPadding(dp(3), dp(8), dp(3), dp(8));
+
+            ImageView appIcon = new ImageView(mActivityContext);
+            appIcon.setImageDrawable(app.newIcon(mActivityContext));
+            appIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            appIcon.setTag(app);
+            appIcon.setContentDescription(app.title);
+            appIcon.setFocusable(true);
+            appIcon.setOnClickListener(v -> {
+                dialog.dismiss();
+                mOnIconClickListener.onClick(v);
+            });
+            appCell.addView(appIcon, new LinearLayout.LayoutParams(dp(48), dp(48)));
+
+            TextView appLabel = new TextView(mActivityContext);
+            appLabel.setText(app.title);
+            appLabel.setTextColor(Color.WHITE);
+            appLabel.setTextSize(11);
+            appLabel.setGravity(Gravity.CENTER);
+            appLabel.setMaxLines(2);
+            appLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(34));
+            labelParams.topMargin = dp(5);
+            appCell.addView(appLabel, labelParams);
+
+            android.widget.GridLayout.LayoutParams cellParams =
+                    new android.widget.GridLayout.LayoutParams();
+            cellParams.width = 0;
+            cellParams.columnSpec = android.widget.GridLayout.spec(
+                    android.widget.GridLayout.UNDEFINED, 1f);
+            cellParams.setMargins(dp(2), dp(2), dp(2), dp(2));
+            appGrid.addView(appCell, cellParams);
+        }
+
+        dialog.setContentView(panel);
+        dialog.setCanceledOnTouchOutside(true);
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+            window.setLayout(
+                    Math.min(mActivityContext.getResources().getDisplayMetrics().widthPixels
+                            - dp(40), dp(520)),
+                    Math.min(mActivityContext.getResources().getDisplayMetrics().heightPixels
+                            - dp(160), dp(620)));
+        }
+        dialog.show();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            dialog.getWindow().setLayout(
+                    Math.min(mActivityContext.getResources().getDisplayMetrics().widthPixels
+                            - dp(40), dp(520)),
+                    Math.min(mActivityContext.getResources().getDisplayMetrics().heightPixels
+                            - dp(160), dp(620)));
+        }
     }
 
     private void addCaddyAppIcon(FrameLayout cell, AppInfo app, int iconSize) {
