@@ -849,15 +849,34 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
      * tint as a compatibility fallback for themes that do not expose colorAccent.
      */
     private int resolveCaddyDynamicColor() {
+        // Prefer Android's Monet palette directly. On Pixel / Android 12+ these
+        // framework colors are supplied by the active wallpaper or system theme.
+        // Use the themed accent next so custom ROMs and app themes remain supported.
+        android.content.res.Resources resources = mActivityContext.getResources();
+        String[] systemPaletteColors = {
+                "system_accent1_600",
+                "system_accent2_600",
+                "system_accent3_600"
+        };
+        for (String colorName : systemPaletteColors) {
+            int colorId = resources.getIdentifier(colorName, "color", "android");
+            if (colorId != 0) {
+                try {
+                    return resources.getColor(colorId, mActivityContext.getTheme());
+                } catch (RuntimeException ignored) {
+                    // Try the next system palette entry or themed accent.
+                }
+            }
+        }
+
         TypedValue value = new TypedValue();
         if (mActivityContext.getTheme().resolveAttribute(
                 android.R.attr.colorAccent, value, true)) {
             if (value.resourceId != 0) {
                 try {
-                    return mActivityContext.getResources().getColor(
-                            value.resourceId, mActivityContext.getTheme());
+                    return resources.getColor(value.resourceId, mActivityContext.getTheme());
                 } catch (RuntimeException ignored) {
-                    // Fall through to the resolved inline color or fallback below.
+                    // Fall through to the resolved inline color or legacy fallback.
                 }
             }
             if (value.type >= TypedValue.TYPE_FIRST_COLOR_INT
