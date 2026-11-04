@@ -141,6 +141,8 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         public FolderInfo folderInfo = new FolderInfo();
         public String caddyTitle;
         public List<AppInfo> caddyApps;
+        public boolean caddyIsSuggestions;
+        public Runnable caddyRefreshAction;
 
         /**
          * Factory method for AppIcon AdapterItem
@@ -171,6 +173,15 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             return item;
         }
 
+        public static AdapterItem asCaddySuggestions(List<AppInfo> apps, Runnable refreshAction) {
+            AdapterItem item = new AdapterItem(VIEW_TYPE_CADDY_CATEGORY);
+            item.caddyTitle = "Suggestions";
+            item.caddyApps = new ArrayList<>(apps);
+            item.caddyIsSuggestions = true;
+            item.caddyRefreshAction = refreshAction;
+            return item;
+        }
+
         protected boolean isCountedForAccessibility() {
             return viewType == VIEW_TYPE_ICON || viewType == VIEW_TYPE_FOLDER
                     || viewType == VIEW_TYPE_CADDY_CATEGORY;
@@ -188,6 +199,12 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
          * as well. Returning true will prevent redrawing of thee item.
          */
         public boolean isContentSame(AdapterItem other) {
+            if (viewType == VIEW_TYPE_CADDY_CATEGORY) {
+                return itemInfo == null && other.itemInfo == null
+                        && java.util.Objects.equals(caddyTitle, other.caddyTitle)
+                        && java.util.Objects.equals(caddyApps, other.caddyApps)
+                        && caddyIsSuggestions == other.caddyIsSuggestions;
+            }
             return itemInfo == null && other.itemInfo == null;
         }
 
@@ -405,7 +422,16 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 break;
             case VIEW_TYPE_CADDY_CATEGORY: {
                 AdapterItem caddyItem = mApps.getAdapterItems().get(position);
-                bindIndependentCaddyCard((FrameLayout) holder.itemView, caddyItem);
+                ViewGroup.LayoutParams caddyParams = holder.itemView.getLayoutParams();
+                if (caddyParams != null) {
+                    caddyParams.height = dp(caddyItem.caddyIsSuggestions ? 232 : 184);
+                    holder.itemView.setLayoutParams(caddyParams);
+                }
+                if (caddyItem.caddyIsSuggestions) {
+                    bindCaddySuggestionsCard((FrameLayout) holder.itemView, caddyItem);
+                } else {
+                    bindIndependentCaddyCard((FrameLayout) holder.itemView, caddyItem);
+                }
                 break;
             }
             case VIEW_TYPE_FOLDER:
@@ -689,6 +715,101 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             }
         }
         host.setContentDescription(item.caddyTitle);
+    }
+
+    private void bindCaddySuggestionsCard(FrameLayout host, AdapterItem item) {
+        host.removeAllViews();
+        host.setPadding(dp(4), dp(4), dp(4), dp(4));
+
+        int accent = resolveCaddyDynamicColor();
+        int top = Color.argb(190,
+                (Color.red(accent) + 28) / 2,
+                (Color.green(accent) + 31) / 2,
+                (Color.blue(accent) + 38) / 2);
+        int bottom = Color.argb(166, 24, 29, 33);
+
+        LinearLayout card = new LinearLayout(mActivityContext);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(14), dp(10), dp(14), dp(8));
+        GradientDrawable background = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM, new int[] { top, bottom });
+        background.setCornerRadius(dp(26));
+        background.setStroke(dp(1), Color.argb(100, Color.red(accent),
+                Color.green(accent), Color.blue(accent)));
+        card.setBackground(background);
+        card.setClipToOutline(true);
+        host.addView(card, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        LinearLayout header = new LinearLayout(mActivityContext);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        card.addView(header, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(26)));
+
+        TextView title = new TextView(mActivityContext);
+        title.setText("Suggestions");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(14);
+        title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+        header.addView(title, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView refresh = new TextView(mActivityContext);
+        refresh.setText("↻");
+        refresh.setTextColor(Color.WHITE);
+        refresh.setTextSize(22);
+        refresh.setGravity(Gravity.CENTER);
+        refresh.setContentDescription("Refresh suggestions");
+        refresh.setFocusable(true);
+        refresh.setClickable(true);
+        refresh.setPadding(dp(8), 0, dp(4), 0);
+        refresh.setOnClickListener(v -> {
+            if (item.caddyRefreshAction != null) item.caddyRefreshAction.run();
+        });
+        header.addView(refresh, new LinearLayout.LayoutParams(dp(38), dp(30)));
+
+        android.widget.GridLayout grid = new android.widget.GridLayout(mActivityContext);
+        grid.setColumnCount(4);
+        grid.setRowCount(2);
+        grid.setUseDefaultMargins(false);
+        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        gridLp.topMargin = dp(3);
+        card.addView(grid, gridLp);
+
+        List<AppInfo> apps = item.caddyApps == null
+                ? java.util.Collections.emptyList() : item.caddyApps;
+        for (int i = 0; i < Math.min(apps.size(), 8); i++) {
+            AppInfo app = apps.get(i);
+            LinearLayout cell = new LinearLayout(mActivityContext);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER);
+            android.widget.GridLayout.LayoutParams cellLp =
+                    new android.widget.GridLayout.LayoutParams();
+            cellLp.width = 0;
+            cellLp.height = dp(82);
+            cellLp.columnSpec = android.widget.GridLayout.spec(i % 4, 1f);
+            cellLp.rowSpec = android.widget.GridLayout.spec(i / 4);
+            grid.addView(cell, cellLp);
+
+            FrameLayout iconHost = new FrameLayout(mActivityContext);
+            cell.addView(iconHost, new LinearLayout.LayoutParams(dp(42), dp(42)));
+            addCaddyAppIcon(iconHost, app, dp(38));
+
+            TextView label = new TextView(mActivityContext);
+            label.setText(app.title);
+            label.setTextColor(Color.WHITE);
+            label.setTextSize(10);
+            label.setGravity(Gravity.CENTER);
+            label.setMaxLines(1);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            labelLp.topMargin = dp(2);
+            cell.addView(label, labelLp);
+        }
+        host.setContentDescription("Suggestions, up to eight frequently used apps");
     }
 
     /**
