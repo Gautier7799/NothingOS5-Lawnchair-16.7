@@ -747,7 +747,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         title.setText("Suggestions ✦");
         title.setTextColor(Color.WHITE);
         title.setTextSize(14);
-        title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.MEDIUM);
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         header.addView(title, new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
