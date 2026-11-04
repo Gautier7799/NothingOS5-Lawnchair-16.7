@@ -230,6 +230,13 @@ public class AllAppsGridAdapter<T extends Context & ActivityContext> extends
             }
             int viewType = items.get(position).viewType;
             if (isIconViewType(viewType)) {
+                // The Suggestions surface is a single 4x2 panel spanning the full
+                // Caddy width; category cards remain in their existing two-column layout.
+                if (viewType == VIEW_TYPE_CADDY_CATEGORY
+                        && items.get(position).caddyIsSuggestions
+                        && !PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
+                    return totalSpans;
+                }
                 // In Caddy mode, let each category card occupy two grid columns.
                 // The default drawer layout keeps its original span behavior.
                 if ((viewType == VIEW_TYPE_FOLDER || viewType == VIEW_TYPE_CADDY_CATEGORY)
