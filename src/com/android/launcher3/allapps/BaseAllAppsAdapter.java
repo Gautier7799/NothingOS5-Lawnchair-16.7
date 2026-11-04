@@ -778,7 +778,9 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 ? java.util.Collections.emptyList() : item.caddyApps;
         for (int i = 0; i < Math.min(apps.size(), 8); i++) {
             AppInfo app = apps.get(i);
-            FrameLayout cell = new FrameLayout(mActivityContext);
+            LinearLayout cell = new LinearLayout(mActivityContext);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER);
             android.widget.GridLayout.LayoutParams cellLp =
                     new android.widget.GridLayout.LayoutParams();
             cellLp.width = 0;
@@ -795,10 +797,20 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             iconDisc.setClickable(true);
             iconDisc.setFocusable(true);
             iconDisc.setContentDescription(app.title);
-            FrameLayout.LayoutParams discLp = new FrameLayout.LayoutParams(
-                    dp(58), dp(58), Gravity.CENTER);
-            cell.addView(iconDisc, discLp);
+            cell.addView(iconDisc, new LinearLayout.LayoutParams(dp(48), dp(48)));
             addCaddyAppIcon(iconDisc, app, dp(34));
+
+            TextView label = new TextView(mActivityContext);
+            label.setText(app.title);
+            label.setTextColor(Color.WHITE);
+            label.setTextSize(10);
+            label.setGravity(Gravity.CENTER);
+            label.setMaxLines(1);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            labelLp.topMargin = dp(2);
+            cell.addView(label, labelLp);
         }
         host.setContentDescription("Suggestions, eight predicted apps");
     }
