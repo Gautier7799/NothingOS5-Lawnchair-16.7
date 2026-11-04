@@ -123,19 +123,22 @@ class LawnchairAlphabeticalAppsList<T>(
             // unavailable packages and profile mismatches can never leak into the card.
             val predictionStore = LawnchairPredictionManager.getInstance(context).allAppsStore
             val userCache = UserCache.INSTANCE.get(context)
-            val appsByPredictionKey = validApps.associateBy { app ->
+            val appsByPredictionKey = validApps.mapNotNull { app ->
+                val componentName = app.componentName ?: return@mapNotNull null
                 PredictionAppKey.create(
-                    app.componentName,
+                    componentName,
                     userCache.getSerialNumberForUser(app.user).toString(),
-                )
-            }
+                ) to app
+            }.toMap()
             val usageRankedApps = predictionStore.getRanked().mapNotNull(appsByPredictionKey::get)
             val suggestionPool = (usageRankedApps + validApps.filterNot { it in usageRankedApps })
                 .distinctBy { app ->
-                    PredictionAppKey.create(
-                        app.componentName,
-                        userCache.getSerialNumberForUser(app.user).toString(),
-                    )
+                    app.componentName?.let { componentName ->
+                        PredictionAppKey.create(
+                            componentName,
+                            userCache.getSerialNumberForUser(app.user).toString(),
+                        )
+                    } ?: app.title.toString()
                 }
             val maxSuggestionOffset = (suggestionPool.size - 8).coerceAtLeast(0)
             suggestionRefreshOffset = suggestionRefreshOffset.coerceIn(0, maxSuggestionOffset)
