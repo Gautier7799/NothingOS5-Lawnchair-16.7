@@ -9,6 +9,8 @@ import androidx.lifecycle.lifecycleScope
 import app.lawnchair.data.folder.FolderEntry
 import app.lawnchair.data.folder.model.FolderViewModel
 import app.lawnchair.launcher
+import app.lawnchair.predictions.LawnchairPredictionManager
+import app.lawnchair.predictions.PredictionAppKey
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.util.categorizeAppsWithSystemAndGoogle
@@ -21,6 +23,7 @@ import com.android.launcher3.allapps.WorkProfileManager
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.model.data.FolderInfo
 import com.android.launcher3.model.data.ItemInfo
+import com.android.launcher3.pm.UserCache
 import com.android.launcher3.util.ComponentKey
 import com.android.launcher3.views.ActivityContext
 import com.patrykmichalik.opto.core.onEach
@@ -48,6 +51,7 @@ class LawnchairAlphabeticalAppsList<T>(
     )
     private val folderList = mutableListOf<FolderEntry>()
     private val filteredList = mutableListOf<AppInfo>()
+    private var suggestionRefreshOffset = 0
 
     init {
         context.launcher.deviceProfile.inv.addOnChangeListener(this)
@@ -113,6 +117,43 @@ class LawnchairAlphabeticalAppsList<T>(
                     caddyCategories.getOrPut("Other") { mutableListOf() }.addAll(apps)
                 }
             }
+
+            // Suggestions reuse Lawnchair's existing all-app launch history. The ranking
+            // is resolved against the current AppInfo set (including user identity), so
+            // unavailable packages and profile mismatches can never leak into the card.
+            val predictionStore = LawnchairPredictionManager.getInstance(context).allAppsStore
+            val userCache = UserCache.INSTANCE.get(context)
+            val appsByPredictionKey = validApps.associateBy { app ->
+                PredictionAppKey.create(
+                    app.componentName,
+                    userCache.getSerialNumberForUser(app.user).toString(),
+                )
+            }
+            val usageRankedApps = predictionStore.getRanked().mapNotNull(appsByPredictionKey::get)
+            val suggestionPool = (usageRankedApps + validApps.filterNot { it in usageRankedApps })
+                .distinctBy { app ->
+                    PredictionAppKey.create(
+                        app.componentName,
+                        userCache.getSerialNumberForUser(app.user).toString(),
+                    )
+                }
+            val maxSuggestionOffset = (suggestionPool.size - 8).coerceAtLeast(0)
+            suggestionRefreshOffset = suggestionRefreshOffset.coerceIn(0, maxSuggestionOffset)
+            val suggestions = if (suggestionPool.size <= 8) {
+                suggestionPool
+            } else {
+                suggestionPool.drop(suggestionRefreshOffset).take(8)
+            }
+            mAdapterItems.add(
+                AdapterItem.asCaddySuggestions(suggestions) {
+                    val range = maxSuggestionOffset + 1
+                    val step = minOf(8, range)
+                    suggestionRefreshOffset = if (range <= 1) 0
+                    else (suggestionRefreshOffset + step) % range
+                    updateAdapterItems()
+                },
+            )
+            position++
 
             caddyCategories.forEach { (category, apps) ->
                 // Caddy categories use their own adapter item and renderer; they are
