@@ -8,6 +8,7 @@ on:
       - feature/bundled-lawnicons
       - fix/dock-auto-capsule-bounds
       - feature/caddy-smart-drawer
+      - feature/caddy-smart-drawer-v76
 
 permissions:
   contents: read
