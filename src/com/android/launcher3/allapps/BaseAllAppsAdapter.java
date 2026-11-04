@@ -308,7 +308,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 return new ViewHolder(new View(mActivityContext));
             case VIEW_TYPE_CADDY_CATEGORY:
                 FrameLayout caddyCard = new FrameLayout(mActivityContext);
-                int caddyHeight = Math.round(184f * mActivityContext.getResources()
+                int caddyHeight = Math.round(248f * mActivityContext.getResources()
                         .getDisplayMetrics().density);
                 caddyCard.setLayoutParams(new RecyclerView.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, caddyHeight));
@@ -424,7 +424,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 AdapterItem caddyItem = mApps.getAdapterItems().get(position);
                 ViewGroup.LayoutParams caddyParams = holder.itemView.getLayoutParams();
                 if (caddyParams != null) {
-                    caddyParams.height = dp(caddyItem.caddyIsSuggestions ? 232 : 184);
+                    caddyParams.height = dp(caddyItem.caddyIsSuggestions ? 248 : 184);
                     holder.itemView.setLayoutParams(caddyParams);
                 }
                 if (caddyItem.caddyIsSuggestions) {
@@ -730,7 +730,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
 
         LinearLayout card = new LinearLayout(mActivityContext);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(14), dp(10), dp(14), dp(8));
+        card.setPadding(dp(14), dp(12), dp(14), dp(10));
         GradientDrawable background = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM, new int[] { top, bottom });
         background.setCornerRadius(dp(26));
@@ -745,7 +745,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setOrientation(LinearLayout.HORIZONTAL);
         card.addView(header, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(26)));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
 
         TextView title = new TextView(mActivityContext);
         title.setText("Suggestions");
@@ -775,7 +775,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         grid.setUseDefaultMargins(false);
         LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        gridLp.topMargin = dp(3);
+        gridLp.topMargin = dp(4);
         card.addView(grid, gridLp);
 
         List<AppInfo> apps = item.caddyApps == null
@@ -788,25 +788,25 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             android.widget.GridLayout.LayoutParams cellLp =
                     new android.widget.GridLayout.LayoutParams();
             cellLp.width = 0;
-            cellLp.height = dp(82);
+            cellLp.height = dp(88);
             cellLp.columnSpec = android.widget.GridLayout.spec(i % 4, 1f);
             cellLp.rowSpec = android.widget.GridLayout.spec(i / 4);
             grid.addView(cell, cellLp);
 
             FrameLayout iconHost = new FrameLayout(mActivityContext);
-            cell.addView(iconHost, new LinearLayout.LayoutParams(dp(42), dp(42)));
-            addCaddyAppIcon(iconHost, app, dp(38));
+            cell.addView(iconHost, new LinearLayout.LayoutParams(dp(50), dp(50)));
+            addCaddyAppIcon(iconHost, app, dp(46));
 
             TextView label = new TextView(mActivityContext);
             label.setText(app.title);
             label.setTextColor(Color.WHITE);
-            label.setTextSize(10);
+            label.setTextSize(11);
             label.setGravity(Gravity.CENTER);
             label.setMaxLines(1);
             label.setEllipsize(android.text.TextUtils.TruncateAt.END);
             LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            labelLp.topMargin = dp(2);
+            labelLp.topMargin = dp(3);
             cell.addView(label, labelLp);
         }
         host.setContentDescription("Suggestions, up to eight frequently used apps");
