@@ -912,7 +912,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             // Per-app overflow menu keeps the category grid clean while exposing
             // Android's native application details screen for the selected app.
             TextView appMenu = new TextView(mActivityContext);
-            appMenu.setText("\\u22EE");
+            appMenu.setText("⋮");
             appMenu.setTextColor(Color.WHITE);
             appMenu.setTextSize(21);
             appMenu.setGravity(Gravity.CENTER);
@@ -926,6 +926,9 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 popupMenu.getMenu().add("App info");
                 popupMenu.setOnMenuItemClickListener(menuItem -> {
                     if ("App info".contentEquals(menuItem.getTitle())) {
+                        if (app.componentName == null) {
+                            return true;
+                        }
                         Intent detailsIntent = new Intent(
                                 android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
                         detailsIntent.setData(Uri.parse(
