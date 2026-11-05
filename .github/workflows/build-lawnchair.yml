@@ -9,6 +9,7 @@ on:
       - fix/dock-auto-capsule-bounds
       - feature/caddy-smart-drawer
       - feature/caddy-smart-drawer-v76
+      - feature/caddy-smart-drawer-v78
 
 permissions:
   contents: read
