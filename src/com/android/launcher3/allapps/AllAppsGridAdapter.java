@@ -233,7 +233,8 @@ public class AllAppsGridAdapter<T extends Context & ActivityContext> extends
                 // The Suggestions surface is a single 4x2 panel spanning the full
                 // Caddy width; category cards remain in their existing two-column layout.
                 if (viewType == VIEW_TYPE_CADDY_CATEGORY
-                        && items.get(position).caddyIsSuggestions
+                        && (items.get(position).caddyIsSuggestions
+                                || items.get(position).caddyIsFavorites)
                         && !PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
                     return totalSpans;
                 }
