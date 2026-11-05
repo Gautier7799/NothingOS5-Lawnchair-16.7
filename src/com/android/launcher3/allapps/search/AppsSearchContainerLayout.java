@@ -23,21 +23,12 @@ import static com.android.launcher3.Utilities.prefixTextWithIcon;
 import static com.android.launcher3.icons.IconNormalizer.ICON_VISIBLE_AREA_FACTOR;
 
 import android.content.Context;
-import android.content.Intent;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Color;
-import android.net.Uri;
-import android.provider.Settings;
 import android.graphics.Rect;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.method.TextKeyListener;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
-import android.view.MotionEvent;
-import android.view.Gravity;
-import android.widget.PopupMenu;
 import android.view.View;
 import android.view.ViewGroup.MarginLayoutParams;
 
@@ -69,8 +60,6 @@ public class AppsSearchContainerLayout extends ExtendedEditText
 
     // The amount of pixels to shift down and overlap with the rest of the content.
     private final int mContentOverlap;
-    private final Paint mOverflowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final int mOverflowTouchWidth;
 
     public AppsSearchContainerLayout(Context context) {
         this(context, null);
@@ -92,48 +81,6 @@ public class AppsSearchContainerLayout extends ExtendedEditText
 
         mContentOverlap =
                 getResources().getDimensionPixelSize(R.dimen.all_apps_search_bar_content_overlap);
-        mOverflowTouchWidth = (int) (48 * getResources().getDisplayMetrics().density);
-        mOverflowPaint.setColor(Color.rgb(70, 70, 70));
-        mOverflowPaint.setStyle(Paint.Style.FILL);
-        setPadding(getPaddingLeft(), getPaddingTop(), getPaddingRight() + mOverflowTouchWidth,
-                getPaddingBottom());
-    }
-
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-        float density = getResources().getDisplayMetrics().density;
-        float centerX = getWidth() - (mOverflowTouchWidth / 2f);
-        float centerY = getHeight() / 2f;
-        float radius = 1.8f * density;
-        float spacing = 6.0f * density;
-        canvas.drawCircle(centerX, centerY - spacing, radius, mOverflowPaint);
-        canvas.drawCircle(centerX, centerY, radius, mOverflowPaint);
-        canvas.drawCircle(centerX, centerY + spacing, radius, mOverflowPaint);
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        if (event.getX() >= getWidth() - mOverflowTouchWidth) {
-            if (event.getAction() == MotionEvent.ACTION_UP) showSearchOverflowMenu();
-            return true;
-        }
-        return super.onTouchEvent(event);
-    }
-
-    private void showSearchOverflowMenu() {
-        PopupMenu menu = new PopupMenu(getContext(), this, Gravity.END);
-        menu.getMenu().add("App info").setOnMenuItemClickListener(item -> {
-            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-            intent.setData(Uri.parse("package:" + getContext().getPackageName()));
-            try {
-                getContext().startActivity(intent);
-            } catch (RuntimeException exception) {
-                android.util.Log.w("AppsSearchContainer", "Unable to open app info", exception);
-            }
-            return true;
-        });
-        menu.show();
     }
 
     @Override
