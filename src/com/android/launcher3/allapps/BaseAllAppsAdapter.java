@@ -27,6 +27,7 @@ import static com.android.launcher3.allapps.UserProfileManager.STATE_ENABLED;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.speech.RecognizerIntent;
 import android.app.Dialog;
 import android.graphics.Color;
@@ -45,6 +46,7 @@ import android.view.ViewParent;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
+import android.widget.PopupMenu;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -890,6 +892,10 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             appCell.setGravity(Gravity.CENTER);
             appCell.setPadding(dp(3), dp(8), dp(3), dp(8));
 
+            FrameLayout appIconFrame = new FrameLayout(mActivityContext);
+            appCell.addView(appIconFrame, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(54)));
+
             ImageView appIcon = new ImageView(mActivityContext);
             appIcon.setImageDrawable(app.newIcon(mActivityContext));
             appIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -900,7 +906,41 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 dialog.dismiss();
                 mOnIconClickListener.onClick(v);
             });
-            appCell.addView(appIcon, new LinearLayout.LayoutParams(dp(48), dp(48)));
+            appIconFrame.addView(appIcon, new FrameLayout.LayoutParams(
+                    dp(48), dp(48), Gravity.CENTER));
+
+            // Per-app overflow menu keeps the category grid clean while exposing
+            // Android's native application details screen for the selected app.
+            TextView appMenu = new TextView(mActivityContext);
+            appMenu.setText("\\u22EE");
+            appMenu.setTextColor(Color.WHITE);
+            appMenu.setTextSize(21);
+            appMenu.setGravity(Gravity.CENTER);
+            appMenu.setContentDescription("More options for " + app.title);
+            appMenu.setBackgroundResource(android.R.drawable.list_selector_background);
+            FrameLayout.LayoutParams menuParams = new FrameLayout.LayoutParams(
+                    dp(30), dp(34), Gravity.TOP | Gravity.END);
+            appIconFrame.addView(appMenu, menuParams);
+            appMenu.setOnClickListener(v -> {
+                PopupMenu popupMenu = new PopupMenu(mActivityContext, appMenu);
+                popupMenu.getMenu().add("App info");
+                popupMenu.setOnMenuItemClickListener(menuItem -> {
+                    if ("App info".contentEquals(menuItem.getTitle())) {
+                        Intent detailsIntent = new Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                        detailsIntent.setData(Uri.parse(
+                                "package:" + app.componentName.getPackageName()));
+                        try {
+                            mActivityContext.startActivity(detailsIntent);
+                        } catch (RuntimeException exception) {
+                            Log.w(TAG, "Unable to open app info for " + app.title, exception);
+                        }
+                        return true;
+                    }
+                    return false;
+                });
+                popupMenu.show();
+            });
 
             TextView appLabel = new TextView(mActivityContext);
             appLabel.setText(app.title);
