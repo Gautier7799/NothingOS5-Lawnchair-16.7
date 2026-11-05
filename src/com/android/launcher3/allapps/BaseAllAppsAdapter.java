@@ -638,85 +638,165 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         host.removeAllViews();
         host.setClipToPadding(false);
         host.setClipChildren(false);
-        // Add a small gutter between neighboring Caddy cards without changing
-        // the RecyclerView's grid sizing or the normal app drawer.
         host.setPadding(dp(4), dp(4), dp(4), dp(4));
 
-        int densityPadding = dp(14);
         int themeColor = resolveCaddyDynamicColor();
-        // Translucent Nothing-style glass, tinted by Lawnchair's existing folder /
-        // preview color so the user's selected and dynamic colors remain visible.
         int glassRed = Math.round(Color.red(themeColor) * 0.30f + 28 * 0.70f);
         int glassGreen = Math.round(Color.green(themeColor) * 0.30f + 31 * 0.70f);
         int glassBlue = Math.round(Color.blue(themeColor) * 0.30f + 38 * 0.70f);
-        int topGlass = Color.argb(184, glassRed, glassGreen, glassBlue);
-        int bottomGlass = Color.argb(148,
+        int topGlass = Color.argb(190, glassRed, glassGreen, glassBlue);
+        int bottomGlass = Color.argb(166,
                 Math.max(12, glassRed - 10),
                 Math.max(14, glassGreen - 10),
                 Math.max(18, glassBlue - 10));
-        int foreground = Color.WHITE;
-        int accentStroke = Color.argb(116, Color.red(themeColor),
-                Color.green(themeColor), Color.blue(themeColor));
 
-        LinearLayout card = new LinearLayout(mActivityContext);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setGravity(Gravity.CENTER_VERTICAL);
-        card.setPadding(densityPadding, dp(12), densityPadding, dp(12));
-        card.setClickable(true);
-        card.setFocusable(true);
-        card.setOnClickListener(v -> {
-            if (item.caddyOpenAction != null) {
-                item.caddyOpenAction.run();
-            }
-            showCaddyCategory(item);
-        });
+        FrameLayout card = new FrameLayout(mActivityContext);
         GradientDrawable background = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[] { topGlass, bottomGlass });
+                GradientDrawable.Orientation.TOP_BOTTOM, new int[] { topGlass, bottomGlass });
         background.setCornerRadius(dp(28));
-        background.setStroke(dp(1), accentStroke);
+        background.setStroke(dp(1), Color.argb(90, 255, 255, 255));
         card.setBackground(background);
         card.setClipToOutline(true);
-        card.setElevation(dp(1));
+        card.setElevation(dp(2));
         host.addView(card, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
+        LinearLayout content = new LinearLayout(mActivityContext);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(12), dp(10), dp(12), dp(8));
+        card.addView(content, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        List<AppInfo> apps = item.caddyApps == null
+                ? java.util.Collections.emptyList() : item.caddyApps;
+
+        // Category header mirrors the reference: category glyph, title and overflow menu.
+        LinearLayout header = new LinearLayout(mActivityContext);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        content.addView(header, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+
+        TextView categoryGlyph = new TextView(mActivityContext);
+        categoryGlyph.setText(getCaddyCategoryGlyph(item.caddyTitle));
+        categoryGlyph.setTextColor(Color.WHITE);
+        categoryGlyph.setTextSize(20);
+        categoryGlyph.setGravity(Gravity.CENTER);
+        categoryGlyph.setBackground(makeCaddyGlyphBackground());
+        header.addView(categoryGlyph, new LinearLayout.LayoutParams(dp(34), dp(34)));
+
         TextView title = new TextView(mActivityContext);
         title.setText(item.caddyTitle);
-        title.setTextColor(foreground);
-        title.setTextSize(14);
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(13.5f);
         title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
         title.setMaxLines(1);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        card.addView(title, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        titleParams.leftMargin = dp(8);
+        header.addView(title, titleParams);
 
-        List<AppInfo> apps = item.caddyApps == null ? java.util.Collections.emptyList()
-                : item.caddyApps;
+        TextView overflow = new TextView(mActivityContext);
+        overflow.setText("•••");
+        overflow.setTextColor(Color.WHITE);
+        overflow.setTextSize(15);
+        overflow.setGravity(Gravity.CENTER);
+        overflow.setBackground(makeCaddyGlyphBackground());
+        overflow.setContentDescription("More options for " + item.caddyTitle);
+        header.addView(overflow, new LinearLayout.LayoutParams(dp(34), dp(34)));
+        overflow.setOnClickListener(v -> {
+            PopupMenu menu = new PopupMenu(mActivityContext, overflow);
+            menu.getMenu().add("Open category");
+            if (!apps.isEmpty()) {
+                android.view.SubMenu appInfoMenu = menu.getMenu().addSubMenu("App info");
+                for (AppInfo app : apps) {
+                    appInfoMenu.add(app.title).setOnMenuItemClickListener(mi -> {
+                        openCaddyAppInfo(app);
+                        return true;
+                    });
+                }
+            }
+            menu.setOnMenuItemClickListener(mi -> {
+                if ("Open category".contentEquals(mi.getTitle())) {
+                    showCaddyCategory(item);
+                    return true;
+                }
+                return false;
+            });
+            menu.show();
+        });
+
+        FrameLayout gridHost = new FrameLayout(mActivityContext);
+        LinearLayout.LayoutParams gridHostParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        gridHostParams.topMargin = dp(5);
+        content.addView(gridHost, gridHostParams);
+
         android.widget.GridLayout grid = new android.widget.GridLayout(mActivityContext);
         grid.setColumnCount(2);
         grid.setRowCount(2);
         grid.setUseDefaultMargins(false);
-        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(112));
-        gridLp.topMargin = dp(8);
-        card.addView(grid, gridLp);
+        gridHost.addView(grid, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Keep the category preview visually balanced: four equal icon slots
-        // in a consistent 2x2 grid. Remaining apps are available after opening.
         for (int i = 0; i < Math.min(apps.size(), 4); i++) {
             AppInfo app = apps.get(i);
             FrameLayout cell = new FrameLayout(mActivityContext);
             android.widget.GridLayout.LayoutParams cellLp =
                     new android.widget.GridLayout.LayoutParams();
             cellLp.width = 0;
-            cellLp.height = dp(52);
+            cellLp.height = 0;
             cellLp.columnSpec = android.widget.GridLayout.spec(i % 2, 1f);
-            cellLp.rowSpec = android.widget.GridLayout.spec(i / 2);
+            cellLp.rowSpec = android.widget.GridLayout.spec(i / 2, 1f);
             grid.addView(cell, cellLp);
             addCaddyAppIcon(cell, app, dp(42));
         }
-        host.setContentDescription(item.caddyTitle);
+
+        // The bottom-right chevron is a dedicated affordance for opening all apps in this group.
+        TextView open = new TextView(mActivityContext);
+        open.setText("›");
+        open.setTextColor(Color.WHITE);
+        open.setTextSize(25);
+        open.setGravity(Gravity.CENTER);
+        open.setBackground(makeCaddyGlyphBackground());
+        FrameLayout.LayoutParams openParams = new FrameLayout.LayoutParams(
+                dp(30), dp(30), Gravity.BOTTOM | Gravity.END);
+        gridHost.addView(open, openParams);
+        open.setOnClickListener(v -> showCaddyCategory(item));
+        card.setOnClickListener(v -> showCaddyCategory(item));
+        card.setContentDescription(item.caddyTitle + ", " + apps.size() + " apps");
+    }
+
+    private GradientDrawable makeCaddyGlyphBackground() {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setShape(GradientDrawable.OVAL);
+        shape.setColor(Color.argb(76, 0, 0, 0));
+        shape.setStroke(dp(1), Color.argb(48, 255, 255, 255));
+        return shape;
+    }
+
+    private String getCaddyCategoryGlyph(String title) {
+        if (title == null) return "⋯";
+        String value = title.toLowerCase(java.util.Locale.ROOT);
+        if (value.contains("system")) return "▦";
+        if (value.contains("google")) return "G";
+        if (value.contains("commun")) return "●";
+        if (value.contains("tool")) return "⚒";
+        if (value.contains("music")) return "♫";
+        return "⋯";
+    }
+
+    private void openCaddyAppInfo(AppInfo app) {
+        if (app == null || app.componentName == null) return;
+        Intent intent = new Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        intent.setData(Uri.parse("package:" + app.componentName.getPackageName()));
+        try {
+            mActivityContext.startActivity(intent);
+        } catch (RuntimeException exception) {
+            Log.w(TAG, "Unable to open app info for " + app.title, exception);
+        }
     }
 
     /**
