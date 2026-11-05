@@ -940,9 +940,13 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 mOnIconClickListener.onClick(v);
             });
             appIcon.setOnLongClickListener(mOnIconLongClickListener);
+            // Match the compact Caddy preview fix: hiding text does not remove
+            // BubbleTextView's reserved label line while centerVertically is enabled.
+            appIcon.setCenterVertically(false);
+            int appIconInset = Math.max(0, (dp(68) - appIcon.getIconSize()) / 2);
+            appIcon.setPadding(appIcon.getPaddingLeft(), appIconInset,
+                    appIcon.getPaddingRight(), 0);
             appIcon.setGravity(Gravity.CENTER);
-            // Keep the native All Apps icon sizing; the frame provides room,
-            // while BubbleTextView measures and centers its own drawable.
             appIconFrame.setClipChildren(false);
             appIconFrame.setClipToPadding(false);
             appIcon.setClipToOutline(false);
@@ -1106,10 +1110,15 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         icon.setOnFocusChangeListener(mIconFocusListener);
         icon.setOnClickListener(mOnIconClickListener);
         icon.setOnLongClickListener(mOnIconLongClickListener);
+        // all_apps_icon.xml enables centerVertically, which reserves a text line
+        // even when setTextVisibility(false) only makes that text transparent.
+        // In Caddy's compact preview cell that produces negative top padding and
+        // clips adaptive icons into a flat-bottom shape. Disable that mode and
+        // center only the actual drawable using BubbleTextView's native icon size.
+        icon.setCenterVertically(false);
+        int topInset = Math.max(0, (cell.getLayoutParams().height - icon.getIconSize()) / 2);
+        icon.setPadding(icon.getPaddingLeft(), topInset, icon.getPaddingRight(), 0);
         icon.setGravity(Gravity.CENTER);
-        // BubbleTextView owns its icon drawable bounds and vertical centering.
-        // Do not force a square view smaller than its styled All Apps content area:
-        // that clips adaptive-icon masks into a flat-bottom shape on some densities.
         FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
