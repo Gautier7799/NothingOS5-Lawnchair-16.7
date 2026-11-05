@@ -140,12 +140,19 @@ class LawnchairAlphabeticalAppsList<T>(
                         )
                     } ?: app.title.toString()
                 }
-            val maxSuggestionOffset = (suggestionPool.size - 8).coerceAtLeast(0)
+            // Favorites are the six most frequently launched apps. Suggestions use
+            // the next eight apps to avoid duplicating the favorites row.
+            val favorites = usageRankedApps.take(6)
+            mAdapterItems.add(AdapterItem.asCaddyFavorites(favorites))
+            position++
+
+            val suggestionCandidates = suggestionPool.drop(favorites.size)
+            val maxSuggestionOffset = (suggestionCandidates.size - 8).coerceAtLeast(0)
             suggestionRefreshOffset = suggestionRefreshOffset.coerceIn(0, maxSuggestionOffset)
-            val suggestions = if (suggestionPool.size <= 8) {
-                suggestionPool
+            val suggestions = if (suggestionCandidates.size <= 8) {
+                suggestionCandidates
             } else {
-                suggestionPool.drop(suggestionRefreshOffset).take(8)
+                suggestionCandidates.drop(suggestionRefreshOffset).take(8)
             }
             mAdapterItems.add(
                 AdapterItem.asCaddySuggestions(suggestions) {
@@ -158,7 +165,14 @@ class LawnchairAlphabeticalAppsList<T>(
             )
             position++
 
-            caddyCategories.forEach { (category, apps) ->
+            // Put categories containing the most-used apps first; stable category
+            // ordering is retained for categories with no usage history.
+            val usageOrderedCategories = caddyCategories.entries.sortedBy { (_, categoryApps) ->
+                categoryApps.map { usageRankedApps.indexOf(it) }
+                    .filter { it >= 0 }
+                    .minOrNull() ?: Int.MAX_VALUE
+            }
+            usageOrderedCategories.forEach { (category, apps) ->
                 // Caddy categories use their own adapter item and renderer; they are
                 // intentionally not wrapped in FolderInfo or FolderIcon.
                 mAdapterItems.add(AdapterItem.asCaddyCategory(category, apps))
