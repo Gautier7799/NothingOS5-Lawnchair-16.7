@@ -971,18 +971,19 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
     }
 
     private void addCaddyAppIcon(FrameLayout cell, AppInfo app, int iconSize) {
-        ImageView icon = new ImageView(mActivityContext);
-        icon.setImageDrawable(app.newIcon(mActivityContext));
-        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        cell.addView(icon, new FrameLayout.LayoutParams(
-                iconSize, iconSize, Gravity.CENTER));
-        icon.setTag(app);
+        // Use the same launcher icon widget as the default drawer. Its tag,
+        // popup anchor, and long-press lifecycle are understood by Lawnchair's
+        // native app action/drag handlers.
+        BubbleTextView icon = (BubbleTextView) mLayoutInflater.inflate(
+                R.layout.all_apps_icon, cell, false);
+        icon.applyFromApplicationInfo(app);
+        icon.setTextVisibility(false);
+        icon.setLongPressTimeoutFactor(1f);
         icon.setContentDescription(app.title);
-        icon.setFocusable(true);
+        icon.setOnFocusChangeListener(mIconFocusListener);
         icon.setOnClickListener(mOnIconClickListener);
-        // Reuse the same native long-press actions as the default app drawer.
-        icon.setLongClickable(true);
         icon.setOnLongClickListener(mOnIconLongClickListener);
+        cell.addView(icon, new FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER));
     }
 
     /**
