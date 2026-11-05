@@ -730,7 +730,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         grid.setRowCount(2);
         grid.setUseDefaultMargins(false);
         LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(112));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(128));
         gridLp.topMargin = dp(8);
         card.addView(grid, gridLp);
 
