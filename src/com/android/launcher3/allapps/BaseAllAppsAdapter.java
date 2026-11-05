@@ -47,6 +47,11 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 import android.widget.PopupMenu;
+import android.widget.EditText;
+import android.widget.CheckBox;
+import android.app.AlertDialog;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -148,6 +153,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         public String caddyTitle;
         public List<AppInfo> caddyApps;
         public boolean caddyIsSearchActions;
+        public boolean caddyIsAddCategory;
         public Runnable caddyOpenAction;
 
         /**
@@ -186,6 +192,15 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             return item;
         }
 
+        public static AdapterItem asCaddyAddCategory(Runnable refreshAction) {
+            AdapterItem item = new AdapterItem(VIEW_TYPE_CADDY_CATEGORY);
+            item.caddyTitle = "Add category";
+            item.caddyIsAddCategory = true;
+            item.caddyOpenAction = refreshAction;
+            item.caddyApps = new ArrayList<>();
+            return item;
+        }
+
         public static AdapterItem asCaddySearchActions() {
             AdapterItem item = new AdapterItem(VIEW_TYPE_CADDY_CATEGORY);
             item.caddyTitle = "Search";
@@ -218,7 +233,8 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 return itemInfo == null && other.itemInfo == null
                         && java.util.Objects.equals(caddyTitle, other.caddyTitle)
                         && java.util.Objects.equals(caddyApps, other.caddyApps)
-                        && caddyIsSearchActions == other.caddyIsSearchActions;
+                        && caddyIsSearchActions == other.caddyIsSearchActions
+                        && caddyIsAddCategory == other.caddyIsAddCategory;
             }
             return itemInfo == null && other.itemInfo == null;
         }
@@ -665,10 +681,14 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         card.setClickable(true);
         card.setFocusable(true);
         card.setOnClickListener(v -> {
-            if (item.caddyOpenAction != null) {
-                item.caddyOpenAction.run();
+            if (item.caddyIsAddCategory) {
+                showCaddyCategoryEditor(item);
+            } else {
+                if (item.caddyOpenAction != null) {
+                    item.caddyOpenAction.run();
+                }
+                showCaddyCategory(item);
             }
-            showCaddyCategory(item);
         });
         GradientDrawable background = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -682,7 +702,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         TextView title = new TextView(mActivityContext);
-        title.setText(item.caddyTitle);
+        title.setText(item.caddyIsAddCategory ? "+  Add category" : item.caddyTitle);
         title.setTextColor(foreground);
         title.setTextSize(14);
         title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
@@ -690,6 +710,18 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
         card.addView(title, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        if (item.caddyIsAddCategory) {
+            TextView addHint = new TextView(mActivityContext);
+            addHint.setText("＋");
+            addHint.setTextColor(foreground);
+            addHint.setTextSize(38);
+            addHint.setGravity(Gravity.CENTER);
+            card.addView(addHint, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+            host.setContentDescription("Add a custom app category");
+            return;
+        }
 
         List<AppInfo> apps = item.caddyApps == null ? java.util.Collections.emptyList()
                 : item.caddyApps;
@@ -710,11 +742,11 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             android.widget.GridLayout.LayoutParams cellLp =
                     new android.widget.GridLayout.LayoutParams();
             cellLp.width = 0;
-            cellLp.height = dp(52);
+            cellLp.height = dp(64);
             cellLp.columnSpec = android.widget.GridLayout.spec(i % 2, 1f);
             cellLp.rowSpec = android.widget.GridLayout.spec(i / 2);
             grid.addView(cell, cellLp);
-            addCaddyAppIcon(cell, app, dp(42));
+            addCaddyAppIcon(cell, app, dp(56));
         }
         host.setContentDescription(item.caddyTitle);
     }
@@ -894,7 +926,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
 
             FrameLayout appIconFrame = new FrameLayout(mActivityContext);
             appCell.addView(appIconFrame, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(54)));
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(68)));
 
             BubbleTextView appIcon = (BubbleTextView) mLayoutInflater.inflate(
                     R.layout.all_apps_icon, appIconFrame, false);
@@ -908,8 +940,9 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 mOnIconClickListener.onClick(v);
             });
             appIcon.setOnLongClickListener(mOnIconLongClickListener);
+            appIcon.setGravity(Gravity.CENTER);
             appIconFrame.addView(appIcon, new FrameLayout.LayoutParams(
-                    dp(48), dp(48), Gravity.CENTER));
+                    dp(64), dp(64), Gravity.CENTER));
 
             TextView appLabel = new TextView(mActivityContext);
             appLabel.setText(app.title);
@@ -968,6 +1001,91 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 .start();
     }
 
+    /**
+     * Lets the user create a persistent Caddy category and choose its apps.
+     * Category membership is stored by component name so it survives app-list reloads.
+     */
+    private void showCaddyCategoryEditor(AdapterItem item) {
+        java.util.LinkedHashMap<String, AppInfo> available = new java.util.LinkedHashMap<>();
+        for (AdapterItem adapterItem : mApps.getAdapterItems()) {
+            if (adapterItem.caddyApps == null) continue;
+            for (AppInfo app : adapterItem.caddyApps) {
+                if (app != null && app.componentName != null) {
+                    available.put(app.componentName.flattenToString(), app);
+                }
+            }
+        }
+        if (available.isEmpty()) return;
+
+        LinearLayout content = new LinearLayout(mActivityContext);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(8), dp(20), dp(4));
+        EditText nameInput = new EditText(mActivityContext);
+        nameInput.setSingleLine(true);
+        nameInput.setHint("Category name");
+        content.addView(nameInput, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        ScrollView appScroll = new ScrollView(mActivityContext);
+        LinearLayout choices = new LinearLayout(mActivityContext);
+        choices.setOrientation(LinearLayout.VERTICAL);
+        appScroll.addView(choices);
+        content.addView(appScroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(320)));
+
+        java.util.ArrayList<String> componentKeys = new java.util.ArrayList<>(available.keySet());
+        java.util.ArrayList<String> selectedKeys = new java.util.ArrayList<>();
+        for (String key : componentKeys) {
+            AppInfo app = available.get(key);
+            CheckBox checkBox = new CheckBox(mActivityContext);
+            checkBox.setText(app.title);
+            checkBox.setTextSize(14);
+            checkBox.setTag(key);
+            choices.addView(checkBox, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            checkBox.setOnCheckedChangeListener((button, checked) -> {
+                if (checked) {
+                    if (!selectedKeys.contains(key)) selectedKeys.add(key);
+                } else {
+                    selectedKeys.remove(key);
+                }
+            });
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(mActivityContext)
+                .setTitle("Create Caddy category")
+                .setView(content)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Create", (d, which) -> {
+                    String title = nameInput.getText().toString().trim();
+                    if (title.isEmpty() || selectedKeys.isEmpty()) {
+                        android.widget.Toast.makeText(mActivityContext,
+                                "Enter a name and select at least one app",
+                                android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    try {
+                        android.content.SharedPreferences preferences =
+                                mActivityContext.getSharedPreferences(
+                                        "caddy_custom_categories", Context.MODE_PRIVATE);
+                        JSONArray categories = new JSONArray(
+                                preferences.getString("categories", "[]"));
+                        JSONObject category = new JSONObject();
+                        category.put("title", title);
+                        JSONArray apps = new JSONArray();
+                        for (String key : selectedKeys) apps.put(key);
+                        category.put("apps", apps);
+                        categories.put(category);
+                        preferences.edit().putString("categories", categories.toString()).apply();
+                        if (item.caddyOpenAction != null) item.caddyOpenAction.run();
+                    } catch (org.json.JSONException exception) {
+                        Log.e(TAG, "Unable to save Caddy category", exception);
+                    }
+                })
+                .create();
+        dialog.show();
+    }
+
     private void addCaddyAppIcon(FrameLayout cell, AppInfo app, int iconSize) {
         // Use the same launcher icon widget as the default drawer. Its tag,
         // popup anchor, and long-press lifecycle are understood by Lawnchair's
@@ -981,6 +1099,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         icon.setOnFocusChangeListener(mIconFocusListener);
         icon.setOnClickListener(mOnIconClickListener);
         icon.setOnLongClickListener(mOnIconLongClickListener);
+        icon.setGravity(Gravity.CENTER);
         cell.addView(icon, new FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER));
     }
 
