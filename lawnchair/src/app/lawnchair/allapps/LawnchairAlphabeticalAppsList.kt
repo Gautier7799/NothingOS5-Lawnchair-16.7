@@ -9,8 +9,6 @@ import androidx.lifecycle.lifecycleScope
 import app.lawnchair.data.folder.FolderEntry
 import app.lawnchair.data.folder.model.FolderViewModel
 import app.lawnchair.launcher
-import app.lawnchair.predictions.LawnchairPredictionManager
-import app.lawnchair.predictions.PredictionAppKey
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.util.categorizeAppsWithSystemAndGoogle
@@ -23,7 +21,6 @@ import com.android.launcher3.allapps.WorkProfileManager
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.model.data.FolderInfo
 import com.android.launcher3.model.data.ItemInfo
-import com.android.launcher3.pm.UserCache
 import com.android.launcher3.util.ComponentKey
 import com.android.launcher3.views.ActivityContext
 import com.patrykmichalik.opto.core.onEach
@@ -51,7 +48,8 @@ class LawnchairAlphabeticalAppsList<T>(
     )
     private val folderList = mutableListOf<FolderEntry>()
     private val filteredList = mutableListOf<AppInfo>()
-    private var suggestionRefreshOffset = 0
+    private val sessionCategoryUse = linkedMapOf<String, Long>()
+    private var sessionUseSequence = 0L
 
     init {
         context.launcher.deviceProfile.inv.addOnChangeListener(this)
@@ -118,64 +116,31 @@ class LawnchairAlphabeticalAppsList<T>(
                 }
             }
 
-            // Suggestions reuse Lawnchair's existing all-app launch history. The ranking
-            // is resolved against the current AppInfo set (including user identity), so
-            // unavailable packages and profile mismatches can never leak into the card.
-            val predictionStore = LawnchairPredictionManager.getInstance(context).allAppsStore
-            val userCache = UserCache.INSTANCE.get(context)
-            val appsByPredictionKey = validApps.mapNotNull { app ->
-                val componentName = app.componentName ?: return@mapNotNull null
-                PredictionAppKey.create(
-                    componentName,
-                    userCache.getSerialNumberForUser(app.user).toString(),
-                ) to app
-            }.toMap()
-            val usageRankedApps = predictionStore.getRanked().mapNotNull(appsByPredictionKey::get)
-            val suggestionPool = (usageRankedApps + validApps.filterNot { it in usageRankedApps })
-                .distinctBy { app ->
-                    app.componentName?.let { componentName ->
-                        PredictionAppKey.create(
-                            componentName,
-                            userCache.getSerialNumberForUser(app.user).toString(),
-                        )
-                    } ?: app.title.toString()
+            // Category order is session-aware: opening a category moves it to the
+            // front for the remainder of this launcher session. Categories without
+            // session activity keep their original stable classification order.
+            val orderedCategories = caddyCategories.entries.sortedByDescending { (category, _) ->
+                sessionCategoryUse[category] ?: Long.MIN_VALUE
+            }
+            orderedCategories.forEach { (category, apps) ->
+                mAdapterItems.add(
+                    AdapterItem.asCaddyCategory(category, apps) {
+                        sessionCategoryUse[category] = ++sessionUseSequence
+                        updateAdapterItems()
+                    },
+                )
+                position++
+            }
+
+            // The reference places the two search actions in the final right-hand
+            // card slot. Add an invisible left spacer only when needed to preserve
+            // that alignment in a two-column grid.
+            if (caddyCategories.isNotEmpty()) {
+                if (caddyCategories.size % 2 == 0) {
+                    mAdapterItems.add(AdapterItem.asCaddySpacer())
+                    position++
                 }
-            // Favorites are the six most frequently launched apps. Suggestions use
-            // the next eight apps to avoid duplicating the favorites row.
-            val favorites = usageRankedApps.take(6)
-            mAdapterItems.add(AdapterItem.asCaddyFavorites(favorites))
-            position++
-
-            val suggestionCandidates = suggestionPool.drop(favorites.size)
-            val maxSuggestionOffset = (suggestionCandidates.size - 8).coerceAtLeast(0)
-            suggestionRefreshOffset = suggestionRefreshOffset.coerceIn(0, maxSuggestionOffset)
-            val suggestions = if (suggestionCandidates.size <= 8) {
-                suggestionCandidates
-            } else {
-                suggestionCandidates.drop(suggestionRefreshOffset).take(8)
-            }
-            mAdapterItems.add(
-                AdapterItem.asCaddySuggestions(suggestions) {
-                    val range = maxSuggestionOffset + 1
-                    val step = minOf(8, range)
-                    suggestionRefreshOffset = if (range <= 1) 0
-                    else (suggestionRefreshOffset + step) % range
-                    updateAdapterItems()
-                },
-            )
-            position++
-
-            // Put categories containing the most-used apps first; stable category
-            // ordering is retained for categories with no usage history.
-            val usageOrderedCategories = caddyCategories.entries.sortedBy { (_, categoryApps) ->
-                categoryApps.map { usageRankedApps.indexOf(it) }
-                    .filter { it >= 0 }
-                    .minOrNull() ?: Int.MAX_VALUE
-            }
-            usageOrderedCategories.forEach { (category, apps) ->
-                // Caddy categories use their own adapter item and renderer; they are
-                // intentionally not wrapped in FolderInfo or FolderIcon.
-                mAdapterItems.add(AdapterItem.asCaddyCategory(category, apps))
+                mAdapterItems.add(AdapterItem.asCaddySearchActions())
                 position++
             }
         } else {
