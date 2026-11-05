@@ -102,7 +102,37 @@ class LawnchairAlphabeticalAppsList<T>(
 
         if (!drawerListDefault) {
             val validApps = appList.mapNotNull { it }
-            val finalCategorizedApps = categorizeAppsWithSystemAndGoogle(validApps, context)
+
+            // User-created Caddy categories take priority over automatic grouping.
+            // Persisted component keys keep each app in the category selected by the user.
+            val customCategories = mutableListOf<Pair<String, List<AppInfo>>>()
+            val customAssignedKeys = linkedSetOf<String>()
+            runCatching {
+                val stored = context.getSharedPreferences(
+                    "caddy_custom_categories",
+                    Context.MODE_PRIVATE,
+                ).getString("categories", "[]") ?: "[]"
+                val json = org.json.JSONArray(stored)
+                for (index in 0 until json.length()) {
+                    val category = json.optJSONObject(index) ?: continue
+                    val title = category.optString("title").trim()
+                    val keys = category.optJSONArray("apps") ?: continue
+                    if (title.isEmpty()) continue
+                    val selectedKeys = (0 until keys.length()).mapNotNull { keys.optString(it) }
+                    val selectedApps = validApps.filter { app ->
+                        app.toComponentKey().toString() in selectedKeys
+                    }
+                    if (selectedApps.isNotEmpty()) {
+                        customCategories.add(title to selectedApps)
+                        customAssignedKeys.addAll(selectedKeys)
+                    }
+                }
+            }.onFailure { Log.w(TAG, "Unable to load custom Caddy categories", it) }
+
+            val automaticApps = validApps.filterNot {
+                it.toComponentKey().toString() in customAssignedKeys
+            }
+            val finalCategorizedApps = categorizeAppsWithSystemAndGoogle(automaticApps, context)
 
             // Native Launcher folders automatically collapse when they contain one item.
             // Keep Caddy cards compatible with that behavior by collecting singleton categories
@@ -116,9 +146,18 @@ class LawnchairAlphabeticalAppsList<T>(
                 }
             }
 
-            // Category order is session-aware: opening a category moves it to the
-            // front for the remainder of this launcher session. Categories without
-            // session activity keep their original stable classification order.
+            customCategories.forEach { (category, apps) ->
+                mAdapterItems.add(
+                    AdapterItem.asCaddyCategory(category, apps) {
+                        sessionCategoryUse[category] = ++sessionUseSequence
+                        updateAdapterItems()
+                    },
+                )
+                position++
+            }
+
+            // Category order is session-aware: opening an automatic category moves it
+            // to the front for the remainder of this launcher session.
             val orderedCategories = caddyCategories.entries.sortedByDescending { (category, _) ->
                 sessionCategoryUse[category] ?: Long.MIN_VALUE
             }
@@ -132,17 +171,18 @@ class LawnchairAlphabeticalAppsList<T>(
                 position++
             }
 
-            // The reference places the two search actions in the final right-hand
-            // card slot. Add an invisible left spacer only when needed to preserve
-            // that alignment in a two-column grid.
-            if (caddyCategories.isNotEmpty()) {
-                if (caddyCategories.size % 2 == 0) {
-                    mAdapterItems.add(AdapterItem.asCaddySpacer())
-                    position++
-                }
-                mAdapterItems.add(AdapterItem.asCaddySearchActions())
+            // Always provide a direct way to create another user-defined category.
+            mAdapterItems.add(AdapterItem.asCaddyAddCategory { updateAdapterItems() })
+            position++
+
+            // Keep Search in the final right-hand card slot in the two-column layout.
+            val categoryCardCount = customCategories.size + caddyCategories.size + 1
+            if (categoryCardCount % 2 == 0) {
+                mAdapterItems.add(AdapterItem.asCaddySpacer())
                 position++
             }
+            mAdapterItems.add(AdapterItem.asCaddySearchActions())
+            position++
         } else {
             folderList.forEach { folderEntry ->
                 val resolvedApps = folderEntry.itemComponentKeys.mapNotNull { keyString ->
