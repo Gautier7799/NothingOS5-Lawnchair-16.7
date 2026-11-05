@@ -16,6 +16,7 @@ on:
       - feature/caddy-smart-drawer-v83
       - feature/caddy-smart-drawer-v84
       - feature/caddy-smart-drawer-v85
+      - feature/caddy-smart-drawer-v86
 
 permissions:
   contents: read
