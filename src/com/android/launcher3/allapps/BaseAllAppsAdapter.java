@@ -142,6 +142,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         public String caddyTitle;
         public List<AppInfo> caddyApps;
         public boolean caddyIsSuggestions;
+        public boolean caddyIsFavorites;
         public Runnable caddyRefreshAction;
 
         /**
@@ -170,6 +171,14 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             AdapterItem item = new AdapterItem(VIEW_TYPE_CADDY_CATEGORY);
             item.caddyTitle = title;
             item.caddyApps = new ArrayList<>(apps);
+            return item;
+        }
+
+        public static AdapterItem asCaddyFavorites(List<AppInfo> apps) {
+            AdapterItem item = new AdapterItem(VIEW_TYPE_CADDY_CATEGORY);
+            item.caddyTitle = "Favorites";
+            item.caddyApps = new ArrayList<>(apps);
+            item.caddyIsFavorites = true;
             return item;
         }
 
@@ -424,10 +433,13 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 AdapterItem caddyItem = mApps.getAdapterItems().get(position);
                 ViewGroup.LayoutParams caddyParams = holder.itemView.getLayoutParams();
                 if (caddyParams != null) {
-                    caddyParams.height = dp(caddyItem.caddyIsSuggestions ? 216 : 184);
+                    caddyParams.height = dp(caddyItem.caddyIsSuggestions ? 216
+                            : caddyItem.caddyIsFavorites ? 142 : 184);
                     holder.itemView.setLayoutParams(caddyParams);
                 }
-                if (caddyItem.caddyIsSuggestions) {
+                if (caddyItem.caddyIsFavorites) {
+                    bindCaddyFavoritesCard((FrameLayout) holder.itemView, caddyItem);
+                } else if (caddyItem.caddyIsSuggestions) {
                     bindCaddySuggestionsCard((FrameLayout) holder.itemView, caddyItem);
                 } else {
                     bindIndependentCaddyCard((FrameLayout) holder.itemView, caddyItem);
@@ -715,6 +727,79 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             }
         }
         host.setContentDescription(item.caddyTitle);
+    }
+
+    private void bindCaddyFavoritesCard(FrameLayout host, AdapterItem item) {
+        host.removeAllViews();
+        host.setPadding(dp(4), dp(4), dp(4), dp(4));
+
+        int accent = resolveCaddyDynamicColor();
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(Color.rgb(36, 37, 39));
+        background.setCornerRadius(dp(24));
+        background.setStroke(dp(1), Color.argb(42,
+                Color.red(accent), Color.green(accent), Color.blue(accent)));
+
+        LinearLayout card = new LinearLayout(mActivityContext);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(14), dp(8), dp(14), dp(8));
+        card.setBackground(background);
+        host.addView(card, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        TextView title = new TextView(mActivityContext);
+        title.setText("Favorites");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(14);
+        title.setTypeface(android.graphics.Typeface.create(
+                "sans-serif-medium", android.graphics.Typeface.NORMAL));
+        card.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(24)));
+
+        android.widget.GridLayout grid = new android.widget.GridLayout(mActivityContext);
+        grid.setColumnCount(3);
+        grid.setRowCount(2);
+        LinearLayout.LayoutParams gridParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        card.addView(grid, gridParams);
+
+        List<AppInfo> apps = item.caddyApps == null
+                ? java.util.Collections.emptyList() : item.caddyApps;
+        for (int i = 0; i < Math.min(apps.size(), 6); i++) {
+            AppInfo app = apps.get(i);
+            LinearLayout cell = new LinearLayout(mActivityContext);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER);
+            android.widget.GridLayout.LayoutParams cellParams =
+                    new android.widget.GridLayout.LayoutParams();
+            cellParams.width = 0;
+            cellParams.height = dp(50);
+            cellParams.columnSpec = android.widget.GridLayout.spec(i % 3, 1f);
+            cellParams.rowSpec = android.widget.GridLayout.spec(i / 3);
+            grid.addView(cell, cellParams);
+
+            FrameLayout iconHost = new FrameLayout(mActivityContext);
+            GradientDrawable disc = new GradientDrawable();
+            disc.setShape(GradientDrawable.OVAL);
+            disc.setColor(Color.rgb(25, 25, 25));
+            iconHost.setBackground(disc);
+            iconHost.setClickable(true);
+            iconHost.setFocusable(true);
+            iconHost.setContentDescription(app.title);
+            cell.addView(iconHost, new LinearLayout.LayoutParams(dp(34), dp(34)));
+            addCaddyAppIcon(iconHost, app, dp(26));
+
+            TextView label = new TextView(mActivityContext);
+            label.setText(app.title);
+            label.setTextColor(Color.WHITE);
+            label.setTextSize(9);
+            label.setGravity(Gravity.CENTER);
+            label.setMaxLines(1);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            cell.addView(label, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+        host.setContentDescription("Favorites, up to six frequently used apps");
     }
 
     private void bindCaddySuggestionsCard(FrameLayout host, AdapterItem item) {
