@@ -909,41 +909,9 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             appIconFrame.addView(appIcon, new FrameLayout.LayoutParams(
                     dp(48), dp(48), Gravity.CENTER));
 
-            // Per-app overflow menu keeps the category grid clean while exposing
-            // Android's native application details screen for the selected app.
-            TextView appMenu = new TextView(mActivityContext);
-            appMenu.setText("⋮");
-            appMenu.setTextColor(Color.WHITE);
-            appMenu.setTextSize(21);
-            appMenu.setGravity(Gravity.CENTER);
-            appMenu.setContentDescription("More options for " + app.title);
-            appMenu.setBackgroundResource(android.R.drawable.list_selector_background);
-            FrameLayout.LayoutParams menuParams = new FrameLayout.LayoutParams(
-                    dp(30), dp(34), Gravity.TOP | Gravity.END);
-            appIconFrame.addView(appMenu, menuParams);
-            appMenu.setOnClickListener(v -> {
-                PopupMenu popupMenu = new PopupMenu(mActivityContext, appMenu);
-                popupMenu.getMenu().add("App info");
-                popupMenu.setOnMenuItemClickListener(menuItem -> {
-                    if ("App info".contentEquals(menuItem.getTitle())) {
-                        if (app.componentName == null) {
-                            return true;
-                        }
-                        Intent detailsIntent = new Intent(
-                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                        detailsIntent.setData(Uri.parse(
-                                "package:" + app.componentName.getPackageName()));
-                        try {
-                            mActivityContext.startActivity(detailsIntent);
-                        } catch (RuntimeException exception) {
-                            Log.w(TAG, "Unable to open app info for " + app.title, exception);
-                        }
-                        return true;
-                    }
-                    return false;
-                });
-                popupMenu.show();
-            });
+            // Reuse Lawnchair's native all-apps long-press menu (App info,
+            // Pause app, Widgets, Remove, etc.) instead of a Caddy-specific menu.
+            appIcon.setOnLongClickListener(mOnIconLongClickListener);
 
             TextView appLabel = new TextView(mActivityContext);
             appLabel.setText(app.title);
@@ -1012,10 +980,9 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         icon.setContentDescription(app.title);
         icon.setFocusable(true);
         icon.setOnClickListener(mOnIconClickListener);
-        // Caddy preview icons are plain ImageViews, not DraggableViews. Do not
-        // route their long-press gesture into the launcher drag controller.
-        icon.setLongClickable(false);
-        icon.setOnLongClickListener(null);
+        // Reuse the same native long-press actions as the default app drawer.
+        icon.setLongClickable(true);
+        icon.setOnLongClickListener(mOnIconLongClickListener);
     }
 
     /**
