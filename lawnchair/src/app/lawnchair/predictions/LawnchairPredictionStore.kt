@@ -16,6 +16,8 @@ import com.patrykmichalik.opto.domain.Preference
 class LawnchairPredictionStore(
     val preference: Preference<List<String>, String, *>,
     private val isOrdered: Boolean = false,
+    /** Rank this ordered store by most-recent use instead of launch frequency. */
+    private val rankByRecency: Boolean = false,
     private val maxSize: Int = DEFAULT_MAX_SIZE,
 ) {
     private val lock = Any()
@@ -32,6 +34,7 @@ class LawnchairPredictionStore(
         if (key.isEmpty()) return
         synchronized(lock) {
             if (isOrdered) {
+                if (rankByRecency) cache.remove(key)
                 cache.add(0, key)
                 if (cache.size > maxSize) {
                     cache = cache.take(maxSize).toMutableList()
@@ -72,13 +75,18 @@ class LawnchairPredictionStore(
      * This is only useful for store with ordered mode.
      */
     fun getRanked(): List<String> = synchronized(lock) {
-        cache
-            .filter { it.isNotEmpty() }
-            .groupingBy { it }
-            .eachCount()
-            .entries
-            .sortedByDescending { it.value }
-            .map { it.key }
+        val entries = cache.filter { it.isNotEmpty() }
+        if (rankByRecency) {
+            // Entries are stored newest-first; distinct() keeps the newest occurrence.
+            entries.distinct()
+        } else {
+            entries
+                .groupingBy { it }
+                .eachCount()
+                .entries
+                .sortedByDescending { it.value }
+                .map { it.key }
+        }
     }
 
     /**
