@@ -56,6 +56,7 @@ class LawnchairPredictionManager @Inject constructor(
             save = { it.joinToString(STORE_DELIMITER) },
         ),
         isOrdered = true,
+        rankByRecency = true,
     )
 
     /** Unordered store of dismissed prediction app keys. */
