@@ -896,22 +896,20 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             appCell.addView(appIconFrame, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, dp(54)));
 
-            ImageView appIcon = new ImageView(mActivityContext);
-            appIcon.setImageDrawable(app.newIcon(mActivityContext));
-            appIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            appIcon.setTag(app);
+            BubbleTextView appIcon = (BubbleTextView) mLayoutInflater.inflate(
+                    R.layout.all_apps_icon, appIconFrame, false);
+            appIcon.applyFromApplicationInfo(app);
+            appIcon.setTextVisibility(false);
+            appIcon.setLongPressTimeoutFactor(1f);
             appIcon.setContentDescription(app.title);
-            appIcon.setFocusable(true);
+            appIcon.setOnFocusChangeListener(mIconFocusListener);
             appIcon.setOnClickListener(v -> {
                 dialog.dismiss();
                 mOnIconClickListener.onClick(v);
             });
+            appIcon.setOnLongClickListener(mOnIconLongClickListener);
             appIconFrame.addView(appIcon, new FrameLayout.LayoutParams(
                     dp(48), dp(48), Gravity.CENTER));
-
-            // Reuse Lawnchair's native all-apps long-press menu (App info,
-            // Pause app, Widgets, Remove, etc.) instead of a Caddy-specific menu.
-            appIcon.setOnLongClickListener(mOnIconLongClickListener);
 
             TextView appLabel = new TextView(mActivityContext);
             appLabel.setText(app.title);
