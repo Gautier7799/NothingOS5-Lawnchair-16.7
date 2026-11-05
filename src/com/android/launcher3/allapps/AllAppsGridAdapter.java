@@ -230,9 +230,11 @@ public class AllAppsGridAdapter<T extends Context & ActivityContext> extends
             }
             int viewType = items.get(position).viewType;
             if (isIconViewType(viewType)) {
-                // In Caddy mode, let each category card occupy two grid columns.
+                // Caddy category cards, the search action card and its alignment
+                // spacer all occupy one half-width cell in the two-column layout.
                 // The default drawer layout keeps its original span behavior.
-                if ((viewType == VIEW_TYPE_FOLDER || viewType == VIEW_TYPE_CADDY_CATEGORY)
+                if ((viewType == VIEW_TYPE_FOLDER || viewType == VIEW_TYPE_CADDY_CATEGORY
+                        || viewType == VIEW_TYPE_CADDY_SPACER)
                         && !PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
                     return Math.min(totalSpans, (totalSpans / mAppsPerRow) * 2);
                 }
