@@ -941,8 +941,15 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             });
             appIcon.setOnLongClickListener(mOnIconLongClickListener);
             appIcon.setGravity(Gravity.CENTER);
+            // Keep the native All Apps icon sizing; the frame provides room,
+            // while BubbleTextView measures and centers its own drawable.
+            appIconFrame.setClipChildren(false);
+            appIconFrame.setClipToPadding(false);
+            appIcon.setClipToOutline(false);
             appIconFrame.addView(appIcon, new FrameLayout.LayoutParams(
-                    dp(64), dp(64), Gravity.CENTER));
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    Gravity.CENTER));
 
             TextView appLabel = new TextView(mActivityContext);
             appLabel.setText(app.title);
@@ -1100,7 +1107,17 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         icon.setOnClickListener(mOnIconClickListener);
         icon.setOnLongClickListener(mOnIconLongClickListener);
         icon.setGravity(Gravity.CENTER);
-        cell.addView(icon, new FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER));
+        // BubbleTextView owns its icon drawable bounds and vertical centering.
+        // Do not force a square view smaller than its styled All Apps content area:
+        // that clips adaptive-icon masks into a flat-bottom shape on some densities.
+        FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER);
+        cell.setClipChildren(false);
+        cell.setClipToPadding(false);
+        icon.setClipToOutline(false);
+        cell.addView(icon, iconParams);
     }
 
     /**
