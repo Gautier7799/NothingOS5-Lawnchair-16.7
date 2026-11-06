@@ -122,7 +122,7 @@ class LawnchairAlphabeticalAppsList<T>(
                     val selectedApps = validApps.filter { app ->
                         val componentKey = app.toComponentKey().toString()
                         componentKey in selectedKeys ||
-                            app.componentName.flattenToString() in selectedKeys
+                            app.componentName?.flattenToString()?.let { it in selectedKeys } == true
                     }
                     if (selectedApps.isNotEmpty()) {
                         customCategories.add(title to selectedApps)
