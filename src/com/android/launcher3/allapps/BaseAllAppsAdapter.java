@@ -936,8 +936,12 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             appIcon.setContentDescription(app.title);
             appIcon.setOnFocusChangeListener(mIconFocusListener);
             appIcon.setOnClickListener(v -> {
-                dialog.dismiss();
+                // Let Launcher3 process the click while the icon is still attached
+                // to its dialog hierarchy. The native handler may close All Apps and
+                // start the selected activity; dismissing first can detach the anchor
+                // before that handler resolves the app launch.
                 mOnIconClickListener.onClick(v);
+                dialog.dismiss();
             });
             appIcon.setOnLongClickListener(mOnIconLongClickListener);
             // Match the compact Caddy preview fix: hiding text does not remove
