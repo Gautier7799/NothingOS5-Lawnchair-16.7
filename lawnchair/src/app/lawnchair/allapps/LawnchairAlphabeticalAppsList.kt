@@ -120,11 +120,15 @@ class LawnchairAlphabeticalAppsList<T>(
                     if (title.isEmpty()) continue
                     val selectedKeys = (0 until keys.length()).mapNotNull { keys.optString(it) }
                     val selectedApps = validApps.filter { app ->
-                        app.toComponentKey().toString() in selectedKeys
+                        val componentKey = app.toComponentKey().toString()
+                        componentKey in selectedKeys ||
+                            app.componentName.flattenToString() in selectedKeys
                     }
                     if (selectedApps.isNotEmpty()) {
                         customCategories.add(title to selectedApps)
-                        customAssignedKeys.addAll(selectedKeys)
+                        // Normalize both current and legacy stored keys so an app cannot
+                        // appear again in an automatically generated category.
+                        customAssignedKeys.addAll(selectedApps.map { it.toComponentKey().toString() })
                     }
                 }
             }.onFailure { Log.w(TAG, "Unable to load custom Caddy categories", it) }
