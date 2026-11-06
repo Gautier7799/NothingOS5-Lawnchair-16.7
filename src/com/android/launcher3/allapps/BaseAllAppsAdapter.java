@@ -1022,7 +1022,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             if (adapterItem.caddyApps == null) continue;
             for (AppInfo app : adapterItem.caddyApps) {
                 if (app != null && app.componentName != null) {
-                    available.put(app.componentName.flattenToString(), app);
+                    available.put(new com.android.launcher3.util.ComponentKey(app.componentName, app.user).toString(), app);
                 }
             }
         }
