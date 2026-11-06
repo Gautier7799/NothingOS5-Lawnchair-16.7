@@ -1067,34 +1067,58 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 .setTitle("Create Caddy category")
                 .setView(content)
                 .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton("Create", (d, which) -> {
-                    String title = nameInput.getText().toString().trim();
-                    if (title.isEmpty() || selectedKeys.isEmpty()) {
-                        android.widget.Toast.makeText(mActivityContext,
-                                "Enter a name and select at least one app",
-                                android.widget.Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    try {
-                        android.content.SharedPreferences preferences =
-                                mActivityContext.getSharedPreferences(
-                                        "caddy_custom_categories", Context.MODE_PRIVATE);
-                        JSONArray categories = new JSONArray(
-                                preferences.getString("categories", "[]"));
-                        JSONObject category = new JSONObject();
-                        category.put("title", title);
-                        JSONArray apps = new JSONArray();
-                        for (String key : selectedKeys) apps.put(key);
-                        category.put("apps", apps);
-                        categories.put(category);
-                        preferences.edit().putString("categories", categories.toString()).apply();
-                        if (item.caddyOpenAction != null) item.caddyOpenAction.run();
-                    } catch (org.json.JSONException exception) {
-                        Log.e(TAG, "Unable to save Caddy category", exception);
-                    }
-                })
+                // Install the positive-button listener after show() so invalid input
+                // does not dismiss the editor before the user can correct it.
+                .setPositiveButton("Create", null)
                 .create();
         dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String title = nameInput.getText().toString().trim();
+            if (title.isEmpty() || selectedKeys.isEmpty()) {
+                android.widget.Toast.makeText(mActivityContext,
+                        "Enter a name and select at least one app",
+                        android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            try {
+                android.content.SharedPreferences preferences =
+                        mActivityContext.getSharedPreferences(
+                                "caddy_custom_categories", Context.MODE_PRIVATE);
+                JSONArray categories = new JSONArray(
+                        preferences.getString("categories", "[]"));
+                JSONObject category = new JSONObject();
+                category.put("title", title);
+                JSONArray apps = new JSONArray();
+                for (String key : selectedKeys) apps.put(key);
+                category.put("apps", apps);
+                categories.put(category);
+
+                // Commit synchronously before rebuilding the drawer. This avoids
+                // rendering from a stale preferences snapshot immediately after Create.
+                boolean saved = preferences.edit()
+                        .putString("categories", categories.toString())
+                        .commit();
+                if (!saved) {
+                    android.widget.Toast.makeText(mActivityContext,
+                            "Could not save category. Please try again.",
+                            android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // Re-run the complete apps update pipeline so the new category is
+                // loaded from persistent storage and diffed into the visible drawer.
+                mApps.onAppsUpdated();
+                dialog.dismiss();
+                android.widget.Toast.makeText(mActivityContext,
+                        "Category created",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            } catch (org.json.JSONException exception) {
+                Log.e(TAG, "Unable to save Caddy category", exception);
+                android.widget.Toast.makeText(mActivityContext,
+                        "Could not create category",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void addCaddyAppIcon(FrameLayout cell, AppInfo app, int iconSize) {
