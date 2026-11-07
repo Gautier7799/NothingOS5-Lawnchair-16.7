@@ -19,6 +19,8 @@ on:
       - feature/caddy-smart-drawer-v86
       - feature/caddy-smart-drawer-v87
       - fix/suggestions-custom-apps
+      - feature/lawnchair-native-widget-library
+      - openhands/native-widget-library-v107
 
 permissions:
   contents: read
