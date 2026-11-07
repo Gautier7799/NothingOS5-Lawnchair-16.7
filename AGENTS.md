@@ -4,15 +4,41 @@
 
 ```
 NothingOS5-Lawnchair-16.7/     # git root; only LICENSE + README.md upstream
-└── mcp-bridge/                # the OpenHands Cloud MCP bridge (self-contained)
-    ├── src/openhands_mcp_bridge/
-    ├── tests/
-    ├── docs/                  # ARCHITECTURE, SECURITY, DEPLOYMENT, CHATGPT_CONNECTOR, VERIFICATION
-    ├── deploy/                # Caddyfile, nginx.conf, k8s.yaml
-    ├── scripts/build_archive.py
-    ├── Dockerfile, docker-compose.yml, Makefile, pyproject.toml
-    └── .env.example
+├── mcp-bridge/                # the OpenHands Cloud MCP bridge (self-contained)
+│   ├── src/openhands_mcp_bridge/
+│   ├── tests/
+│   ├── docs/                  # ARCHITECTURE, SECURITY, DEPLOYMENT, CHATGPT_CONNECTOR, VERIFICATION
+│   ├── deploy/                # Caddyfile, nginx.conf, k8s.yaml
+│   ├── scripts/build_archive.py
+│   ├── Dockerfile, docker-compose.yml, Makefile, pyproject.toml
+│   └── .env.example
+├── collaboration/             # free GitHub handoff between ChatGPT and OpenHands
+│   ├── PROTOCOL.md            # the contract — read this first
+│   ├── ARCHITECTURE.md        # design + why alternatives were rejected
+│   ├── PROJECT_CONTEXT.md     # durable memory across sessions
+│   ├── README.md              # entry point
+│   ├── INBOX.md               # GENERATED: open tasks
+│   ├── OUTBOX.md              # GENERATED: results to review
+│   ├── CURRENT_STATUS.md      # GENERATED: whole board
+│   ├── ledger.jsonl           # append-only transition audit
+│   ├── tasks/<ID>.json        # source of truth, one file per task
+│   ├── reports/<ID>.md        # result detail (TEMPLATE.md)
+│   ├── tools/collab.py        # the engine (stdlib only, offline)
+│   └── tests/test_collab.py   # 39 engine tests
+└── .github/                   # issue template + optional CI
 ```
+
+## Branches
+
+| Branch | Meaning |
+| --- | --- |
+| `main` | Upstream `Initial commit`. **Frozen — never modify.** |
+| `mcp-bridge` | The MCP bridge and its docs. |
+| `collaboration-hub` | The collaboration protocol (branched from `mcp-bridge`). |
+
+All new work goes on `collaboration-hub`. Nothing merges to `main` without the
+approval gate in `collaboration/PROTOCOL.md` §4.2.
+
 
 ## Commands
 
@@ -27,6 +53,23 @@ python3 scripts/build_archive.py                     # dist/openhands-mcp-bridge
 ```
 
 `make help` lists the same targets (`make archive` builds the ZIP).
+
+## Collaboration protocol
+
+Runs from the repository root, standard library only, no venv needed.
+
+```bash
+python3 collaboration/tests/test_collab.py       # 39 tests, offline
+python3 collaboration/tools/collab.py verify     # integrity: evidence, approval, ledger
+python3 collaboration/tools/collab.py scan       # secret scan (add --all for the repo)
+python3 collaboration/tools/collab.py list --status PENDING
+python3 collaboration/tools/collab.py render     # regenerate INBOX/OUTBOX/CURRENT_STATUS
+```
+
+OpenHands is the only writer of `tasks/*.json` and the three views. ChatGPT
+reads them over `raw.githubusercontent.com` and writes to GitHub issues. Full
+rules: `collaboration/PROTOCOL.md`. Platform findings: `collaboration/PROJECT_CONTEXT.md` §4.
+
 
 ## Live verification
 

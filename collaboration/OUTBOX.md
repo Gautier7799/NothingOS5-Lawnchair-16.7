@@ -10,7 +10,7 @@ Items awaiting review or done: **1**
 
 | Task | Status | Commit | Report | Unresolved |
 | --- | --- | --- | --- | --- |
-| `COLLAB-001` | REVIEW_REQUIRED | `—` | [COLLAB-001.md](reports/COLLAB-001.md) | 1 |
+| `COLLAB-001` | COMPLETED | `b574d6a` | [COLLAB-001.md](reports/COLLAB-001.md) | 1 |
 
 ## Evidence
 
@@ -22,6 +22,8 @@ Items awaiting review or done: **1**
   - result: scanned 11 files, 0 with credential patterns
 - `python3 collaboration/tools/collab.py verify`
   - result: VERIFY OK
+- `review`
+  - result: accepted; engine tests 39 OK, scan 0 hits, verify OK, bridge 83 passed
 
 ## Review actions
 

@@ -1,12 +1,28 @@
 ================================================================================
 FINAL HANDOFF FOR CHATGPT
 ChatGPT <-> OpenHands Cloud Secure MCP Bridge (read-only)
++ free GitHub collaboration and handoff workflow
 ================================================================================
 
-Generated: 2026-11-07
+Generated: 2026-11-07 (revision 2 — adds the collaboration workflow)
 No API keys, tokens, passwords, environment secrets or authorization headers are
 included in this document. Nothing is claimed as deployed or tested unless it
 was actually verified; every verification is labelled with its evidence.
+
+--------------------------------------------------------------------------------
+0. WHAT IS IN THIS REPOSITORY NOW
+--------------------------------------------------------------------------------
+
+Two independent deliverables live in this repository:
+
+  A. mcp-bridge/        Read-only MCP server exposing the OpenHands Cloud API.
+                        Sections 1-10 below. Unchanged and still passing.
+
+  B. collaboration/     Free GitHub handoff protocol between ChatGPT and
+                        OpenHands. Section 11 below. New in this revision.
+
+The MCP bridge was not modified. main is still the upstream Initial commit.
+
 
 
 --------------------------------------------------------------------------------
@@ -455,21 +471,174 @@ USING THE LIVE REFERENCE ENDPOINT
 
 
 --------------------------------------------------------------------------------
+11. FREE GITHUB COLLABORATION AND HANDOFF WORKFLOW (new)
+--------------------------------------------------------------------------------
+
+PURPOSE
+  Let ChatGPT and OpenHands exchange tasks, results, test reports and project
+  state through this GitHub repository — free, durable, reviewable, with no
+  paid service, no background worker and no manual copying of long reports.
+
+WHAT WAS VERIFIED (not assumed)
+
+  - The openhands-ai GitHub App (installation 179374977) is installed and has
+    access to this repository. Confirmed via
+    GET /api/v1/git/installations/search?provider=github
+    and GET /api/v1/user/installations.
+
+  - OpenHands Cloud is triggered natively from GitHub: labelling an issue
+    "openhands", or commenting with a message starting "@openhands", starts a
+    run. "@openhands" in a pull-request comment also works. Source: the
+    official GitHub Integration documentation.
+
+  - The trigger is event-driven. GitHub delivers it to OpenHands Cloud, so
+    nothing polls on our side. The OpenHands OpenAPI spec (242 paths) has no
+    cron/scheduler/automation endpoint.
+
+  - GitHub Actions availability could NOT be verified: the App token lacks the
+    actions permission and GET /repos/.../actions/permissions returns
+    403 "Resource not accessible by integration". The protocol therefore does
+    not depend on Actions. The bundled CI workflow is optional.
+
+  - POST /integration/github/events is the endpoint GitHub calls; it requires
+    an x-hub-signature-256 HMAC that only GitHub and OpenHands can produce, so
+    we must never call it.
+
+  - A repository label named "openhands" does not exist yet. It must be created
+    once for the label trigger; the "@openhands" comment trigger needs nothing.
+
+ARCHITECTURE (two channels)
+
+  Trigger channel : GitHub issues. ChatGPT (or a human) opens an issue and adds
+                    the "openhands" label or comments "@openhands".
+  State channel   : files under collaboration/. Read by anyone over
+                    raw.githubusercontent.com with no token.
+
+  The key decision: ChatGPT does not need write access to the state files. It
+  writes to the issue — the one write it reliably has — and OpenHands mirrors
+  the issue into a task file. One writer per file: no merge conflicts, and no
+  paid connector required.
+
+FILES
+
+  collaboration/PROTOCOL.md        the contract (read first)
+  collaboration/ARCHITECTURE.md    design + rejected alternatives
+  collaboration/PROJECT_CONTEXT.md durable memory across sessions
+  collaboration/README.md          entry point
+  collaboration/INBOX.md           GENERATED: open tasks
+  collaboration/OUTBOX.md          GENERATED: results to review
+  collaboration/CURRENT_STATUS.md  GENERATED: whole board, branch, HEAD
+  collaboration/ledger.jsonl       append-only transition audit
+  collaboration/tasks/<ID>.json    source of truth, one file per task
+  collaboration/reports/<ID>.md    result detail (TEMPLATE.md)
+  collaboration/tools/collab.py    the engine (stdlib only, offline)
+  collaboration/tests/test_collab.py 39 engine tests
+  .github/workflows/collaboration-verify.yml  OPTIONAL CI gate
+  .github/ISSUE_TEMPLATE/openhands-task.yml   task publication form
+
+TASK MODEL
+
+  Task id: AREA-NNN (for example COLLAB-001). The task file is named after the
+  id, so a duplicate id is a filesystem collision — refused by "create" and
+  re-checked by "verify".
+
+  States: PENDING, ACCEPTED, RUNNING, REVIEW_REQUIRED, COMPLETED, BLOCKED.
+  Legal transitions:
+    PENDING -> ACCEPTED | BLOCKED
+    ACCEPTED -> RUNNING | BLOCKED | PENDING
+    RUNNING -> REVIEW_REQUIRED | BLOCKED
+    REVIEW_REQUIRED -> COMPLETED | RUNNING | BLOCKED
+    COMPLETED -> (terminal)
+    BLOCKED -> PENDING | ACCEPTED
+  Every transition records an ISO-8601 UTC timestamp, the actor, the branch and
+  the commit, in both the task file and ledger.jsonl.
+
+THREE ENFORCED GUARANTEES (in code, not convention)
+
+  1. No task claimed twice — duplicate id refused; re-applying the current state
+     refused; "verify" re-checks in a fresh clone.
+  2. Nothing COMPLETED without evidence — COMPLETED requires at least one
+     "command => result" pair AND a changed-file list. "verify" re-checks.
+  3. No secret ever committed — every write passes a secret scanner; field names
+     such as api_key/token/password are rejected outright; the matched value is
+     never echoed (only the pattern name), so a refused write cannot itself leak
+     the secret. "scan" gates the tree and exits non-zero on a hit.
+
+APPROVAL GATE
+  Tasks are classed read-only, write, destructive or scope-change. Destructive
+  and scope-change tasks cannot advance until an approval block names a human.
+  Merging to main is classed destructive, so it always needs that gate. Nothing
+  auto-merges.
+
+COMMANDS
+  python3 collaboration/tools/collab.py list --status PENDING
+  python3 collaboration/tools/collab.py accept COLLAB-001 --actor openhands
+  python3 collaboration/tools/collab.py start  COLLAB-001 --actor openhands
+  python3 collaboration/tools/collab.py review COLLAB-001 --actor openhands \
+      --commit <sha> --files a.py,b.py --evidence "pytest=>83 passed"
+  python3 collaboration/tools/collab.py complete COLLAB-001 --actor chatgpt \
+      --evidence "review=>accepted" --files none
+  python3 collaboration/tools/collab.py verify | scan | render | fingerprint
+
+CHATGPT COMPATIBILITY
+  Reading: raw.githubusercontent.com serves the files over HTTPS with no token.
+  Writing: ChatGPT writes to the ISSUE, not the state files. If a given ChatGPT
+  session has no GitHub write access, the minimal fallback is one manual step —
+  a human pastes the task text into a new issue — after which everything is
+  automatic. Full matrix: PROTOCOL.md §7.2.
+
+  Raw URLs (branch collaboration-hub):
+    .../collaboration-hub/collaboration/INBOX.md
+    .../collaboration-hub/collaboration/OUTBOX.md
+    .../collaboration-hub/collaboration/CURRENT_STATUS.md
+    .../collaboration-hub/collaboration/PROJECT_CONTEXT.md
+    .../collaboration-hub/collaboration/PROTOCOL.md
+    .../collaboration-hub/collaboration/tasks/<ID>.json
+    .../collaboration-hub/collaboration/reports/<ID>.md
+
+END-TO-END DEMONSTRATION (task COLLAB-001, harmless, read-only)
+  All seven required checks were exercised live through the engine:
+    1. publication      -> create COLLAB-001          : PENDING
+    2. retrieval        -> list --status PENDING      : found
+    3. transitions      -> accept, start              : ACCEPTED, RUNNING
+    4. result publish   -> review + evidence          : REVIEW_REQUIRED
+    5. report retrieval -> OUTBOX.md shows report     : confirmed
+    6. duplicate guard  -> create COLLAB-001 again    : refused, exit 2
+                           transition RUNNING->PENDING: refused, exit 2
+                           complete without evidence  : refused, exit 2
+    7. secret scanning  -> collab scan                : 0 credential patterns
+    8. bridge regression-> pytest in mcp-bridge/      : 83 passed, ruff clean
+  COLLAB-001 was then closed COMPLETED with the real commit sha in the ledger.
+
+WHAT IS NOT AUTOMATED (stated plainly)
+  - Creating the issue may need a human click if ChatGPT has no GitHub write
+    access in that session. Everything downstream is automatic.
+  - GitHub Actions could not be verified here; CI is optional.
+  - The engine records and gates work; it does not execute it. Execution happens
+    in the OpenHands Cloud conversation.
+  - The build sandbox is ephemeral; the repository is the durable artefact.
+
+
+--------------------------------------------------------------------------------
 SUMMARY
 --------------------------------------------------------------------------------
 
 Status        : complete and verified; read-only scope fully honored
 Endpoint      : https://work-1-xahmymzqavnzfgpt.prod-runtime.all-hands.dev/mcp
                 (live reference instance; ephemeral, not a production host)
-Tests         : 83 passed / 0 warnings; ruff clean; live E2E OK
+Tests         : bridge 83 passed / 0 warnings; collaboration 39 passed;
+                ruff clean; live E2E OK
 Auth          : OpenHands Cloud reachable; key never exposed
-Security      : read-only, fail-closed auth, redaction, rate limits, size caps
-Repo/branch   : Gautier7799/NothingOS5-Lawnchair-16.7 @ mcp-bridge
+Security      : read-only, fail-closed auth, redaction, rate limits, size caps;
+                collaboration enforces evidence, approval and secret gates
+Repo/branches : Gautier7799/NothingOS5-Lawnchair-16.7
+                mcp-bridge (bridge) and collaboration-hub (collaboration)
 Base commit   : 6affb708e829d07e2ff06d0f5e19a11c2faa8a43
-Source ZIP    : .../archive/refs/heads/mcp-bridge.zip
+Source ZIP    : .../archive/refs/heads/collaboration-hub.zip
+                (bridge only: .../archive/refs/heads/mcp-bridge.zip)
 Outstanding   : own-domain HTTPS deploy, image/K8s build (if wanted),
-                ChatGPT connector creation (needs your account), open a PR
-                (none opened; main untouched)
+                ChatGPT connector creation (needs your account), create the
+                "openhands" label once, open a PR (none opened; main untouched)
 
 ================================================================================
 END OF FINAL HANDOFF FOR CHATGPT

@@ -1,14 +1,14 @@
 {
   "id": "COLLAB-001",
   "title": "Verify the collaboration handoff workflow end to end",
-  "status": "REVIEW_REQUIRED",
+  "status": "COMPLETED",
   "risk": "read-only",
   "owner": "chatgpt",
   "created_at": "2026-11-07T11:30:20Z",
-  "updated_at": "2026-11-07T11:30:44Z",
-  "updated_by": "openhands",
+  "updated_at": "2026-11-07T11:31:51Z",
+  "updated_by": "chatgpt",
   "branch": "collaboration-hub",
-  "commit": "",
+  "commit": "b574d6a08deb10271973e82bb5caa7468225247e",
   "objective": "Demonstrate that a task can be published, claimed, executed, reviewed and closed using only the collaboration protocol, with no destructive effects.",
   "acceptance": [
     "Task file exists and validates",
@@ -22,9 +22,11 @@
   "files_changed": [
     "collaboration/tools/collab.py",
     "collaboration/tests/test_collab.py",
+    "collaboration/ARCHITECTURE.md",
     "collaboration/PROTOCOL.md",
     "collaboration/README.md",
-    "collaboration/PROJECT_CONTEXT.md"
+    "collaboration/PROJECT_CONTEXT.md",
+    "collaboration/reports/COLLAB-001.md"
   ],
   "tests": [
     "collab protocol tests: 39 passed"
@@ -45,6 +47,10 @@
     {
       "command": "python3 collaboration/tools/collab.py verify",
       "result": "VERIFY OK"
+    },
+    {
+      "command": "review",
+      "result": "accepted; engine tests 39 OK, scan 0 hits, verify OK, bridge 83 passed"
     }
   ],
   "history": [
@@ -79,6 +85,14 @@
       "by": "openhands",
       "note": "",
       "evidence_count": 3
+    },
+    {
+      "at": "2026-11-07T11:31:51Z",
+      "from": "REVIEW_REQUIRED",
+      "to": "COMPLETED",
+      "by": "chatgpt",
+      "note": "",
+      "evidence_count": 1
     }
   ],
   "report": "COLLAB-001.md"
