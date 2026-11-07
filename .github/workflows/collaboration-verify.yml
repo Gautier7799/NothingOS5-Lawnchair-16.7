@@ -1,0 +1,78 @@
+name: collaboration-verify
+
+# OPTIONAL gate. The collaboration protocol does not depend on GitHub Actions —
+# it was designed to work without them because Actions availability could not be
+# verified from the GitHub App token in this environment (the token lacks the
+# `actions` permission and returns 403). If Actions are enabled for this
+# repository, this workflow adds a free integrity check on every push.
+
+on:
+  push:
+    branches: [collaboration-hub, mcp-bridge]
+    paths:
+      - "collaboration/**"
+      - ".github/workflows/collaboration-verify.yml"
+  pull_request:
+    branches: [main, mcp-bridge]
+    paths:
+      - "collaboration/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protocol:
+    name: protocol integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Protocol unit tests
+        run: python3 collaboration/tests/test_collab.py
+
+      - name: Task integrity (evidence, approval, ledger)
+        run: python3 collaboration/tools/collab.py verify
+
+      - name: Secret scan
+        run: python3 collaboration/tools/collab.py scan
+
+      - name: Views are up to date
+        run: |
+          python3 collaboration/tools/collab.py render
+          if ! git diff --quiet -- collaboration/INBOX.md \
+                collaboration/OUTBOX.md collaboration/CURRENT_STATUS.md; then
+            echo "::error::Generated views are stale. Run: python3 collaboration/tools/collab.py render"
+            git --no-pager diff -- collaboration/
+            exit 1
+          fi
+
+  mcp-bridge:
+    name: mcp bridge regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        working-directory: mcp-bridge
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Tests
+        working-directory: mcp-bridge
+        run: python3 -m pytest -q
+
+      - name: Lint
+        working-directory: mcp-bridge
+        run: |
+          pip install ruff
+          ruff check src tests

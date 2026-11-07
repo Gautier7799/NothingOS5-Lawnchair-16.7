@@ -1,0 +1,85 @@
+{
+  "id": "COLLAB-001",
+  "title": "Verify the collaboration handoff workflow end to end",
+  "status": "REVIEW_REQUIRED",
+  "risk": "read-only",
+  "owner": "chatgpt",
+  "created_at": "2026-11-07T11:30:20Z",
+  "updated_at": "2026-11-07T11:30:44Z",
+  "updated_by": "openhands",
+  "branch": "collaboration-hub",
+  "commit": "",
+  "objective": "Demonstrate that a task can be published, claimed, executed, reviewed and closed using only the collaboration protocol, with no destructive effects.",
+  "acceptance": [
+    "Task file exists and validates",
+    "Engine tests pass",
+    "Views regenerate"
+  ],
+  "constraints": [
+    "Do not modify main",
+    "Read-only demonstration only"
+  ],
+  "files_changed": [
+    "collaboration/tools/collab.py",
+    "collaboration/tests/test_collab.py",
+    "collaboration/PROTOCOL.md",
+    "collaboration/README.md",
+    "collaboration/PROJECT_CONTEXT.md"
+  ],
+  "tests": [
+    "collab protocol tests: 39 passed"
+  ],
+  "artifacts": [],
+  "unresolved": [
+    "none"
+  ],
+  "evidence": [
+    {
+      "command": "python3 collaboration/tests/test_collab.py",
+      "result": "Ran 39 tests in 0.79s OK"
+    },
+    {
+      "command": "python3 collaboration/tools/collab.py scan",
+      "result": "scanned 11 files, 0 with credential patterns"
+    },
+    {
+      "command": "python3 collaboration/tools/collab.py verify",
+      "result": "VERIFY OK"
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-11-07T11:30:20Z",
+      "from": null,
+      "to": "PENDING",
+      "by": "chatgpt",
+      "note": "created",
+      "evidence_count": 0
+    },
+    {
+      "at": "2026-11-07T11:30:23Z",
+      "from": "PENDING",
+      "to": "ACCEPTED",
+      "by": "openhands",
+      "note": "",
+      "evidence_count": 0
+    },
+    {
+      "at": "2026-11-07T11:30:23Z",
+      "from": "ACCEPTED",
+      "to": "RUNNING",
+      "by": "openhands",
+      "note": "",
+      "evidence_count": 0
+    },
+    {
+      "at": "2026-11-07T11:30:44Z",
+      "from": "RUNNING",
+      "to": "REVIEW_REQUIRED",
+      "by": "openhands",
+      "note": "",
+      "evidence_count": 3
+    }
+  ],
+  "report": "COLLAB-001.md"
+}

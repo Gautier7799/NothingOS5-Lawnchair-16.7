@@ -1,0 +1,4 @@
+{"at": "2026-11-07T11:30:20Z", "branch": "collaboration-hub", "by": "chatgpt", "commit": "", "evidence_count": 0, "from": null, "task_id": "COLLAB-001", "to": "PENDING"}
+{"at": "2026-11-07T11:30:23Z", "branch": "collaboration-hub", "by": "openhands", "commit": "", "evidence_count": 0, "from": "PENDING", "task_id": "COLLAB-001", "to": "ACCEPTED"}
+{"at": "2026-11-07T11:30:23Z", "branch": "collaboration-hub", "by": "openhands", "commit": "", "evidence_count": 0, "from": "ACCEPTED", "task_id": "COLLAB-001", "to": "RUNNING"}
+{"at": "2026-11-07T11:30:44Z", "branch": "collaboration-hub", "by": "openhands", "commit": "", "evidence_count": 3, "from": "RUNNING", "task_id": "COLLAB-001", "to": "REVIEW_REQUIRED"}

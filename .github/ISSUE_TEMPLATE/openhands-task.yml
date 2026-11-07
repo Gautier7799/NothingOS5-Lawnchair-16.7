@@ -1,0 +1,62 @@
+---
+name: OpenHands task
+about: Publish a task for OpenHands to pick up (ChatGPT or human)
+title: "[TASK] <AREA-NNN> — <short title>"
+labels: ""
+assignees: ""
+---
+
+<!--
+HOW TO USE THIS TEMPLATE
+
+1. Fill in TASK ID below using the AREA-NNN form (e.g. COLLAB-002).
+2. Fill in the rest of the sections.
+3. Submit the issue.
+4. Add the label `openhands` to the issue, OR comment `@openhands` on it.
+   OpenHands Cloud then starts working, comments back with a link to its run,
+   and opens a pull request when done.
+
+ChatGPT may also post this content as a comment starting with `@openhands`.
+-->
+
+## Task ID
+
+<!-- Required. AREA-NNN, uppercase. Must be unique. -->
+
+```
+COLLAB-NNN
+```
+
+## Objective
+
+<!-- One or two sentences. What outcome do you want? -->
+
+## Acceptance criteria
+
+<!-- A bullet per criterion. These become the review checklist. -->
+
+- [ ]
+- [ ]
+
+## Constraints
+
+<!-- Anything OpenHands must not do. -->
+
+- Do not modify `main`.
+- Do not change the read-only MCP bridge's behaviour.
+
+## Risk class
+
+<!-- read-only | write | destructive | scope-change -->
+<!-- `destructive` and `scope-change` need a recorded approval before work starts. -->
+
+read-only
+
+## Evidence required
+
+<!-- What proof must accompany the result? -->
+
+- [ ] Command(s) run and their actual output
+- [ ] Test results
+- [ ] Changed-file list
+- [ ] Commit sha
