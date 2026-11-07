@@ -1,0 +1,42 @@
+services:
+  openhands-mcp-bridge:
+    build: .
+    image: openhands-mcp-bridge:1.0.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:12000:12000"
+    environment:
+      # Values are read from the mounted secret files below — never inline.
+      OPENHANDS_CLOUD_API_KEY_FILE: /run/secrets/openhands_cloud_api_key
+      MCP_AUTH_TOKEN_FILE: /run/secrets/mcp_auth_token
+      OPENHANDS_BASE_URL: https://app.all-hands.dev
+      MCP_PATH: /mcp
+      MCP_RESOURCE_URL: ${MCP_RESOURCE_URL:-https://mcp.example.com/mcp}
+      MCP_RATE_LIMIT_REQUESTS: "60"
+      MCP_RATE_LIMIT_WINDOW_SECONDS: "60"
+      MCP_LOG_LEVEL: INFO
+    secrets:
+      - openhands_cloud_api_key
+      - mcp_auth_token
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:12000/healthz', timeout=3).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+secrets:
+  openhands_cloud_api_key:
+    file: ./secrets/openhands_cloud_api_key
+  mcp_auth_token:
+    file: ./secrets/mcp_auth_token

@@ -1,0 +1,61 @@
+[project]
+name = "openhands-mcp-bridge"
+version = "1.0.0"
+description = "Secure read-only remote MCP server that connects ChatGPT to OpenHands Cloud."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "OpenHands MCP Bridge" }]
+dependencies = [
+    "mcp>=1.2.0,<2",
+    "httpx>=0.27,<1",
+    "starlette>=0.37,<1",
+    "uvicorn>=0.30,<1",
+    "pydantic>=2.7,<3",
+    "python-dotenv>=1.0,<2",
+]
+
+[project.optional-dependencies]
+# OAuth 2.1 / OIDC token verification (MCP_OAUTH_ISSUER). Static bearer-token
+# auth needs none of this.
+oauth = [
+    "pyjwt[crypto]>=2.8,<3",
+]
+dev = [
+    "pytest>=8.0,<9",
+    "pytest-asyncio>=0.23,<1",
+    "anyio>=4.4,<5",
+    "pyjwt[crypto]>=2.8,<3",
+]
+
+[project.scripts]
+openhands-mcp-bridge = "openhands_mcp_bridge.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openhands_mcp_bridge"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "S", "BLE", "RUF"]
+ignore = [
+    # The bridge deliberately logs to stdout/stderr; bandit's assert/try-except
+    # heuristics do not apply to this codebase.
+    "S101",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert on internal helpers and use non-crypto literals on purpose.
+"tests/*" = ["S105", "S106", "SLF001", "BLE001"]

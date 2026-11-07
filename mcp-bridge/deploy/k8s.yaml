@@ -1,0 +1,92 @@
+# Kubernetes deployment for the OpenHands Cloud MCP bridge.
+#
+# Create the secret first (never commit it):
+#   kubectl create secret generic openhands-mcp-bridge \
+#     --from-literal=OPENHANDS_CLOUD_API_KEY="$OPENHANDS_CLOUD_API_KEY" \
+#     --from-literal=MCP_AUTH_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+#
+# Ingress (not included) must terminate TLS and forward to port 12000.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openhands-mcp-bridge
+  labels:
+    app: openhands-mcp-bridge
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: openhands-mcp-bridge
+  template:
+    metadata:
+      labels:
+        app: openhands-mcp-bridge
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bridge
+          image: openhands-mcp-bridge:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 12000
+          envFrom:
+            - secretRef:
+                name: openhands-mcp-bridge
+          env:
+            - name: MCP_PATH
+              value: /mcp
+            - name: MCP_RESOURCE_URL
+              value: https://mcp.example.com/mcp
+            - name: MCP_RATE_LIMIT_REQUESTS
+              value: "60"
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openhands-mcp-bridge
+  labels:
+    app: openhands-mcp-bridge
+spec:
+  type: ClusterIP
+  selector:
+    app: openhands-mcp-bridge
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

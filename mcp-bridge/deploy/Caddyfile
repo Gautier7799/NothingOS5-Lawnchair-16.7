@@ -1,0 +1,46 @@
+# HTTPS reverse proxy for the MCP bridge.
+#
+# Caddy obtains and renews a Let's Encrypt certificate automatically. Point the
+# domain's DNS A/AAAA record at the host before starting Caddy.
+#
+#   docker run --rm -p 80:80 -p 443:443 \
+#     -v $PWD/Caddyfile:/etc/caddy/Caddyfile \
+#     -v caddy_data:/data -v caddy_config:/config \
+#     caddy:2
+#
+# Replace mcp.example.com with your own domain (and set MCP_RESOURCE_URL to the
+# same value in the bridge's environment).
+
+mcp.example.com {
+	encode zstd gzip
+
+	# Request-body guard: MCP JSON-RPC payloads are small.
+	request_body {
+		max_size 1MB
+	}
+
+	# The bridge already enforces bearer auth; pass the header through
+	# untouched and never log it.
+	log {
+		output file /data/access.log
+		format json
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	reverse_proxy 127.0.0.1:12000 {
+		# Streamable HTTP uses long-lived GET streams; disable proxy buffering
+		# and give the SSE stream room to breathe.
+		flush_interval -1
+		transport http {
+			read_timeout 300s
+			write_timeout 300s
+		}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

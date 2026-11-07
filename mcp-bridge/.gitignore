@@ -1,0 +1,17 @@
+# Secrets and local state — never commit these.
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.coverage
+htmlcov/
