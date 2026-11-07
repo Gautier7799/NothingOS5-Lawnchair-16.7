@@ -43,4 +43,34 @@ class NativeWidgetPreferencesTest {
         assertThat(insetBackgroundForStyle(Int.MIN_VALUE)).isEqualTo(R.drawable.widget_inset_background)
         assertThat(insetBackgroundForStyle(99)).isEqualTo(R.drawable.widget_inset_background)
     }
+
+    @Test
+    fun weatherLocation_roundTrips() {
+        val encoded = WidgetFormat.encodeWeatherLocation(51.5072, -0.1276, "London")
+        val parsed = WidgetFormat.parseWeatherLocation(encoded)
+        assertThat(parsed).isNotNull()
+        assertThat(parsed!!.latitude).isWithin(0.0001).of(51.5072)
+        assertThat(parsed.longitude).isWithin(0.0001).of(-0.1276)
+        assertThat(parsed.label).isEqualTo("London")
+    }
+
+    @Test
+    fun weatherLocation_rejectsMalformedInput() {
+        assertThat(WidgetFormat.parseWeatherLocation(null)).isNull()
+        assertThat(WidgetFormat.parseWeatherLocation("")).isNull()
+        assertThat(WidgetFormat.parseWeatherLocation("51.5")).isNull()
+        assertThat(WidgetFormat.parseWeatherLocation("not,numbers,London")).isNull()
+        assertThat(WidgetFormat.parseWeatherLocation("51.5,-0.12,")).isNull()
+    }
+
+    @Test
+    fun weatherSnapshot_roundTripsAndRejectsGarbage() {
+        val snapshot = WidgetFormat.WeatherSnapshot(21, 3, 24, 15)
+        val parsed = WidgetFormat.parseWeatherSnapshot(WidgetFormat.encodeWeatherSnapshot(snapshot))
+        assertThat(parsed).isEqualTo(snapshot)
+
+        assertThat(WidgetFormat.parseWeatherSnapshot(null)).isNull()
+        assertThat(WidgetFormat.parseWeatherSnapshot("21,3,24")).isNull()
+        assertThat(WidgetFormat.parseWeatherSnapshot("a,b,c,d")).isNull()
+    }
 }

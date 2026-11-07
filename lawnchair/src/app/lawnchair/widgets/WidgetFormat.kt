@@ -127,6 +127,50 @@ object WidgetFormat {
     /** Formats a battery voltage with two decimal places. */
     fun formatVoltage(volts: Float): String = String.format(Locale.US, "%.2fV", volts)
 
+    /** A resolved weather location: coordinates plus the human label to display. */
+    data class WeatherLocation(val latitude: Double, val longitude: Double, val label: String)
+
+    /** Encodes a [WeatherLocation] for storage in [NativeWidgetPreferences]. */
+    fun encodeWeatherLocation(latitude: Double, longitude: Double, label: String): String =
+        "$latitude,$longitude,$label"
+
+    /**
+     * Parses the stored `latitude,longitude,label` form back into a [WeatherLocation].
+     *
+     * Returns null when the value is missing or malformed so callers can fall back to the
+     * "tap to configure" state instead of crashing.
+     */
+    fun parseWeatherLocation(raw: String?): WeatherLocation? {
+        if (raw.isNullOrBlank()) return null
+        val parts = raw.split(",", limit = 3)
+        if (parts.size < 3) return null
+        val latitude = parts[0].toDoubleOrNull() ?: return null
+        val longitude = parts[1].toDoubleOrNull() ?: return null
+        val label = parts[2].trim()
+        if (label.isEmpty()) return null
+        return WeatherLocation(latitude, longitude, label)
+    }
+
+    /** Rounded temperature label, e.g. `21\u00b0`. */
+    fun formatTemperature(celsius: Int): String = "$celsius\u00b0"
+
+    /** Today's high/low label, e.g. `H 24\u00b0 \u00b7 L 15\u00b0`. */
+    fun formatHighLow(high: Int, low: Int): String = "H $high\u00b0 \u00b7 L $low\u00b0"
+
+    /** A cached weather reading, encoded compactly so it survives process death. */
+    data class WeatherSnapshot(val temperatureC: Int, val weatherCode: Int, val highC: Int, val lowC: Int)
+
+    fun encodeWeatherSnapshot(snapshot: WeatherSnapshot): String =
+        "${snapshot.temperatureC},${snapshot.weatherCode},${snapshot.highC},${snapshot.lowC}"
+
+    fun parseWeatherSnapshot(raw: String?): WeatherSnapshot? {
+        if (raw.isNullOrBlank()) return null
+        val parts = raw.split(",")
+        if (parts.size != 4) return null
+        val values = parts.map { it.trim().toIntOrNull() ?: return null }
+        return WeatherSnapshot(values[0], values[1], values[2], values[3])
+    }
+
     /**
      * Classifies the current audio output from the set of connected output device types.
      *

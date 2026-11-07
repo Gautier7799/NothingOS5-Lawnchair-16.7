@@ -45,6 +45,8 @@ object NativeWidgetPreferences {
     private const val KEY_SHOW_SECONDS = "show_seconds"
     private const val KEY_SHOW_HEADER = "show_header"
     private const val KEY_SHOW_DETAIL = "show_detail"
+    private const val KEY_WEATHER_LOCATION = "weather_location"
+    private const val KEY_WEATHER_CACHE = "weather_cache"
 
     private fun prefs(context: Context): SharedPreferences = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
 
@@ -76,12 +78,35 @@ object NativeWidgetPreferences {
         prefs(context).edit().putBoolean(key(KEY_SHOW_DETAIL, appWidgetId), show).apply()
     }
 
+    /**
+     * The weather location as a `latitude,longitude,label` triple, or null when unset.
+     *
+     * Storing the resolved coordinates avoids geocoding (and therefore a network round-trip) on
+     * every widget refresh.
+     */
+    fun getWeatherLocation(context: Context, appWidgetId: Int): String? =
+        prefs(context).getString(key(KEY_WEATHER_LOCATION, appWidgetId), null)
+
+    fun setWeatherLocation(context: Context, appWidgetId: Int, location: String?) {
+        prefs(context).edit().putString(key(KEY_WEATHER_LOCATION, appWidgetId), location).apply()
+    }
+
+    /** Last successfully fetched weather snapshot, encoded for display, or null. */
+    fun getWeatherCache(context: Context, appWidgetId: Int): String? =
+        prefs(context).getString(key(KEY_WEATHER_CACHE, appWidgetId), null)
+
+    fun setWeatherCache(context: Context, appWidgetId: Int, cache: String?) {
+        prefs(context).edit().putString(key(KEY_WEATHER_CACHE, appWidgetId), cache).apply()
+    }
+
     fun delete(context: Context, appWidgetId: Int) {
         prefs(context).edit()
             .remove(key(KEY_STYLE, appWidgetId))
             .remove(key(KEY_SHOW_SECONDS, appWidgetId))
             .remove(key(KEY_SHOW_HEADER, appWidgetId))
             .remove(key(KEY_SHOW_DETAIL, appWidgetId))
+            .remove(key(KEY_WEATHER_LOCATION, appWidgetId))
+            .remove(key(KEY_WEATHER_CACHE, appWidgetId))
             .apply()
     }
 

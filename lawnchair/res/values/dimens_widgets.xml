@@ -45,4 +45,8 @@
     <!-- Circular battery indicator. The ring proportions mirror the reference family. -->
     <dimen name="widget_ring_inset">6dp</dimen>
     <dimen name="widget_ring_center_text_size">28sp</dimen>
+
+    <!-- Weather hero row. -->
+    <dimen name="widget_weather_icon_size">40dp</dimen>
+    <dimen name="widget_weather_temp_text_size">38sp</dimen>
 </resources>

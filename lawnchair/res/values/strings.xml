@@ -1143,4 +1143,22 @@
     <string name="widget_style_tonal">Tonal</string>
     <string name="widget_show_header">Show label</string>
     <string name="widget_show_detail">Show details</string>
+
+    <!-- Weather widget -->
+    <string name="widget_weather_label">Weather</string>
+    <string name="widget_weather_description">Current conditions and today\'s range</string>
+    <string name="widget_weather_unset">--\u00b0</string>
+    <string name="widget_weather_loading">Updating\u2026</string>
+    <string name="widget_weather_configure_hint">Tap to set a city</string>
+    <string name="widget_weather_condition_clear">Clear</string>
+    <string name="widget_weather_condition_partly_cloudy">Partly cloudy</string>
+    <string name="widget_weather_condition_cloudy">Cloudy</string>
+    <string name="widget_weather_condition_fog">Fog</string>
+    <string name="widget_weather_condition_drizzle">Drizzle</string>
+    <string name="widget_weather_condition_rain">Rain</string>
+    <string name="widget_weather_condition_snow">Snow</string>
+    <string name="widget_weather_condition_thunder">Thunderstorm</string>
+    <string name="widget_weather_condition_unknown">Weather</string>
+    <string name="widget_weather_config_title">Weather location</string>
+    <string name="widget_weather_config_city">City</string>
 </resources>
