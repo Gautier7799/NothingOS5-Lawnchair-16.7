@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright 2026, Lawnchair
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!--
+  Colors for the native Lawnchair widget library.
+
+  These deliberately alias the `system_*` palette names. Lawnchair's
+  AccentColorExtractor remaps those resource ids from the current wallpaper at runtime
+  (see app.lawnchair.AccentColorExtractor), so widgets that reference them follow the
+  user's dynamic color instead of a hard-coded palette. The literal fallbacks used below
+  come from Lawnchair's own `system_*` definitions and apply on API levels without
+  Material You.
+-->
+<resources>
+    <color name="widget_surface">@color/system_neutral1_50</color>
+    <color name="widget_surface_variant">@color/system_neutral1_100</color>
+    <color name="widget_surface_outline">@color/system_neutral1_200</color>
+    <color name="widget_on_surface">@color/system_neutral1_900</color>
+    <color name="widget_on_surface_variant">@color/system_neutral2_700</color>
+    <color name="widget_accent">@color/system_accent1_500</color>
+    <color name="widget_warning">@color/system_accent3_500</color>
+    <color name="widget_on_accent">@color/system_accent1_0</color>
+</resources>
