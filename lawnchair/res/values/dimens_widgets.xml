@@ -25,4 +25,11 @@
     <dimen name="widget_label_text_size">13sp</dimen>
     <dimen name="widget_preview_padding">8dp</dimen>
     <dimen name="widget_preview_icon_size">28dp</dimen>
+
+    <!-- Header used by the redesigned widgets: a small leading icon plus a label. -->
+    <dimen name="widget_header_icon_size">18dp</dimen>
+    <dimen name="widget_header_margin_bottom">6dp</dimen>
+    <dimen name="widget_header_gap">6dp</dimen>
+    <dimen name="widget_metric_text_size">20sp</dimen>
+    <dimen name="widget_progress_height">8dp</dimen>
 </resources>
