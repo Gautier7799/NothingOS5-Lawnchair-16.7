@@ -35,15 +35,25 @@
         android:textSize="@dimen/widget_clock_time_text_size"
         android:textStyle="bold" />
 
-    <TextClock
-        android:id="@+id/widget_clock_date"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/widget_inset"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:format12Hour="EEE, d MMM"
-        android:format24Hour="EEE, d MMM"
-        android:textColor="@color/widget_on_surface_variant"
-        android:textSize="@dimen/widget_label_text_size" />
+        android:layout_marginTop="@dimen/widget_inset_margin_top"
+        android:background="@drawable/widget_inset_background"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/widget_inset_padding_horizontal"
+        android:paddingVertical="@dimen/widget_inset_padding_vertical">
+
+        <TextClock
+            android:id="@+id/widget_inset_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:format12Hour="EEE, d MMM"
+            android:format24Hour="EEE, d MMM"
+            android:maxLines="1"
+            android:textColor="@color/widget_on_inset_surface_variant"
+            android:textSize="@dimen/widget_label_text_size" />
+    </LinearLayout>
 </LinearLayout>

@@ -47,9 +47,8 @@ class VolumeWidgetProvider : LawnchairWidgetProvider() {
             R.drawable.ic_widget_volume,
             context.getString(R.string.widget_volume_label),
         )
-        NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
         views.setTextColor(R.id.widget_value, NativeWidgetPreferences.primaryColor(context, appWidgetId))
-        views.setTextColor(R.id.widget_detail, NativeWidgetPreferences.variantColor(context, appWidgetId))
 
         val audio = context.getSystemService(AudioManager::class.java)
         val max = audio?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 0
@@ -64,7 +63,7 @@ class VolumeWidgetProvider : LawnchairWidgetProvider() {
             interruptionFilter = currentInterruptionFilter(context),
         )
         views.setTextViewText(
-            R.id.widget_detail,
+            R.id.widget_inset_detail,
             context.getString(
                 when (dnd) {
                     WidgetFormat.DndState.ACCESS_REQUIRED -> R.string.widget_volume_dnd_access_required
@@ -76,10 +75,10 @@ class VolumeWidgetProvider : LawnchairWidgetProvider() {
             ),
         )
         if (dnd == WidgetFormat.DndState.ACCESS_REQUIRED) {
-            views.setOnClickPendingIntent(R.id.widget_detail, dndSettingsIntent(context))
+            views.setOnClickPendingIntent(R.id.widget_inset_detail, dndSettingsIntent(context))
             views.setOnClickPendingIntent(R.id.widget_value, dndSettingsIntent(context))
         } else {
-            views.setOnClickPendingIntent(R.id.widget_detail, null)
+            views.setOnClickPendingIntent(R.id.widget_inset_detail, null)
             views.setOnClickPendingIntent(R.id.widget_value, null)
         }
         return views

@@ -43,8 +43,7 @@ class ConnectivityWidgetProvider : LawnchairWidgetProvider() {
             R.drawable.ic_widget_bluetooth,
             context.getString(R.string.widget_connectivity_label),
         )
-        NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
-        views.setTextColor(R.id.widget_detail, NativeWidgetPreferences.variantColor(context, appWidgetId))
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
 
         val bluetoothOn = bluetoothEnabled(context)
         if (bluetoothOn == null) {
@@ -63,7 +62,7 @@ class ConnectivityWidgetProvider : LawnchairWidgetProvider() {
 
         val device = activeOutputLabel(context)
         views.setTextViewText(
-            R.id.widget_detail,
+            R.id.widget_inset_detail,
             context.getString(R.string.widget_connectivity_audio_output, device),
         )
         return views

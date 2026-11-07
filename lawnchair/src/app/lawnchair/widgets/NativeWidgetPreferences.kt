@@ -112,6 +112,24 @@ object NativeWidgetPreferences {
         if (isTonal(context, appWidgetId)) R.color.widget_on_tonal_surface else R.color.widget_accent,
     )
 
+    /** Text color inside the nested tonal panel. */
+    private fun onInsetColor(context: Context, appWidgetId: Int): Int = context.getColor(
+        if (isTonal(context, appWidgetId)) R.color.widget_on_tonal_surface_variant else R.color.widget_on_inset_surface_variant,
+    )
+
+    /**
+     * Applies the nested tonal panel that holds a widget's secondary reading.
+     *
+     * [R.id.widget_inset] and [R.id.widget_inset_detail] must exist in the layout; every native
+     * widget layout includes `@layout/widget_inset`. The panel follows the selected style so the
+     * family stays coherent across filled, tonal and transparent.
+     */
+    fun applyInset(context: Context, views: RemoteViews, appWidgetId: Int) {
+        val background = insetBackgroundForStyle(getStyle(context, appWidgetId))
+        views.setInt(R.id.widget_inset, "setBackgroundResource", background)
+        views.setTextColor(R.id.widget_inset_detail, onInsetColor(context, appWidgetId))
+    }
+
     /**
      * Applies the standard header (icon + label) of a widget.
      *
@@ -135,9 +153,21 @@ object NativeWidgetPreferences {
         }
     }
 
-    /** Shows or hides the standard secondary detail line, when the layout has one. */
+    /** Shows or hides the nested tonal panel that holds a widget's secondary reading. */
     fun applyDetailVisibility(context: Context, views: RemoteViews, appWidgetId: Int) {
         val visible = if (getShowDetail(context, appWidgetId)) View.VISIBLE else View.GONE
-        views.setViewVisibility(R.id.widget_detail, visible)
+        views.setViewVisibility(R.id.widget_inset, visible)
     }
+}
+
+/**
+ * Maps a card style to the drawable used by its nested inset panel.
+ *
+ * Kept as a pure function so the style/panel pairing can be unit tested without a device;
+ * [NativeWidgetPreferences.applyInset] is the only caller.
+ */
+internal fun insetBackgroundForStyle(style: Int): Int = when (style) {
+    NativeWidgetPreferences.STYLE_TRANSPARENT -> R.drawable.widget_inset_background_transparent
+    NativeWidgetPreferences.STYLE_TONAL -> R.drawable.widget_inset_background_tonal
+    else -> R.drawable.widget_inset_background
 }

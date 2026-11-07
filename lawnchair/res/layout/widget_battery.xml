@@ -26,35 +26,34 @@
 
     <include layout="@layout/widget_header" />
 
-    <TextView
-        android:id="@+id/widget_value"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textColor="@color/widget_on_surface"
-        android:textSize="@dimen/widget_battery_level_text_size"
-        android:textStyle="bold"
-        tools:text="72%" />
-
-    <TextView
-        android:id="@+id/widget_detail"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:layout_marginTop="2dp"
-        android:maxLines="2"
-        android:textColor="@color/widget_on_surface_variant"
-        android:textSize="@dimen/widget_label_text_size"
-        tools:text="Discharging" />
-
-    <ProgressBar
-        android:id="@+id/widget_bar"
-        style="@android:style/Widget.ProgressBar.Horizontal"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="@dimen/widget_progress_height"
-        android:layout_marginTop="@dimen/widget_bar_margin_top"
-        android:max="100"
-        android:progressBackgroundTint="@color/widget_surface_variant"
-        android:progressTint="@color/widget_accent" />
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ProgressBar
+            android:id="@+id/widget_ring"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="@dimen/widget_ring_inset"
+            android:max="100"
+            android:progressDrawable="@drawable/widget_ring_progress"
+            android:progressBackgroundTint="@color/widget_inset_surface_outline"
+            android:progressTint="@color/widget_accent" />
+
+        <TextView
+            android:id="@+id/widget_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/widget_on_surface"
+            android:textSize="@dimen/widget_ring_center_text_size"
+            android:textStyle="bold"
+            tools:text="72%" />
+    </FrameLayout>
+
+    <include layout="@layout/widget_inset" />
 </LinearLayout>

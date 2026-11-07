@@ -26,16 +26,6 @@
     <include layout="@layout/widget_header" />
 
     <TextClock
-        android:id="@+id/widget_date_weekday"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:format12Hour="EEEE"
-        android:format24Hour="EEEE"
-        android:textColor="@color/widget_accent"
-        android:textSize="@dimen/widget_label_text_size"
-        android:textStyle="bold" />
-
-    <TextClock
         android:id="@+id/widget_date_day"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -45,12 +35,37 @@
         android:textSize="@dimen/widget_date_day_text_size"
         android:textStyle="bold" />
 
-    <TextClock
-        android:id="@+id/widget_date_month"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/widget_inset"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:format12Hour="MMMM"
-        android:format24Hour="MMMM"
-        android:textColor="@color/widget_on_surface_variant"
-        android:textSize="@dimen/widget_label_text_size" />
+        android:layout_marginTop="@dimen/widget_inset_margin_top"
+        android:background="@drawable/widget_inset_background"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/widget_inset_padding_horizontal"
+        android:paddingVertical="@dimen/widget_inset_padding_vertical">
+
+        <TextClock
+            android:id="@+id/widget_inset_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:format12Hour="EEEE"
+            android:format24Hour="EEEE"
+            android:maxLines="1"
+            android:textColor="@color/widget_on_inset_surface_variant"
+            android:textSize="@dimen/widget_label_text_size"
+            android:textStyle="bold" />
+
+        <TextClock
+            android:id="@+id/widget_date_month"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:format12Hour="MMMM"
+            android:format24Hour="MMMM"
+            android:maxLines="1"
+            android:textColor="@color/widget_on_inset_surface_variant"
+            android:textSize="@dimen/widget_label_text_size" />
+    </LinearLayout>
 </LinearLayout>

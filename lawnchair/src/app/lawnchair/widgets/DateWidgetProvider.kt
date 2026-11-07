@@ -37,8 +37,9 @@ class DateWidgetProvider : LawnchairWidgetProvider() {
             R.drawable.ic_widget_calendar,
             context.getString(R.string.widget_date_label),
         )
-        views.setTextColor(R.id.widget_date_weekday, NativeWidgetPreferences.accentColor(context, appWidgetId))
         views.setTextColor(R.id.widget_date_day, NativeWidgetPreferences.primaryColor(context, appWidgetId))
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
+        NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
         views.setTextColor(R.id.widget_date_month, NativeWidgetPreferences.variantColor(context, appWidgetId))
         return views
     }

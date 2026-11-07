@@ -43,20 +43,19 @@ class AlarmWidgetProvider : LawnchairWidgetProvider() {
             R.drawable.ic_widget_alarm,
             context.getString(R.string.widget_alarm_label),
         )
-        NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
-        views.setTextColor(R.id.widget_detail, NativeWidgetPreferences.variantColor(context, appWidgetId))
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
 
         val alarm = readAlarm(context)
         if (alarm == null) {
             views.setTextViewText(R.id.widget_value, context.getString(R.string.widget_alarm_none))
-            views.setTextViewText(R.id.widget_detail, context.getString(R.string.widget_alarm_none_detail))
+            views.setTextViewText(R.id.widget_inset_detail, context.getString(R.string.widget_alarm_none_detail))
             views.setTextColor(R.id.widget_value, NativeWidgetPreferences.primaryColor(context, appWidgetId))
             return views
         }
 
         views.setTextViewText(R.id.widget_value, WidgetFormat.formatTime(alarm.hour, alarm.minute, is24Hour = is24Hour(context)))
         views.setTextViewText(
-            R.id.widget_detail,
+            R.id.widget_inset_detail,
             WidgetFormat.formatAlarmDay(alarm.dayOffset, alarm.weekday, null),
         )
         views.setTextColor(R.id.widget_value, NativeWidgetPreferences.primaryColor(context, appWidgetId))

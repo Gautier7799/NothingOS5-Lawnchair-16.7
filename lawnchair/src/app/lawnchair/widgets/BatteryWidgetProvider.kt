@@ -44,16 +44,21 @@ class BatteryWidgetProvider : LawnchairWidgetProvider() {
             R.drawable.ic_widget_battery,
             context.getString(R.string.widget_battery_label),
         )
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
         NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
 
         val reading = BatteryReading.from(context)
         views.setTextViewText(R.id.widget_value, WidgetFormat.batteryLevelLabel(reading.percent))
         views.setTextColor(R.id.widget_value, toneColor(context, appWidgetId, reading))
-        views.setProgressBar(R.id.widget_bar, 100, reading.percent, false)
-        views.setTextColor(R.id.widget_detail, NativeWidgetPreferences.variantColor(context, appWidgetId))
 
-        val detail = buildDetail(context, reading)
-        views.setTextViewText(R.id.widget_detail, detail)
+        // The compact layout shows the level as a circular ring, the wide layout as a bar.
+        if (wide) {
+            views.setProgressBar(R.id.widget_bar, 100, reading.percent, false)
+        } else {
+            views.setProgressBar(R.id.widget_ring, 100, reading.percent, false)
+        }
+
+        views.setTextViewText(R.id.widget_inset_detail, buildDetail(context, reading))
         return views
     }
 

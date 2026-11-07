@@ -43,8 +43,7 @@ class StorageWidgetProvider : LawnchairWidgetProvider() {
             R.drawable.ic_widget_storage,
             context.getString(R.string.widget_storage_label),
         )
-        NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
-        views.setTextColor(R.id.widget_detail, NativeWidgetPreferences.variantColor(context, appWidgetId))
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
 
         val usage = runCatching {
             val stat = StatFs(Environment.getDataDirectory().absolutePath)
@@ -55,7 +54,7 @@ class StorageWidgetProvider : LawnchairWidgetProvider() {
 
         if (usage == null || usage.total <= 0L) {
             views.setTextViewText(R.id.widget_value, context.getString(R.string.widget_storage_unavailable))
-            views.setTextViewText(R.id.widget_detail, "")
+            views.setTextViewText(R.id.widget_inset_detail, "")
             views.setProgressBar(R.id.widget_bar, 100, 0, false)
             views.setTextColor(R.id.widget_value, NativeWidgetPreferences.primaryColor(context, appWidgetId))
             return views
@@ -65,7 +64,7 @@ class StorageWidgetProvider : LawnchairWidgetProvider() {
         val percent = (fraction * 100).toInt()
         views.setTextViewText(R.id.widget_value, "$percent%")
         views.setTextViewText(
-            R.id.widget_detail,
+            R.id.widget_inset_detail,
             context.getString(R.string.widget_storage_free_detail, WidgetFormat.formatBytes(usage.free)),
         )
         views.setProgressBar(R.id.widget_bar, 100, percent, false)

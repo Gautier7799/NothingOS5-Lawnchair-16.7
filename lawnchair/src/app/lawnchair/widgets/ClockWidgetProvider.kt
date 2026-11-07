@@ -46,7 +46,8 @@ class ClockWidgetProvider : LawnchairWidgetProvider() {
         views.setCharSequence(R.id.widget_clock_time, "setFormat24Hour", if (showSeconds) "HH:mm:ss" else "HH:mm")
         views.setCharSequence(R.id.widget_clock_time, "setFormat12Hour", if (showSeconds) "h:mm:ss" else "h:mm")
         views.setTextColor(R.id.widget_clock_time, NativeWidgetPreferences.primaryColor(context, appWidgetId))
-        views.setTextColor(R.id.widget_clock_date, NativeWidgetPreferences.variantColor(context, appWidgetId))
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
+        NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
         return views
     }
 }

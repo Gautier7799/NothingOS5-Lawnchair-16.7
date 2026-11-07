@@ -15,8 +15,8 @@
   limitations under the License.
 -->
 <resources>
-    <dimen name="widget_corner_radius">24dp</dimen>
-    <dimen name="widget_padding">12dp</dimen>
+    <dimen name="widget_corner_radius">28dp</dimen>
+    <dimen name="widget_padding">16dp</dimen>
     <dimen name="widget_bar_margin_top">8dp</dimen>
     <dimen name="widget_clock_time_text_size">34sp</dimen>
     <dimen name="widget_date_day_text_size">40sp</dimen>
@@ -32,4 +32,17 @@
     <dimen name="widget_header_gap">6dp</dimen>
     <dimen name="widget_metric_text_size">20sp</dimen>
     <dimen name="widget_progress_height">8dp</dimen>
+
+    <!--
+      Nested tonal panel used by the widget family to hold a secondary reading. Keeping one
+      shared geometry is what makes the family read as a single design instead of unrelated cards.
+    -->
+    <dimen name="widget_inset_radius">20dp</dimen>
+    <dimen name="widget_inset_margin_top">8dp</dimen>
+    <dimen name="widget_inset_padding_horizontal">12dp</dimen>
+    <dimen name="widget_inset_padding_vertical">8dp</dimen>
+
+    <!-- Circular battery indicator. The ring proportions mirror the reference family. -->
+    <dimen name="widget_ring_inset">6dp</dimen>
+    <dimen name="widget_ring_center_text_size">28sp</dimen>
 </resources>
