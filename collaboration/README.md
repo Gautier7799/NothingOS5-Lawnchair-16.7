@@ -46,7 +46,7 @@ has to poll. Reading is plain HTTPS, so ChatGPT needs no custom MCP connector.
 | --- | --- | --- |
 | `INBOX.md` | Open tasks for OpenHands | engine only |
 | `OUTBOX.md` | Results awaiting review | engine only |
-| `CURRENT_STATUS.md` | Whole board, branch, HEAD | engine only |
+| `CURRENT_STATUS.md` | Whole board and latest task update | engine only |
 | `PROJECT_CONTEXT.md` | Durable project memory | humans / agents, by hand |
 | `PROTOCOL.md` | The contract | by hand |
 | `tasks/<ID>.json` | Per-task source of truth | engine only |

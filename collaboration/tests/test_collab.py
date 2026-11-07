@@ -308,10 +308,31 @@ class TestViewsAndRendering(SandboxedCase):
     def test_views_are_deterministic(self):
         self.create("COLLAB-001")
         self.run_cli("render")
-        first = (self.engine.COLLAB_DIR / "INBOX.md").read_text()
+        for name in ("INBOX.md", "OUTBOX.md", "CURRENT_STATUS.md"):
+            path = self.engine.COLLAB_DIR / name
+            first = path.read_text()
+            self.run_cli("render")
+            self.assertEqual(first, path.read_text(), name)
+
+    def test_status_view_ignores_clock_and_environment(self):
+        """CURRENT_STATUS must not depend on time, HEAD, branch or remote.
+
+        The CI staleness check re-renders and diffs against the committed
+        file, so any wall-clock or git-derived field would fail forever.
+        """
+
+        self.create("COLLAB-001")
         self.run_cli("render")
-        second = (self.engine.COLLAB_DIR / "INBOX.md").read_text()
-        self.assertEqual(first, second)
+        path = self.engine.COLLAB_DIR / "CURRENT_STATUS.md"
+        baseline = path.read_text()
+
+        self.engine.utc_now = lambda: "2099-01-01T00:00:00Z"
+        self.engine.current_commit = lambda: "f" * 40
+        self.engine.current_branch = lambda: "some-other-branch"
+        self.engine.git = lambda *a: "https://example.invalid/other.git"
+        self.run_cli("render")
+
+        self.assertEqual(baseline, path.read_text())
 
     def test_fingerprint_changes_only_with_state(self):
         self.create("COLLAB-001")

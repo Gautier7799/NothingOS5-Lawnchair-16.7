@@ -75,6 +75,13 @@ conflicts and no coordination protocol between two writers.
 classic failure of hand-maintained status documents, which drift from reality
 the moment two people edit them.
 
+Rendering is a pure function of the task files: the views must contain no
+wall-clock timestamps, no `HEAD`/branch names, and no remote URLs, because the
+CI staleness check compares a fresh render against the committed file byte for
+byte. A self-referential field such as `HEAD` changes on every commit, so it can
+never match; the only timestamp shown is the newest task `updated_at`, which
+changes only when a task changes.
+
 Because the file name is the task id, a duplicate id is a filesystem collision —
 the cheapest possible duplicate guard, checked again by `collab verify`.
 
