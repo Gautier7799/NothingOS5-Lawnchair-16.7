@@ -31,18 +31,32 @@
 
     <LinearLayout
         android:id="@+id/widget_clock_digits"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:baselineAligned="true"
         android:orientation="horizontal">
 
+        <!--
+          The hour is the hero: it takes half the row and hugs the minute digits so the two meet on
+          a shared baseline at the centre. Both fields autosize, so the complete time stays visible
+          at every widget size instead of clipping the way a fixed 72sp face would at the 2x2
+          minimum width. `textSize` mirrors the max as a fallback for the tools preview.
+        -->
         <TextClock
             android:id="@+id/widget_clock_hour"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:autoSizeMaxTextSize="@dimen/widget_clock_hour_text_size"
+            android:autoSizeMinTextSize="@dimen/widget_clock_hour_min_text_size"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
+            android:ellipsize="none"
             android:format12Hour="h"
             android:format24Hour="HH"
+            android:gravity="end"
             android:includeFontPadding="false"
+            android:maxLines="1"
             android:textColor="@color/widget_on_surface"
             android:textSize="@dimen/widget_clock_hour_text_size"
             android:textStyle="bold"
@@ -50,12 +64,20 @@
 
         <TextClock
             android:id="@+id/widget_clock_minute"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/widget_clock_minute_gap"
+            android:layout_weight="1"
+            android:autoSizeMaxTextSize="@dimen/widget_clock_minute_text_size"
+            android:autoSizeMinTextSize="@dimen/widget_clock_minute_min_text_size"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
+            android:ellipsize="none"
             android:format12Hour="mm"
             android:format24Hour="mm"
+            android:gravity="start"
             android:includeFontPadding="false"
+            android:maxLines="1"
             android:textColor="@color/widget_on_surface"
             android:textSize="@dimen/widget_clock_minute_text_size"
             android:textStyle="bold"
@@ -67,6 +89,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/widget_clock_period_gap"
             android:format12Hour="a"
+            android:maxLines="1"
             android:textColor="@color/widget_on_surface_variant"
             android:textSize="@dimen/widget_clock_period_text_size"
             android:textStyle="bold"

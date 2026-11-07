@@ -51,12 +51,14 @@ class BatteryWidgetProvider : LawnchairWidgetProvider() {
         views.setTextViewText(R.id.widget_value, WidgetFormat.batteryLevelLabel(reading.percent))
         views.setTextColor(R.id.widget_value, toneColor(context, appWidgetId, reading))
 
-        // The compact layout shows the level as a circular ring, the wide layout as a bar.
-        if (wide) {
-            views.setProgressBar(R.id.widget_bar, 100, reading.percent, false)
-        } else {
-            views.setProgressBar(R.id.widget_ring, 100, reading.percent, false)
+        // The device silhouette fills with the level. ImageView levels run 0..10000, so the
+        // percentage is scaled; low/critical readings swap to the warning fill.
+        val fill = when (WidgetFormat.batteryTone(reading.percent, reading.charging || reading.full)) {
+            WidgetFormat.BatteryTone.LOW, WidgetFormat.BatteryTone.CRITICAL -> R.drawable.widget_battery_fill_warning
+            else -> R.drawable.widget_battery_fill
         }
+        views.setImageViewResource(R.id.widget_battery_fill, fill)
+        views.setInt(R.id.widget_battery_fill, "setImageLevel", reading.percent.coerceIn(0, 100) * 100)
 
         views.setTextViewText(R.id.widget_inset_detail, buildDetail(context, reading))
         return views

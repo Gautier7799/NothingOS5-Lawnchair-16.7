@@ -122,12 +122,7 @@ object NativeWidgetPreferences {
 
     /** Applies the configured card background to a freshly built [RemoteViews]. */
     fun applyCard(context: Context, views: RemoteViews, appWidgetId: Int) {
-        val background = when (getStyle(context, appWidgetId)) {
-            STYLE_TRANSPARENT -> R.drawable.widget_card_background_transparent
-            STYLE_TONAL -> R.drawable.widget_card_background_tonal
-            else -> R.drawable.widget_card_background
-        }
-        views.setInt(R.id.widget_root, "setBackgroundResource", background)
+        views.setInt(R.id.widget_root, "setBackgroundResource", cardBackgroundForStyle(getStyle(context, appWidgetId)))
     }
 
     private fun isTonal(context: Context, appWidgetId: Int) = getStyle(context, appWidgetId) == STYLE_TONAL
@@ -205,4 +200,17 @@ internal fun insetBackgroundForStyle(style: Int): Int = when (style) {
     NativeWidgetPreferences.STYLE_TRANSPARENT -> R.drawable.widget_inset_background_transparent
     NativeWidgetPreferences.STYLE_TONAL -> R.drawable.widget_inset_background_tonal
     else -> R.drawable.widget_inset_background
+}
+
+/**
+ * Maps a card style to the shared rounded-rectangle card drawable.
+ *
+ * Every native widget family shares this one card geometry: the reference app's own container
+ * style resolves `appWidgetRadius` to the platform `system_app_widget_background_radius` token
+ * rather than a per-widget silhouette, so a single rounded card is the faithful choice.
+ */
+internal fun cardBackgroundForStyle(style: Int): Int = when (style) {
+    NativeWidgetPreferences.STYLE_TRANSPARENT -> R.drawable.widget_card_background_transparent
+    NativeWidgetPreferences.STYLE_TONAL -> R.drawable.widget_card_background_tonal
+    else -> R.drawable.widget_card_background
 }

@@ -15,7 +15,7 @@
   limitations under the License.
 -->
 <resources>
-    <dimen name="widget_corner_radius">28dp</dimen>
+    <dimen name="widget_corner_radius">24dp</dimen>
     <dimen name="widget_padding">16dp</dimen>
     <dimen name="widget_bar_margin_top">8dp</dimen>
     <!-- The time is the hero of the clock family, so it is sized well above the metric text. -->
@@ -38,15 +38,23 @@
     <!--
       Nested tonal panel used by the widget family to hold a secondary reading. Keeping one
       shared geometry is what makes the family read as a single design instead of unrelated cards.
+      The radius matches the framework's `system_app_widget_inner_radius` (16 dp), which the
+      reference app also adopts for its inner panel.
     -->
-    <dimen name="widget_inset_radius">20dp</dimen>
+    <dimen name="widget_inset_radius">16dp</dimen>
     <dimen name="widget_inset_margin_top">8dp</dimen>
     <dimen name="widget_inset_padding_horizontal">12dp</dimen>
     <dimen name="widget_inset_padding_vertical">8dp</dimen>
 
-    <!-- Circular battery indicator. The ring proportions mirror the reference family. -->
-    <dimen name="widget_ring_inset">6dp</dimen>
-    <dimen name="widget_ring_center_text_size">28sp</dimen>
+    <!--
+      Battery device: the silhouette whose fill grows with the level, plus the small terminal cap.
+      The corner is tighter than the card radius so the shape reads as a device, not a card.
+    -->
+    <dimen name="widget_battery_corner_radius">8dp</dimen>
+    <dimen name="widget_battery_device_height">30dp</dimen>
+    <dimen name="widget_battery_cap_width">4dp</dimen>
+    <dimen name="widget_battery_cap_height">12dp</dimen>
+    <dimen name="widget_battery_inset">3dp</dimen>
 
     <!-- Weather hero row. -->
     <dimen name="widget_weather_icon_size">40dp</dimen>
@@ -57,8 +65,10 @@
 
     <!-- Hero clock: hour digits dominate, minutes sit smaller on the same baseline. -->
     <dimen name="widget_clock_hour_text_size">72sp</dimen>
+    <dimen name="widget_clock_hour_min_text_size">34sp</dimen>
     <dimen name="widget_clock_minute_text_size">40sp</dimen>
-    <dimen name="widget_clock_minute_gap">6dp</dimen>
+    <dimen name="widget_clock_minute_min_text_size">20sp</dimen>
+    <dimen name="widget_clock_minute_gap">4dp</dimen>
     <dimen name="widget_clock_period_text_size">14sp</dimen>
     <dimen name="widget_clock_period_gap">6dp</dimen>
 </resources>

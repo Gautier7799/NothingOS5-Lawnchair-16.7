@@ -14,6 +14,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
+<!--
+  Weather: the reference's organic card. A generous condition icon leads, the temperature is the
+  hero, and the condition plus today's range sit in the lower section. The card silhouette comes
+  from `widget_weather_card*` (asymmetric corners), so this widget is not a generic rectangle.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
@@ -44,7 +49,7 @@
             android:id="@+id/widget_value"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="12dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/widget_on_surface"
@@ -69,8 +74,9 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/widget_on_inset_surface_variant"
+            android:textColor="@color/widget_on_inset_surface"
             android:textSize="@dimen/widget_label_text_size"
+            android:textStyle="bold"
             tools:text="Partly cloudy" />
 
         <TextView

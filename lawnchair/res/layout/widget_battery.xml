@@ -14,6 +14,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
+<!--
+  Battery, compact: the reference's device identity. A battery silhouette whose fill grows with the
+  level sits above the hero percentage, with the charging/thermal detail in the lower section.
+  Deliberately not a circular gauge: the reference shows a device, not a generic ring.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
@@ -26,34 +31,55 @@
 
     <include layout="@layout/widget_header" />
 
-    <FrameLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <ProgressBar
-            android:id="@+id/widget_ring"
-            style="@android:style/Widget.ProgressBar.Horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_margin="@dimen/widget_ring_inset"
-            android:max="100"
-            android:progressDrawable="@drawable/widget_ring_progress"
-            android:progressBackgroundTint="@color/widget_inset_surface_outline"
-            android:progressTint="@color/widget_accent" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:id="@+id/widget_battery_device"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/widget_battery_device_height"
+                android:layout_weight="1"
+                android:background="@drawable/widget_battery_body">
+
+                <ImageView
+                    android:id="@+id/widget_battery_fill"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="@dimen/widget_battery_inset"
+                    android:contentDescription="@null"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_battery_fill" />
+            </FrameLayout>
+
+            <View
+                android:layout_width="@dimen/widget_battery_cap_width"
+                android:layout_height="@dimen/widget_battery_cap_height"
+                android:layout_marginStart="2dp"
+                android:background="@color/widget_surface_outline" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/widget_value"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
+            android:layout_marginStart="12dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/widget_on_surface"
-            android:textSize="@dimen/widget_ring_center_text_size"
+            android:textSize="@dimen/widget_battery_level_text_size"
             android:textStyle="bold"
             tools:text="72%" />
-    </FrameLayout>
+    </LinearLayout>
 
     <include layout="@layout/widget_inset" />
 </LinearLayout>

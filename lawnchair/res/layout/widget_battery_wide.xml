@@ -14,6 +14,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
+<!--
+  Battery, wide: the same device silhouette as the compact face, laid out horizontally with the
+  reading on the left and the detail panel on the right so the identity carries across sizes.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
@@ -36,7 +40,6 @@
             android:id="@+id/widget_value"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/widget_on_surface"
@@ -46,9 +49,11 @@
 
         <LinearLayout
             android:id="@+id/widget_inset"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
             android:layout_marginTop="0dp"
+            android:layout_weight="1"
             android:background="@drawable/widget_inset_background"
             android:orientation="vertical"
             android:paddingHorizontal="@dimen/widget_inset_padding_horizontal"
@@ -56,7 +61,7 @@
 
             <TextView
                 android:id="@+id/widget_inset_detail"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
@@ -66,13 +71,34 @@
         </LinearLayout>
     </LinearLayout>
 
-    <ProgressBar
-        android:id="@+id/widget_bar"
-        style="@android:style/Widget.ProgressBar.Horizontal"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="@dimen/widget_progress_height"
+        android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/widget_bar_margin_top"
-        android:max="100"
-        android:progressBackgroundTint="@color/widget_surface_variant"
-        android:progressTint="@color/widget_accent" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:id="@+id/widget_battery_device"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/widget_battery_device_height"
+            android:layout_weight="1"
+            android:background="@drawable/widget_battery_body">
+
+            <ImageView
+                android:id="@+id/widget_battery_fill"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_margin="@dimen/widget_battery_inset"
+                android:contentDescription="@null"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_battery_fill" />
+        </FrameLayout>
+
+        <View
+            android:layout_width="@dimen/widget_battery_cap_width"
+            android:layout_height="@dimen/widget_battery_cap_height"
+            android:layout_marginStart="2dp"
+            android:background="@color/widget_surface_outline" />
+    </LinearLayout>
 </LinearLayout>
