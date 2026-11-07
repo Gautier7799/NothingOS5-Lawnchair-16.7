@@ -171,6 +171,20 @@ object WidgetFormat {
     /** Rotation of the minute hand in degrees. */
     fun minuteHandDegrees(minute: Int): Float = minute.coerceIn(0, 59) * 6f
 
+    /**
+     * Human label for when an upcoming event starts, e.g. `Today 14:00`, `Tomorrow 09:30` or
+     * `Fri 10:00`.
+     */
+    fun formatEventWhen(dayOffset: Int, weekday: String, hour: Int, minute: Int, is24Hour: Boolean): String {
+        val day = when {
+            dayOffset <= 0 -> "Now"
+            dayOffset == 1 -> "Tomorrow"
+            else -> weekday.ifBlank { "In $dayOffset days" }
+        }
+        if (dayOffset <= 0) return day
+        return "$day \u00b7 ${formatTime(hour, minute, is24Hour = is24Hour)}"
+    }
+
     /** A cached weather reading, encoded compactly so it survives process death. */
     data class WeatherSnapshot(val temperatureC: Int, val weatherCode: Int, val highC: Int, val lowC: Int)
 

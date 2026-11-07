@@ -16,11 +16,14 @@
 
 package app.lawnchair.widgets
 
+import android.Manifest
 import android.appwidget.AppWidgetManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -81,6 +84,11 @@ class LawnchairWidgetConfigActivity : ComponentActivity() {
         val providerClass = providerClass(appWidgetId)
         val options = WidgetConfigOptions.forProvider(providerClass)
 
+        // The calendar widget reads the user's events, so ask for access when it is configured.
+        if (providerClass == CalendarWidgetProvider::class.java.name) {
+            requestCalendarPermissionIfNeeded()
+        }
+
         val initialStyle = NativeWidgetPreferences.getStyle(this, appWidgetId)
         val initialShowSeconds = NativeWidgetPreferences.getShowSeconds(this, appWidgetId)
         val initialShowHeader = NativeWidgetPreferences.getShowHeader(this, appWidgetId)
@@ -132,6 +140,12 @@ class LawnchairWidgetConfigActivity : ComponentActivity() {
             ?.className
     }.getOrNull()
 
+    /** Requests calendar access for the calendar widget, using the Activity Result API. */
+    private fun requestCalendarPermissionIfNeeded() {
+        if (checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED) return
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }.launch(Manifest.permission.READ_CALENDAR)
+    }
+
     private fun requestUpdate(appWidgetId: Int) {
         val manager = AppWidgetManager.getInstance(this) ?: return
         val provider = manager.getAppWidgetInfo(appWidgetId)?.provider ?: return
@@ -154,7 +168,11 @@ data class WidgetConfigOptions(
         fun forProvider(providerClass: String?): WidgetConfigOptions = when (providerClass) {
             ClockWidgetProvider::class.java.name -> WidgetConfigOptions(showSeconds = true, showHeader = true, showDetail = true)
 
-            DateWidgetProvider::class.java.name -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = false)
+            DateWidgetProvider::class.java.name,
+            CalendarWidgetProvider::class.java.name,
+            -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = true)
+
+            WeatherWidgetProvider::class.java.name -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = false)
 
             BatteryWidgetProvider::class.java.name,
             StorageWidgetProvider::class.java.name,

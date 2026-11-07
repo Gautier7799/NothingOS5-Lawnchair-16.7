@@ -1165,4 +1165,15 @@
     <!-- Analog clock -->
     <string name="widget_analog_clock_label">Analog clock</string>
     <string name="widget_analog_clock_description">Analog face with a live minute hand</string>
+
+    <!-- Calendar -->
+    <string name="widget_calendar_label">Calendar</string>
+    <string name="widget_calendar_description">Today\'s date and your next event</string>
+    <string name="widget_calendar_no_events">No upcoming events</string>
+    <string name="widget_calendar_none_hint">Next 7 days are clear</string>
+    <string name="widget_calendar_untitled">Untitled event</string>
+    <string name="widget_calendar_today">Today</string>
+    <string name="widget_calendar_tomorrow">Tomorrow</string>
+    <string name="widget_calendar_permission_title">Show your events</string>
+    <string name="widget_calendar_permission_hint">Tap to allow calendar access</string>
 </resources>

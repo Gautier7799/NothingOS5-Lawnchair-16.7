@@ -89,4 +89,12 @@ class NativeWidgetPreferencesTest {
         assertThat(WidgetFormat.minuteHandDegrees(15)).isWithin(0.001f).of(90f)
         assertThat(WidgetFormat.minuteHandDegrees(59)).isWithin(0.001f).of(354f)
     }
+
+    @Test
+    fun formatEventWhen_labelsRelativeDays() {
+        assertThat(WidgetFormat.formatEventWhen(0, "Fri", 14, 0, is24Hour = true)).isEqualTo("Now")
+        assertThat(WidgetFormat.formatEventWhen(1, "Fri", 9, 30, is24Hour = true)).isEqualTo("Tomorrow \u00b7 09:30")
+        assertThat(WidgetFormat.formatEventWhen(3, "Mon", 10, 5, is24Hour = true)).isEqualTo("Mon \u00b7 10:05")
+        assertThat(WidgetFormat.formatEventWhen(2, "", 10, 5, is24Hour = true)).isEqualTo("In 2 days \u00b7 10:05")
+    }
 }
