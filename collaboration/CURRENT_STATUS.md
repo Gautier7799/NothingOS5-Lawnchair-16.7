@@ -2,10 +2,7 @@
 
 Generated file. Do not hand-edit; run `collab render`.
 
-- Generated: `2026-11-07T11:32:49Z`
-- Repository: `https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7.git`
-- Branch: `collaboration-hub`
-- HEAD: `b574d6a08deb10271973e82bb5caa7468225247e`
+- Last task update: `2026-11-07T11:31:51Z`
 - Total tasks: **1**
 
 ## Board

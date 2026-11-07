@@ -411,6 +411,13 @@ def _short_sha(sha: str | None) -> str:
     return sha[:7]
 
 
+def _latest_update(tasks: list[dict[str, Any]]) -> str:
+    """Newest task timestamp, so the view depends only on committed state."""
+
+    stamps = [t["updated_at"] for t in tasks if t.get("updated_at")]
+    return max(stamps) if stamps else "—"
+
+
 def render_inbox(tasks: list[dict[str, Any]]) -> str:
     pending = [t for t in tasks if t.get("status") in {"PENDING", "BLOCKED"}]
     lines = [
@@ -527,10 +534,7 @@ def render_status(tasks: list[dict[str, Any]]) -> str:
         "",
         "Generated file. Do not hand-edit; run `collab render`.",
         "",
-        f"- Generated: `{utc_now()}`",
-        f"- Repository: `{git('config', '--get', 'remote.origin.url') or 'unknown'}`",
-        f"- Branch: `{current_branch()}`",
-        f"- HEAD: `{current_commit()}`",
+        f"- Last task update: `{_latest_update(tasks)}`",
         f"- Total tasks: **{len(tasks)}**",
         "",
         "## Board",
