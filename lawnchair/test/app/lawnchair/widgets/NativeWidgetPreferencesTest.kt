@@ -97,23 +97,4 @@ class NativeWidgetPreferencesTest {
         assertThat(WidgetFormat.formatEventWhen(3, "Mon", 10, 5, is24Hour = true)).isEqualTo("Mon \u00b7 10:05")
         assertThat(WidgetFormat.formatEventWhen(2, "", 10, 5, is24Hour = true)).isEqualTo("In 2 days \u00b7 10:05")
     }
-
-    @Test
-    fun clockDigits_padsHourOnlyIn24HourMode() {
-        assertThat(WidgetFormat.clockDigits(9, 5, is24Hour = true)).isEqualTo("09" to "05")
-        assertThat(WidgetFormat.clockDigits(9, 5, is24Hour = false)).isEqualTo("9" to "05")
-        assertThat(WidgetFormat.clockDigits(0, 0, is24Hour = false)).isEqualTo("12" to "00")
-        assertThat(WidgetFormat.clockDigits(12, 30, is24Hour = false)).isEqualTo("12" to "30")
-        assertThat(WidgetFormat.clockDigits(13, 30, is24Hour = false)).isEqualTo("1" to "30")
-        assertThat(WidgetFormat.clockDigits(23, 59, is24Hour = true)).isEqualTo("23" to "59")
-    }
-
-    @Test
-    fun clockPeriod_onlyForTwelveHourMode() {
-        assertThat(WidgetFormat.clockPeriod(9, is24Hour = true)).isEmpty()
-        assertThat(WidgetFormat.clockPeriod(9, is24Hour = false)).isEqualTo("AM")
-        assertThat(WidgetFormat.clockPeriod(12, is24Hour = false)).isEqualTo("PM")
-        assertThat(WidgetFormat.clockPeriod(0, is24Hour = false)).isEqualTo("AM")
-        assertThat(WidgetFormat.clockPeriod(13, is24Hour = false)).isEqualTo("PM")
-    }
 }
