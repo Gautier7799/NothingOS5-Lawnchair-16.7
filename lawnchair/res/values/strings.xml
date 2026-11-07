@@ -1132,6 +1132,8 @@
     <string name="widget_connectivity_output_device_headset">Wired headset</string>
     <string name="widget_connectivity_output_device_usb">USB audio</string>
     <string name="widget_connectivity_output_device_speaker">Speaker</string>
+    <string name="widget_connectivity_wifi_on">Wi\u2011Fi on</string>
+    <string name="widget_connectivity_wifi_no_network">Connected</string>
     <string name="widget_alarm_label">Alarm</string>
     <string name="widget_alarm_description">Next scheduled alarm</string>
     <string name="widget_alarm_none">No alarm</string>

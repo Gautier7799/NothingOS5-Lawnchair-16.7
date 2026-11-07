@@ -40,10 +40,22 @@ class ConnectivityWidgetProvider : LawnchairWidgetProvider() {
             context,
             views,
             appWidgetId,
-            R.drawable.ic_widget_bluetooth,
+            R.drawable.ic_widget_wifi,
             context.getString(R.string.widget_connectivity_label),
         )
         NativeWidgetPreferences.applyInset(context, views, appWidgetId)
+
+        // The hero value is Wi-Fi when connected, otherwise the Bluetooth state.
+        val wifi = wifiState(context)
+        if (wifi.connected) {
+            views.setTextViewText(R.id.widget_value, context.getString(R.string.widget_connectivity_wifi_on))
+            views.setTextColor(R.id.widget_value, context.getColor(R.color.widget_success))
+            views.setTextViewText(
+                R.id.widget_inset_detail,
+                wifi.network ?: context.getString(R.string.widget_connectivity_wifi_no_network),
+            )
+            return views
+        }
 
         val bluetoothOn = bluetoothEnabled(context)
         if (bluetoothOn == null) {
@@ -74,6 +86,24 @@ class ConnectivityWidgetProvider : LawnchairWidgetProvider() {
 
     override fun onDisabled(context: Context) {
         NativeWidgetRefresh.unregister(context, javaClass, BLUETOOTH_URI)
+    }
+
+    /** Wi-Fi connectivity snapshot: whether an active network is present and its name. */
+    private data class WifiState(val connected: Boolean, val network: String?)
+
+    private fun wifiState(context: Context): WifiState {
+        val manager = context.getSystemService(android.net.ConnectivityManager::class.java)
+            ?: return WifiState(false, null)
+        val network = manager.activeNetwork ?: return WifiState(false, null)
+        val caps = manager.getNetworkCapabilities(network) ?: return WifiState(false, null)
+        if (!caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) return WifiState(false, null)
+        // SSID is only exposed with location permission; fall back to a generic label.
+        val name = runCatching {
+            val wifi = context.applicationContext.getSystemService(android.net.wifi.WifiManager::class.java)
+            @Suppress("DEPRECATION")
+            wifi?.connectionInfo?.ssid?.takeUnless { it.isNullOrBlank() || it == "<unknown ssid>" }
+        }.getOrNull()
+        return WifiState(true, name)
     }
 
     /** `null` when the device has no Bluetooth radio. */
