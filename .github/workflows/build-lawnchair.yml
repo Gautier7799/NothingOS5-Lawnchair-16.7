@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - foundation/lawnchair-16-dev
+      - feature/lawnchair-native-widget-library
     paths-ignore:
       - '.github/**'
       - '**.md'
@@ -19,7 +20,7 @@ jobs:
       - name: Checkout source with submodules
         uses: actions/checkout@v4
         with:
-          ref: foundation/lawnchair-16-dev
+          ref: ${{ github.ref_name }}
           submodules: recursive
       - name: Set up Java 21
         uses: actions/setup-java@v4
