@@ -200,10 +200,10 @@ virtualenv, no build output.
 ```
 $ make archive
 python3 scripts/build_archive.py
-wrote /…/dist/openhands-mcp-bridge-1.0.0.zip (36 files, 61.1 KiB)
+wrote /…/dist/openhands-mcp-bridge-1.0.0.zip (36 files, 61.6 KiB)
 
 $ sha256sum dist/openhands-mcp-bridge-1.0.0.zip
-21f750f871bf053af57f7a9e6c593e64e89e7b3daf86f21b500346f8c16817e1
+5030ad2f030c31802ba4741d93f0d1c451369d422f2f3e09cb7dd9ddc32badf3
 ```
 
 The digest changes on every rebuild (ZIP stores timestamps), so treat the
@@ -222,3 +222,32 @@ $ PYTHONPATH=src .venv/bin/python -m pytest
 
 Scanning the extracted tree for the live API key and MCP token produced no
 matches.
+
+## 10. Where the code lives
+
+The bridge is published on a dedicated branch so it can be downloaded and
+reviewed independently of the upstream project:
+
+```
+repo      https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7
+branch    mcp-bridge                (HEAD is the tip of this branch)
+base      6affb708e829d07e2ff06d0f5e19a11c2faa8a43   Initial commit (upstream)
+notable   2bf35d764b57b35465937e0c68826db44f58763b   Add the bridge
+          dee15bd10783cb9cf73c441f78ea8a77cfad24c9   Verification record
+```
+
+The bridge lives under `mcp-bridge/` in that archive; the repo root also
+carries the upstream `LICENSE`/`README.md` and the new `AGENTS.md`.
+
+Download links (verified reachable, HTTP 200):
+
+```
+# Whole branch — always the latest state of the bridge
+https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7/archive/refs/heads/mcp-bridge.zip
+
+# Pinned to one commit (replace <sha> with a sha listed above)
+https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7/archive/<sha>.zip
+```
+
+`main` was not touched — it still points at the upstream `Initial commit`.
+No pull request was opened; review the branch directly.
