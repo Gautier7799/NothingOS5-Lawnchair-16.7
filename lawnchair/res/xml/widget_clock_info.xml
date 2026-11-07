@@ -22,8 +22,8 @@
     android:updatePeriodMillis="0"
     android:configure="app.lawnchair.widgets.LawnchairWidgetConfigActivity"
     android:description="@string/widget_clock_description"
-    android:initialLayout="@layout/widget_clock"
-    android:previewLayout="@layout/widget_clock"
+    android:initialLayout="@layout/widget_clock_hero"
+    android:previewLayout="@layout/widget_clock_hero"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:widgetFeatures="reconfigurable" />
