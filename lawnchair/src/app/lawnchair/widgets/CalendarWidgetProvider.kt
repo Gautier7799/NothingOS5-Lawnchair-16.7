@@ -81,8 +81,7 @@ class CalendarWidgetProvider : LawnchairWidgetProvider() {
         android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
     )
 
-    private fun hasCalendarPermission(context: Context): Boolean =
-        context.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+    private fun hasCalendarPermission(context: Context): Boolean = context.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
     /** Next event starting within the next 7 days, or null when there is none. */
     private fun nextEvent(context: Context): Event? {
@@ -127,7 +126,9 @@ class CalendarWidgetProvider : LawnchairWidgetProvider() {
         if (allDay) {
             return when (offset) {
                 0 -> context.getString(R.string.widget_calendar_today)
+
                 1 -> context.getString(R.string.widget_calendar_tomorrow)
+
                 else -> start.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, java.util.Locale.getDefault())
                     ?: ""
             }

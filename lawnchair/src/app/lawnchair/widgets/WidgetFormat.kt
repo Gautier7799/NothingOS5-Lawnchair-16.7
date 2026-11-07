@@ -131,8 +131,7 @@ object WidgetFormat {
     data class WeatherLocation(val latitude: Double, val longitude: Double, val label: String)
 
     /** Encodes a [WeatherLocation] for storage in [NativeWidgetPreferences]. */
-    fun encodeWeatherLocation(latitude: Double, longitude: Double, label: String): String =
-        "$latitude,$longitude,$label"
+    fun encodeWeatherLocation(latitude: Double, longitude: Double, label: String): String = "$latitude,$longitude,$label"
 
     /**
      * Parses the stored `latitude,longitude,label` form back into a [WeatherLocation].
@@ -188,8 +187,7 @@ object WidgetFormat {
     /** A cached weather reading, encoded compactly so it survives process death. */
     data class WeatherSnapshot(val temperatureC: Int, val weatherCode: Int, val highC: Int, val lowC: Int)
 
-    fun encodeWeatherSnapshot(snapshot: WeatherSnapshot): String =
-        "${snapshot.temperatureC},${snapshot.weatherCode},${snapshot.highC},${snapshot.lowC}"
+    fun encodeWeatherSnapshot(snapshot: WeatherSnapshot): String = "${snapshot.temperatureC},${snapshot.weatherCode},${snapshot.highC},${snapshot.lowC}"
 
     fun parseWeatherSnapshot(raw: String?): WeatherSnapshot? {
         if (raw.isNullOrBlank()) return null

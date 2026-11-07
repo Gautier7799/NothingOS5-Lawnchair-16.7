@@ -17,11 +17,11 @@
 package app.lawnchair.widgets
 
 import android.util.Log
-import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import org.json.JSONObject
 
 /**
  * Minimal, keyless client for Open-Meteo (open-meteo.com), used as the weather source for the

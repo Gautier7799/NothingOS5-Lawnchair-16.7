@@ -130,7 +130,10 @@ private fun WeatherConfigContent(
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = city,
-            onValueChange = { city = it; error = null },
+            onValueChange = {
+                city = it
+                error = null
+            },
             label = { Text(stringResource(R.string.widget_weather_config_city)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),

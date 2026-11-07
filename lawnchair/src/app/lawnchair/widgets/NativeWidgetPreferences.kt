@@ -85,16 +85,14 @@ object NativeWidgetPreferences {
      * Storing the resolved coordinates avoids geocoding (and therefore a network round-trip) on
      * every widget refresh.
      */
-    fun getWeatherLocation(context: Context, appWidgetId: Int): String? =
-        prefs(context).getString(key(KEY_WEATHER_LOCATION, appWidgetId), null)
+    fun getWeatherLocation(context: Context, appWidgetId: Int): String? = prefs(context).getString(key(KEY_WEATHER_LOCATION, appWidgetId), null)
 
     fun setWeatherLocation(context: Context, appWidgetId: Int, location: String?) {
         prefs(context).edit().putString(key(KEY_WEATHER_LOCATION, appWidgetId), location).apply()
     }
 
     /** Last successfully fetched weather snapshot, encoded for display, or null. */
-    fun getWeatherCache(context: Context, appWidgetId: Int): String? =
-        prefs(context).getString(key(KEY_WEATHER_CACHE, appWidgetId), null)
+    fun getWeatherCache(context: Context, appWidgetId: Int): String? = prefs(context).getString(key(KEY_WEATHER_CACHE, appWidgetId), null)
 
     fun setWeatherCache(context: Context, appWidgetId: Int, cache: String?) {
         prefs(context).edit().putString(key(KEY_WEATHER_CACHE, appWidgetId), cache).apply()
@@ -104,8 +102,7 @@ object NativeWidgetPreferences {
      * Whether the clock uses the reference "hero" layout: oversized hour digits with smaller
      * minutes. Defaults to on, since it is the design the library is modelled on.
      */
-    fun getHeroClock(context: Context, appWidgetId: Int): Boolean =
-        prefs(context).getBoolean(key(KEY_HERO_CLOCK, appWidgetId), true)
+    fun getHeroClock(context: Context, appWidgetId: Int): Boolean = prefs(context).getBoolean(key(KEY_HERO_CLOCK, appWidgetId), true)
 
     fun setHeroClock(context: Context, appWidgetId: Int, hero: Boolean) {
         prefs(context).edit().putBoolean(key(KEY_HERO_CLOCK, appWidgetId), hero).apply()
