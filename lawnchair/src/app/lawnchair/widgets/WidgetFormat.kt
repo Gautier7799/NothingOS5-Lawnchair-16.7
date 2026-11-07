@@ -172,6 +172,28 @@ object WidgetFormat {
     fun minuteHandDegrees(minute: Int): Float = minute.coerceIn(0, 59) * 6f
 
     /**
+     * Splits a time into the hero clock's two typographic weights.
+     *
+     * The reference clock renders the hour in oversized digits and the minutes smaller beside it,
+     * so the pair is returned separately rather than as one string. The hour is zero-padded only in
+     * 24-hour mode; 12-hour mode shows a bare `h` plus a period.
+     */
+    fun clockDigits(hour24: Int, minute: Int, is24Hour: Boolean): Pair<String, String> {
+        val h = ((hour24 % 24) + 24) % 24
+        val m = minute.coerceIn(0, 59)
+        val hourText = if (is24Hour) String.format(Locale.US, "%02d", h) else (if (h % 12 == 0) 12 else h % 12).toString()
+        val minuteText = String.format(Locale.US, "%02d", m)
+        return hourText to minuteText
+    }
+
+    /** AM/PM marker for the hero clock, or an empty string in 24-hour mode. */
+    fun clockPeriod(hour24: Int, is24Hour: Boolean): String {
+        if (is24Hour) return ""
+        val h = ((hour24 % 24) + 24) % 24
+        return if (h < 12) "AM" else "PM"
+    }
+
+    /**
      * Human label for when an upcoming event starts, e.g. `Today 14:00`, `Tomorrow 09:30` or
      * `Fri 10:00`.
      */

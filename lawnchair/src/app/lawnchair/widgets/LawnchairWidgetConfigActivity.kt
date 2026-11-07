@@ -93,6 +93,7 @@ class LawnchairWidgetConfigActivity : ComponentActivity() {
         val initialShowSeconds = NativeWidgetPreferences.getShowSeconds(this, appWidgetId)
         val initialShowHeader = NativeWidgetPreferences.getShowHeader(this, appWidgetId)
         val initialShowDetail = NativeWidgetPreferences.getShowDetail(this, appWidgetId)
+        val initialHeroClock = NativeWidgetPreferences.getHeroClock(this, appWidgetId)
 
         setContent {
             LawnchairTheme {
@@ -101,6 +102,7 @@ class LawnchairWidgetConfigActivity : ComponentActivity() {
                 var showSeconds by remember { mutableStateOf(initialShowSeconds) }
                 var showHeader by remember { mutableStateOf(initialShowHeader) }
                 var showDetail by remember { mutableStateOf(initialShowDetail) }
+                var heroClock by remember { mutableStateOf(initialHeroClock) }
 
                 Scaffold { innerPadding ->
                     WidgetConfigContent(
@@ -109,15 +111,18 @@ class LawnchairWidgetConfigActivity : ComponentActivity() {
                         showSeconds = showSeconds,
                         showHeader = showHeader,
                         showDetail = showDetail,
+                        heroClock = heroClock,
                         onStyleSelect = { style = it },
                         onShowSecondsChange = { showSeconds = it },
                         onShowHeaderChange = { showHeader = it },
                         onShowDetailChange = { showDetail = it },
+                        onHeroClockChange = { heroClock = it },
                         onSave = {
                             NativeWidgetPreferences.setStyle(this, appWidgetId, style)
                             NativeWidgetPreferences.setShowSeconds(this, appWidgetId, showSeconds)
                             NativeWidgetPreferences.setShowHeader(this, appWidgetId, showHeader)
                             NativeWidgetPreferences.setShowDetail(this, appWidgetId, showDetail)
+                            NativeWidgetPreferences.setHeroClock(this, appWidgetId, heroClock)
                             requestUpdate(appWidgetId)
                             setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId))
                             finish()
@@ -163,10 +168,11 @@ data class WidgetConfigOptions(
     val showSeconds: Boolean,
     val showHeader: Boolean,
     val showDetail: Boolean,
+    val heroClock: Boolean = false,
 ) {
     companion object {
         fun forProvider(providerClass: String?): WidgetConfigOptions = when (providerClass) {
-            ClockWidgetProvider::class.java.name -> WidgetConfigOptions(showSeconds = true, showHeader = true, showDetail = true)
+            ClockWidgetProvider::class.java.name -> WidgetConfigOptions(showSeconds = true, showHeader = true, showDetail = true, heroClock = true)
 
             DateWidgetProvider::class.java.name,
             CalendarWidgetProvider::class.java.name,
@@ -193,10 +199,12 @@ private fun WidgetConfigContent(
     showSeconds: Boolean,
     showHeader: Boolean,
     showDetail: Boolean,
+    heroClock: Boolean,
     onStyleSelect: (Int) -> Unit,
     onShowSecondsChange: (Boolean) -> Unit,
     onShowHeaderChange: (Boolean) -> Unit,
     onShowDetailChange: (Boolean) -> Unit,
+    onHeroClockChange: (Boolean) -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
@@ -258,6 +266,13 @@ private fun WidgetConfigContent(
                 label = stringResource(R.string.widget_clock_show_seconds),
                 checked = showSeconds,
                 onCheckedChange = onShowSecondsChange,
+            )
+        }
+        if (options.heroClock) {
+            ToggleRow(
+                label = stringResource(R.string.widget_clock_hero_style),
+                checked = heroClock,
+                onCheckedChange = onHeroClockChange,
             )
         }
 

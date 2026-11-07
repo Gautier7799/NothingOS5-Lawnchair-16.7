@@ -54,4 +54,11 @@
 
     <!-- Analog clock face. -->
     <dimen name="widget_analog_size">150dp</dimen>
+
+    <!-- Hero clock: hour digits dominate, minutes sit smaller on the same baseline. -->
+    <dimen name="widget_clock_hour_text_size">72sp</dimen>
+    <dimen name="widget_clock_minute_text_size">40sp</dimen>
+    <dimen name="widget_clock_minute_gap">6dp</dimen>
+    <dimen name="widget_clock_period_text_size">14sp</dimen>
+    <dimen name="widget_clock_period_gap">6dp</dimen>
 </resources>

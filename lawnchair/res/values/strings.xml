@@ -1115,6 +1115,7 @@
     <string name="widget_style_filled">Filled card</string>
     <string name="widget_style_transparent">Transparent</string>
     <string name="widget_clock_show_seconds">Show seconds</string>
+    <string name="widget_clock_hero_style">Large hour digits</string>
     <string name="widget_volume_label">Volume</string>
     <string name="widget_volume_description">Media volume and Do Not Disturb</string>
     <string name="widget_volume_muted">Muted</string>

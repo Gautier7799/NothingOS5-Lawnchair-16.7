@@ -47,6 +47,7 @@ object NativeWidgetPreferences {
     private const val KEY_SHOW_DETAIL = "show_detail"
     private const val KEY_WEATHER_LOCATION = "weather_location"
     private const val KEY_WEATHER_CACHE = "weather_cache"
+    private const val KEY_HERO_CLOCK = "hero_clock"
 
     private fun prefs(context: Context): SharedPreferences = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
 
@@ -99,6 +100,17 @@ object NativeWidgetPreferences {
         prefs(context).edit().putString(key(KEY_WEATHER_CACHE, appWidgetId), cache).apply()
     }
 
+    /**
+     * Whether the clock uses the reference "hero" layout: oversized hour digits with smaller
+     * minutes. Defaults to on, since it is the design the library is modelled on.
+     */
+    fun getHeroClock(context: Context, appWidgetId: Int): Boolean =
+        prefs(context).getBoolean(key(KEY_HERO_CLOCK, appWidgetId), true)
+
+    fun setHeroClock(context: Context, appWidgetId: Int, hero: Boolean) {
+        prefs(context).edit().putBoolean(key(KEY_HERO_CLOCK, appWidgetId), hero).apply()
+    }
+
     fun delete(context: Context, appWidgetId: Int) {
         prefs(context).edit()
             .remove(key(KEY_STYLE, appWidgetId))
@@ -107,6 +119,7 @@ object NativeWidgetPreferences {
             .remove(key(KEY_SHOW_DETAIL, appWidgetId))
             .remove(key(KEY_WEATHER_LOCATION, appWidgetId))
             .remove(key(KEY_WEATHER_CACHE, appWidgetId))
+            .remove(key(KEY_HERO_CLOCK, appWidgetId))
             .apply()
     }
 
