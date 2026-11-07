@@ -49,4 +49,7 @@
     <!-- Weather hero row. -->
     <dimen name="widget_weather_icon_size">40dp</dimen>
     <dimen name="widget_weather_temp_text_size">38sp</dimen>
+
+    <!-- Analog clock face. -->
+    <dimen name="widget_analog_size">150dp</dimen>
 </resources>

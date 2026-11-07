@@ -73,4 +73,20 @@ class NativeWidgetPreferencesTest {
         assertThat(WidgetFormat.parseWeatherSnapshot("21,3,24")).isNull()
         assertThat(WidgetFormat.parseWeatherSnapshot("a,b,c,d")).isNull()
     }
+
+    @Test
+    fun hourHandDegrees_advancesSmoothlyWithMinutes() {
+        assertThat(WidgetFormat.hourHandDegrees(0, 0)).isWithin(0.001f).of(0f)
+        assertThat(WidgetFormat.hourHandDegrees(3, 0)).isWithin(0.001f).of(90f)
+        assertThat(WidgetFormat.hourHandDegrees(6, 30)).isWithin(0.001f).of(195f)
+        // Calendar.HOUR reports 0..11; 12 must fold back to 0 rather than overshoot.
+        assertThat(WidgetFormat.hourHandDegrees(12, 0)).isWithin(0.001f).of(0f)
+    }
+
+    @Test
+    fun minuteHandDegrees_coversFullCircle() {
+        assertThat(WidgetFormat.minuteHandDegrees(0)).isWithin(0.001f).of(0f)
+        assertThat(WidgetFormat.minuteHandDegrees(15)).isWithin(0.001f).of(90f)
+        assertThat(WidgetFormat.minuteHandDegrees(59)).isWithin(0.001f).of(354f)
+    }
 }

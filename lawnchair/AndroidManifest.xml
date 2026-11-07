@@ -307,6 +307,18 @@
                 android:resource="@xml/widget_weather_info" />
         </receiver>
 
+        <receiver
+            android:name="app.lawnchair.widgets.AnalogClockWidgetProvider"
+            android:label="@string/widget_analog_clock_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_analog_clock_info" />
+        </receiver>
+
         <activity
             android:name="app.lawnchair.widgets.WeatherWidgetConfigActivity"
             android:exported="false"

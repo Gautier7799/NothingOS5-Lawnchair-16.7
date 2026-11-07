@@ -157,6 +157,20 @@ object WidgetFormat {
     /** Today's high/low label, e.g. `H 24\u00b0 \u00b7 L 15\u00b0`. */
     fun formatHighLow(high: Int, low: Int): String = "H $high\u00b0 \u00b7 L $low\u00b0"
 
+    /**
+     * Rotation of the hour hand in degrees.
+     *
+     * [hour] is the 12-hour value (0..11 for `Calendar.HOUR`, 12 is treated as 0). The hand advances
+     * smoothly with the minutes so it never sits exactly on the hour mark.
+     */
+    fun hourHandDegrees(hour: Int, minute: Int): Float {
+        val h = ((hour % 12) + 12) % 12
+        return h * 30f + minute.coerceIn(0, 59) * 0.5f
+    }
+
+    /** Rotation of the minute hand in degrees. */
+    fun minuteHandDegrees(minute: Int): Float = minute.coerceIn(0, 59) * 6f
+
     /** A cached weather reading, encoded compactly so it survives process death. */
     data class WeatherSnapshot(val temperatureC: Int, val weatherCode: Int, val highC: Int, val lowC: Int)
 
