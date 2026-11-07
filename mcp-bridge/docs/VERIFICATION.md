@@ -200,10 +200,10 @@ virtualenv, no build output.
 ```
 $ make archive
 python3 scripts/build_archive.py
-wrote /…/dist/openhands-mcp-bridge-1.0.0.zip (36 files, 61.6 KiB)
+wrote /…/dist/openhands-mcp-bridge-1.0.0.zip (37 files, 69.5 KiB)
 
 $ sha256sum dist/openhands-mcp-bridge-1.0.0.zip
-5030ad2f030c31802ba4741d93f0d1c451369d422f2f3e09cb7dd9ddc32badf3
+1f35ece2ad7efefda5fd822956b05a86314cf9949250922141ea91a13e001ade
 ```
 
 The digest changes on every rebuild (ZIP stores timestamps), so treat the

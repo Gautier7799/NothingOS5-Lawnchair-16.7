@@ -24,6 +24,7 @@ INCLUDE_TOP_LEVEL = [
     ".env.example",
     ".gitignore",
     ".dockerignore",
+    "FINAL_HANDOFF_FOR_CHATGPT.txt",
 ]
 INCLUDE_TREES = ["src", "tests", "docs", "deploy", "scripts"]
 

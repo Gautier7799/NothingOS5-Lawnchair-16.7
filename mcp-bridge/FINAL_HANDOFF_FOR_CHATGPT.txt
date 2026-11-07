@@ -1,0 +1,476 @@
+================================================================================
+FINAL HANDOFF FOR CHATGPT
+ChatGPT <-> OpenHands Cloud Secure MCP Bridge (read-only)
+================================================================================
+
+Generated: 2026-11-07
+No API keys, tokens, passwords, environment secrets or authorization headers are
+included in this document. Nothing is claimed as deployed or tested unless it
+was actually verified; every verification is labelled with its evidence.
+
+
+--------------------------------------------------------------------------------
+1. IMPLEMENTATION STATUS
+--------------------------------------------------------------------------------
+
+COMPLETE. All 12 tracked tasks are done.
+
+The bridge is a self-contained Python package at "mcp-bridge/" inside the
+"NothingOS5-Lawnchair-16.7" repository. The repository root originally held only
+LICENSE and README.md; those are untouched. The only additions outside
+"mcp-bridge/" are "AGENTS.md" (repository notes) and this handoff file.
+
+Delivered artifacts:
+
+  Server          src/openhands_mcp_bridge/server.py
+                  FastMCP + ASGI, MCP Streamable HTTP, stateless mode
+  Tools           src/openhands_mcp_bridge/tools.py
+                  Five read-only tools
+  API client      src/openhands_mcp_bridge/client.py
+                  GET-only, retries with jitter, pagination, size caps
+  Auth            src/openhands_mcp_bridge/auth.py
+                  Static bearer tokens + optional OAuth 2.1 / OIDC
+  Config/safety   config.py, errors.py, redaction.py, rate_limit.py
+  Tests           tests/ (83 tests, fully offline)
+  Docs            README.md,
+                  docs/ARCHITECTURE.md, docs/SECURITY.md, docs/DEPLOYMENT.md,
+                  docs/CHATGPT_CONNECTOR.md, docs/VERIFICATION.md
+  Ops             Dockerfile, docker-compose.yml, Makefile, .env.example,
+                  deploy/Caddyfile, deploy/nginx.conf, deploy/k8s.yaml,
+                  scripts/build_archive.py
+
+
+--------------------------------------------------------------------------------
+2. PUBLIC HTTPS MCP ENDPOINT
+--------------------------------------------------------------------------------
+
+  https://work-1-xahmymzqavnzfgpt.prod-runtime.all-hands.dev/mcp
+
+Same host, ancillary routes:
+
+  /healthz
+  /readyz
+  /.well-known/oauth-protected-resource
+  /.well-known/oauth-authorization-server
+
+CAVEAT (read this):
+This URL is the sandbox host's TLS-terminating edge. It is a live, tested
+reference instance, NOT a permanent production host, and its certificate was not
+issued by this work. The sandbox is ephemeral and the endpoint stops responding
+when the sandbox is reclaimed. For a permanent deployment, use the provided
+deploy/Caddyfile or deploy/nginx.conf on a domain you control.
+
+
+--------------------------------------------------------------------------------
+3. DEPLOYMENT AND CONNECTIVITY TEST RESULTS
+--------------------------------------------------------------------------------
+
+Status: the ASGI process was running and reachable over the public HTTPS URL at
+the time this report was generated.
+
+Tested (live, over the public HTTPS URL):
+
+  GET  /healthz                              200
+       {"status":"ok","server":"openhands-cloud-mcp-bridge"}
+
+  GET  /readyz                               200
+       {"status":"ready","upstream":"https://app.all-hands.dev"}
+
+  POST /mcp  (no Authorization header)       401
+       {"error":"invalid_token",
+        "error_description":"A valid bearer token is required."}
+
+  POST /mcp  (wrong bearer token)            401
+       {"error":"invalid_token",
+        "error_description":"A valid bearer token is required."}
+
+  GET  /.well-known/oauth-protected-resource 200
+       {"resource":"https://work-1-xahmymzqavnzfgpt.prod-runtime.all-hands.dev/mcp",
+        "bearer_methods_supported":["header"],
+        "scopes_supported":["openhands.read"]}
+
+  WWW-Authenticate header on 401:
+       Bearer error="invalid_token",
+       resource_metadata="https://work-1-xahmymzqavnzfgpt.prod-runtime.all-hands.dev/.well-known/oauth-protected-resource"
+
+  Live MCP initialize + tools/list            5 tools returned
+  Live call of all five tools                 real data returned ("LIVE E2E OK")
+
+NOT done (stated honestly):
+  - No production TLS certificate was issued by this work.
+  - No Docker image was built here; Dockerfile/compose are provided, unexercised.
+  - No Kubernetes cluster was targeted; deploy/k8s.yaml is provided as-is.
+  - No ChatGPT connector was created; that requires your ChatGPT account.
+
+
+--------------------------------------------------------------------------------
+4. AVAILABLE MCP TOOLS
+--------------------------------------------------------------------------------
+
+Five tools, all read-only. Every argument is optional. "conversation_id"
+defaults to the configured conversation 7177c0cd42934b7db0ec620706f3f547.
+
+  openhands_list_conversations
+    Purpose : List OpenHands Cloud conversations.
+    Inputs  : limit (int, 1-100, default 20)
+              page_id (opaque cursor from a previous call)
+              max_pages (int, 1-10, default 1)
+              title_contains (string filter)
+              sandbox_id (string filter)
+              include_sub_conversations (bool, default false)
+              created_at_gte, created_at_lt (ISO-8601)
+              updated_at_gte, updated_at_lt (ISO-8601)
+    Output  : {ok, tool, items[], count, next_page_id, pages_fetched}
+    Upstream: GET /api/v1/app-conversations/search
+
+  openhands_get_conversation
+    Purpose : Full metadata record for one conversation.
+    Inputs  : conversation_id
+    Output  : {ok, tool,
+               conversation{id, sandbox_id, title, sandbox_status,
+                            execution_status, created_at, updated_at,
+                            conversation_ui_url, event_count},
+               raw{...}}
+    Upstream: GET /api/v1/app-conversations?ids=<id>
+
+  openhands_get_conversation_status
+    Purpose : Compact status summary (cheap status check).
+    Inputs  : conversation_id
+    Output  : {ok, tool, id, sandbox_status, execution_status, event_count, ...}
+    Upstream: GET /api/v1/app-conversations?ids=<id>
+              + GET /api/v1/conversation/<id>/events/count
+
+  openhands_get_conversation_events
+    Purpose : Read events (messages, actions, observations).
+    Inputs  : conversation_id
+              limit (int, 1-100, default 50)
+              page_id (opaque cursor)
+              max_pages (int, 1-20, default 1)
+              max_events (int, 1-1000)
+              sort_order ("TIMESTAMP" | "TIMESTAMP_DESC")
+              kind (event kind filter, e.g. "MessageEvent")
+              timestamp_gte, timestamp_lt (ISO-8601)
+              exclude_full_state (bool, default true)
+    Output  : {ok, tool, items[], count, next_page_id, pages_fetched, truncated}
+    Upstream: GET /api/v1/conversation/<id>/events/search
+
+  openhands_download_trajectory
+    Purpose : Download and parse the conversation trajectory archive
+              (a ZIP containing events/*.json plus meta.json).
+    Inputs  : conversation_id
+              include_meta (bool, default true)
+              max_events (int, 1-500)
+    Output  : {ok, tool, conversation_id, meta, events[], total_events,
+               returned_events, skipped_events, truncated, archive_bytes,
+               files[]}
+    Upstream: GET /api/v1/app-conversations/<id>/download
+
+ERROR SHAPE
+  Failures are returned with isError=true and a structured payload:
+
+    {"ok": false, "code": "<code>", "message": "<safe message>",
+     "tool": "<tool name>"}
+
+  Codes: not_found, invalid_input, upstream_unauthorized, upstream_timeout,
+         upstream_error, response_too_large.
+
+
+--------------------------------------------------------------------------------
+5. OPENHANDS CLOUD API AUTHENTICATION VERIFICATION
+--------------------------------------------------------------------------------
+
+The bridge authenticates to OpenHands Cloud with
+  Authorization: Bearer <OPENHANDS_CLOUD_API_KEY>
+read only from a private environment secret or a mounted secret file. The key is
+never printed, logged, committed or returned; no credential value appears in
+this document.
+
+Verification results:
+
+  "openhands_mcp_bridge check" (config + upstream reachability)
+      -> "OpenHands Cloud reachable."
+
+  Conversation 7177c0cd42934b7db0ec620706f3f547
+      -> sandbox_status: RUNNING
+         execution_status: finished
+         event_count: 969
+
+  Live end-to-end MCP session (official MCP SDK client, over HTTPS)
+      -> all five tools returned real upstream data
+         list_conversations        : count 3, first id 27f6c70defc14a169a14cce09a81dc19
+         get_conversation          : id 7177c0cd..., RUNNING / finished
+         get_conversation_status   : RUNNING / finished, 969 events
+         get_conversation_events   : count 10, next_page_id present
+         download_trajectory       : total_events 967, truncated true,
+                                     archive_bytes ~3.5 MB
+
+  Failure handling (live)
+      unknown conversation id   -> isError=true, code "not_found"
+      malformed id ("../etc/passwd") -> isError=true, code "invalid_input"
+                                   (rejected before any upstream request)
+
+  Redaction (live tool output scanned)
+      no API key, no sk- token, no Bearer token, no JWT present
+  Server log scan
+      zero occurrences of the API key and zero of the MCP token
+
+
+--------------------------------------------------------------------------------
+6. SECURITY REVIEW
+--------------------------------------------------------------------------------
+
+Full threat model (13 threats, each mapped to a control) and an operator
+checklist are in docs/SECURITY.md.
+
+READ-ONLY BY CONSTRUCTION
+  The only HTTP verb in client.py is GET. There is no code path that can send a
+  message, execute a command, modify a file or create a conversation. A test
+  asserts that every request recorded by the fake upstream uses GET.
+
+FAIL-CLOSED AUTHENTICATION
+  The server refuses to start when no auth mode is configured
+  (MCP_REQUIRE_AUTH=true by default). Verified: starting with no token and no
+  OAuth issuer prints
+  "Refusing to start an unauthenticated remote MCP endpoint."
+
+ENDPOINT AUTHENTICATION
+  - Static bearer tokens: 256-bit values from secrets.token_urlsafe(32); only
+    the SHA-256 hash is retained after startup; compared with
+    hmac.compare_digest (constant time).
+  - OAuth 2.1 / OIDC (optional): JWTs verified against the issuer's JWKS
+    (signature, "iss", optional "aud"); RFC 9728 and RFC 8414 discovery
+    documents are published so ChatGPT can run the auth-code + PKCE flow.
+
+SECRET HANDLING
+  - OPENHANDS_CLOUD_API_KEY is read once at startup and held in memory.
+  - Config.__repr__ prints "<redacted:N chars>" instead of the value.
+  - Every tool result and error body passes through recursive redact(), which
+    replaces any key matching *api_key, *_secret, *_token, authorization,
+    password, provider_tokens, session_api_key, and scrubs sk-..., sess-...,
+    "Bearer ..." and JWT-shaped strings inside free text.
+  - The configured key is additionally passed as an extra literal to scrub.
+
+DATA MINIMISATION
+  session_api_key and conversation_url (both grant direct sandbox access) are
+  stripped from conversation summaries.
+
+INPUT VALIDATION
+  conversation_id is restricted to [A-Za-z0-9_-]{1,64} and URL-quoted before it
+  is placed in a path. All numeric bounds are enforced by pydantic. Invalid
+  input returns code "invalid_input", never a 500.
+
+ERROR HYGIENE
+  Upstream error bodies are truncated to 400 bytes and redacted. Unexpected
+  exceptions are logged server-side and returned to the model as a generic
+  "upstream_error" payload, so FastMCP cannot stringify an internal exception
+  into tool output.
+
+RATE LIMITING AND RESOURCE CAPS
+  Per-principal token bucket (default 60 requests/min) plus a separate upstream
+  limiter. Hard caps on page size, single event size, response size, event count
+  and trajectory archive size (128 MiB, streamed and abandoned past the cap).
+
+TRANSPORT AND CONTAINER HARDENING
+  Container runs as non-root (uid 10001) with all capabilities dropped,
+  no-new-privileges and a read-only root filesystem. The provided Caddy/nginx
+  configs set HSTS, X-Content-Type-Options: nosniff, Referrer-Policy:
+  no-referrer, hide server tokens and cap request bodies at 1 MB.
+
+REPOSITORY HYGIENE
+  .gitignore excludes .env, .env.*, secrets/, *.pem, *.key, dist/, caches.
+  Only .env.example is committed. The pushed branch tree was scanned:
+  0 secret hits across 39 files.
+
+
+--------------------------------------------------------------------------------
+7. TEST RESULTS AND REMAINING ISSUES
+--------------------------------------------------------------------------------
+
+TEST RESULTS
+
+  Unit/integration suite
+      pytest  ->  83 passed, 0 warnings, ~5 s, fully offline
+                  (an in-process fake upstream served through httpx ASGITransport)
+
+  Lint
+      ruff check src tests  ->  All checks passed!
+
+  Clean-room packaging check
+      The ZIP was extracted to a fresh directory, installed into a new
+      virtualenv, and pytest passed 83/83 there.
+
+  Live checks (against the real OpenHands Cloud API)
+      health, readiness, 401 on missing/bad token, RFC 9728 metadata,
+      WWW-Authenticate header, all five tools, pagination, redaction and
+      failure handling -- all as reported in sections 3 and 5.
+
+BUGS FOUND BY LIVE TESTING, NOW FIXED (with regression tests)
+  1. OpenHands Cloud returns "[null]" with HTTP 200 for an unknown conversation
+     id, which previously crashed as
+     "AttributeError: 'NoneType' object has no attribute 'get'".
+     Now mapped to code "not_found".
+  2. Unexpected exceptions were being stringified into tool output by FastMCP.
+     Now caught in server.py::_dispatch, logged server-side, and returned as a
+     generic "upstream_error".
+
+REMAINING ISSUES / LIMITATIONS (all also in docs/SECURITY.md)
+  1. Single-tenant. The bridge holds one OpenHands API key; anyone who can
+     authenticate can read every conversation that key can see. Issue one bridge
+     per trust boundary.
+  2. In-process rate limiting. Counters are per process; for multiple replicas,
+     add a limiter at the ingress.
+  3. Redaction targets credentials, not confidential content. Treat
+     conversation content as data you accept placing in a model context.
+  4. Static tokens do not expire. Rotate MCP_AUTH_TOKEN on a schedule, or use
+     OAuth mode for revocation.
+  5. No per-caller audit log of which conversation was read.
+  6. Trajectory archives are large; the download itself still transits the
+     bridge even though the returned payload is capped.
+  7. Benign teardown message. On interpreter shutdown, sse_starlette may print
+     "Task was destroyed but it is pending". Cosmetic; no test failure and no
+     effect on requests.
+  8. The public sandbox endpoint is ephemeral and will stop when the sandbox is
+     reclaimed.
+
+
+--------------------------------------------------------------------------------
+8. GITHUB REPOSITORY AND COMMIT
+--------------------------------------------------------------------------------
+
+  Repository      https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7
+  Branch          mcp-bridge
+  Base commit     6affb708e829d07e2ff06d0f5e19a11c2faa8a43  (Initial commit)
+  Bridge impl     2bf35d764b57b35465937e0c68826db44f58763b
+                  "Add read-only OpenHands Cloud MCP bridge"
+  Later commits   dee15bd10783cb9cf73c441f78ea8a77cfad24c9
+                  "Tidy Makefile archive target and verification record"
+                  (plus the commit that adds this handoff file)
+
+  Remote "main"   6affb708e829d07e2ff06d0f5e19a11c2faa8a43  (UNTOUCHED)
+  Pull request    none opened
+
+The bridge was published on the dedicated "mcp-bridge" branch so it can be
+reviewed independently of the upstream project. main was deliberately left
+pointing at the upstream Initial commit.
+
+Resolve the exact tip of the branch at any time with:
+
+  git ls-remote https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7.git refs/heads/mcp-bridge
+
+
+--------------------------------------------------------------------------------
+9. DOWNLOAD LINKS AND BUILD ARTIFACTS
+--------------------------------------------------------------------------------
+
+All links below were verified reachable (HTTP 200) at generation time.
+
+  Source ZIP -- published branch (always the latest state):
+    https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7/archive/refs/heads/mcp-bridge.zip
+
+  Source ZIP -- pinned to a specific commit (replace <sha>):
+    https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7/archive/<sha>.zip
+
+  This handoff file (plain text):
+    https://raw.githubusercontent.com/Gautier7799/NothingOS5-Lawnchair-16.7/mcp-bridge/mcp-bridge/FINAL_HANDOFF_FOR_CHATGPT.txt
+
+  Browsable handoff file (GitHub page):
+    https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7/blob/mcp-bridge/mcp-bridge/FINAL_HANDOFF_FOR_CHATGPT.txt
+
+  Local build artifact (not committed; dist/ is git-ignored):
+    mcp-bridge/dist/openhands-mcp-bridge-1.0.0.zip
+    36 files, ~61.6 KiB
+    sha256 5030ad2f030c31802ba4741d93f0d1c451369d422f2f3e09cb7dd9ddc32badf3
+    Rebuild with: make archive
+    NOTE: the digest changes on every rebuild because ZIP stores timestamps;
+    recompute it after building.
+
+Note: the GitHub archive ZIP of the branch contains the whole repository
+(LICENSE, README.md, AGENTS.md and mcp-bridge/). The bridge itself lives under
+mcp-bridge/.
+
+
+--------------------------------------------------------------------------------
+10. CONNECTING THE MCP SERVER TO CHATGPT
+--------------------------------------------------------------------------------
+
+Full walkthrough: docs/CHATGPT_CONNECTOR.md
+
+  1. Confirm the server is up:
+       curl -s https://<your-host>/healthz
+     Expected: {"status":"ok",...}
+
+  2. Generate an MCP token (this is NOT the OpenHands API key):
+       python -c "import secrets; print(secrets.token_urlsafe(32))"
+     Store it privately: environment variable MCP_AUTH_TOKEN, or a 0600 file
+     referenced by MCP_AUTH_TOKEN_FILE.
+
+  3. In ChatGPT: Settings -> Connectors -> Add custom connector
+     (enable Developer mode if your account requires it).
+
+  4. URL: https://<your-host>/mcp
+     Include the exact "/mcp" path.
+
+  5. Authentication: API key / Bearer token.
+     Paste your MCP_AUTH_TOKEN.
+     Never paste the OpenHands Cloud API key -- ChatGPT never needs it and
+     never sees it.
+
+  6. Save. ChatGPT should list the five openhands_* tools.
+
+  7. Try a prompt:
+       "List my five most recent OpenHands Cloud conversations."
+       "Show the status of conversation 7177c0cd42934b7db0ec620706f3f547."
+
+CONFIGURING OPENHANDS_CLOUD_API_KEY AS A PRIVATE SECRET
+Never put it in source code, chat, or version control.
+
+  Local:
+      cp .env.example .env && chmod 600 .env
+      set -a; . ./.env; set +a
+
+  Docker:
+      Write the key to secrets/openhands_cloud_api_key with mode 0600.
+      docker-compose.yml mounts it at /run/secrets/... and the app reads it via
+      OPENHANDS_CLOUD_API_KEY_FILE, so it never appears in "docker inspect" or
+      in the image layers.
+
+  Kubernetes:
+      kubectl create secret generic openhands-mcp \
+        --from-literal=OPENHANDS_CLOUD_API_KEY=...
+      Then reference it with envFrom.secretRef in deploy/k8s.yaml.
+
+  Cloud secret manager:
+      AWS Secrets Manager / GCP Secret Manager / Azure Key Vault / HashiCorp
+      Vault, injected at runtime as an environment variable or file.
+
+For OAuth instead of a static token, set MCP_OAUTH_ISSUER (and optionally
+MCP_OAUTH_AUDIENCE). The bridge publishes the discovery documents ChatGPT
+needs, and no static token is required.
+
+USING THE LIVE REFERENCE ENDPOINT
+  URL: https://work-1-xahmymzqavnzfgpt.prod-runtime.all-hands.dev/mcp
+  This endpoint is protected by a bearer token that is deliberately NOT
+  included in this document. It is an ephemeral sandbox instance; for anything
+  durable, deploy your own instance behind HTTPS as described above.
+
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+Status        : complete and verified; read-only scope fully honored
+Endpoint      : https://work-1-xahmymzqavnzfgpt.prod-runtime.all-hands.dev/mcp
+                (live reference instance; ephemeral, not a production host)
+Tests         : 83 passed / 0 warnings; ruff clean; live E2E OK
+Auth          : OpenHands Cloud reachable; key never exposed
+Security      : read-only, fail-closed auth, redaction, rate limits, size caps
+Repo/branch   : Gautier7799/NothingOS5-Lawnchair-16.7 @ mcp-bridge
+Base commit   : 6affb708e829d07e2ff06d0f5e19a11c2faa8a43
+Source ZIP    : .../archive/refs/heads/mcp-bridge.zip
+Outstanding   : own-domain HTTPS deploy, image/K8s build (if wanted),
+                ChatGPT connector creation (needs your account), open a PR
+                (none opened; main untouched)
+
+================================================================================
+END OF FINAL HANDOFF FOR CHATGPT
+================================================================================
