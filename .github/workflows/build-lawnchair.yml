@@ -6,6 +6,7 @@ on:
     branches:
       - foundation/lawnchair-16-dev
       - feature/lawnchair-native-widget-library
+      - openhands/native-widget-library-completion
     paths-ignore:
       - '.github/**'
       - '**.md'

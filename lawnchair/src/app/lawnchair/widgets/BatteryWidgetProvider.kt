@@ -24,51 +24,95 @@ import android.widget.RemoteViews
 import com.android.launcher3.R
 
 /**
- * Battery level and charging state.
+ * Battery level, charging state and thermal/electrical detail.
  *
- * The reading is taken from the sticky `ACTION_BATTERY_CHANGED` broadcast, which is also what the
- * platform sends on every meaningful change, so the widget stays current without polling.
+ * The reading comes from the sticky `ACTION_BATTERY_CHANGED` broadcast, which the platform also
+ * sends on every meaningful change, so the widget stays current without polling.
  */
 class BatteryWidgetProvider : LawnchairWidgetProvider() {
 
     override fun buildRemoteViews(context: Context, appWidgetId: Int): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_battery)
+        val wide = widgetWidth(context, appWidgetId) >= WIDE_WIDTH_DP
+        val layout = if (wide) R.layout.widget_battery_wide else R.layout.widget_battery
+        val views = RemoteViews(context.packageName, layout)
+
         NativeWidgetPreferences.applyCard(context, views, appWidgetId)
-
-        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
-        val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
-            ?: BatteryManager.BATTERY_STATUS_UNKNOWN
-        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING
-        val full = status == BatteryManager.BATTERY_STATUS_FULL
-        val percent = if (level >= 0 && scale > 0) level * 100 / scale else 0
-
-        views.setTextViewText(R.id.widget_battery_level, WidgetFormat.batteryLevelLabel(percent))
-        views.setTextViewText(
-            R.id.widget_battery_status,
-            context.getString(
-                when {
-                    full -> R.string.widget_battery_status_full
-                    charging -> R.string.widget_battery_status_charging
-                    else -> R.string.widget_battery_status_discharging
-                },
-            ),
+        NativeWidgetPreferences.applyHeader(
+            context,
+            views,
+            appWidgetId,
+            R.drawable.ic_widget_battery,
+            context.getString(R.string.widget_battery_label),
         )
-        views.setProgressBar(R.id.widget_battery_bar, 100, percent, false)
-        views.setTextColor(R.id.widget_battery_level, toneColor(context, percent, charging || full))
+        NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
+
+        val reading = BatteryReading.from(context)
+        views.setTextViewText(R.id.widget_value, WidgetFormat.batteryLevelLabel(reading.percent))
+        views.setTextColor(R.id.widget_value, toneColor(context, appWidgetId, reading))
+        views.setProgressBar(R.id.widget_bar, 100, reading.percent, false)
+        views.setTextColor(R.id.widget_detail, NativeWidgetPreferences.variantColor(context, appWidgetId))
+
+        val detail = buildDetail(context, reading)
+        views.setTextViewText(R.id.widget_detail, detail)
         return views
     }
 
-    private fun toneColor(context: Context, level: Int, charging: Boolean): Int = when (
-        WidgetFormat.batteryTone(level, charging)
+    private fun buildDetail(context: Context, reading: BatteryReading): CharSequence {
+        val status = context.getString(
+            when {
+                reading.full -> R.string.widget_battery_status_full
+                reading.charging -> R.string.widget_battery_status_charging
+                else -> R.string.widget_battery_status_discharging
+            },
+        )
+        val extras = mutableListOf<String>()
+        reading.temperatureC?.let {
+            extras += context.getString(R.string.widget_battery_temperature, WidgetFormat.formatTemperature(it))
+        }
+        reading.voltageV?.let {
+            extras += context.getString(R.string.widget_battery_voltage, WidgetFormat.formatVoltage(it))
+        }
+        return if (extras.isEmpty()) status else (listOf(status) + extras).joinToString(" \u00b7 ")
+    }
+
+    private fun toneColor(context: Context, appWidgetId: Int, reading: BatteryReading): Int = when (
+        WidgetFormat.batteryTone(reading.percent, reading.charging || reading.full)
     ) {
-        WidgetFormat.BatteryTone.CHARGING -> context.getColor(R.color.widget_accent)
+        WidgetFormat.BatteryTone.CHARGING -> context.getColor(R.color.widget_success)
 
         WidgetFormat.BatteryTone.LOW,
         WidgetFormat.BatteryTone.CRITICAL,
         -> context.getColor(R.color.widget_warning)
 
-        WidgetFormat.BatteryTone.NORMAL -> context.getColor(R.color.widget_on_surface)
+        WidgetFormat.BatteryTone.NORMAL -> NativeWidgetPreferences.primaryColor(context, appWidgetId)
+    }
+
+    /** Immutable snapshot of the battery state, tolerant of missing extras. */
+    data class BatteryReading(
+        val percent: Int,
+        val charging: Boolean,
+        val full: Boolean,
+        val temperatureC: Float?,
+        val voltageV: Float?,
+    ) {
+        companion object {
+            fun from(context: Context): BatteryReading {
+                val intent: Intent? = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+                val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+                val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)
+                    ?: BatteryManager.BATTERY_STATUS_UNKNOWN
+                val percent = if (level >= 0 && scale > 0) level * 100 / scale else 0
+                val tempTenths = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE) ?: Int.MIN_VALUE
+                val voltageMv = intent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, Int.MIN_VALUE) ?: Int.MIN_VALUE
+                return BatteryReading(
+                    percent = percent,
+                    charging = status == BatteryManager.BATTERY_STATUS_CHARGING,
+                    full = status == BatteryManager.BATTERY_STATUS_FULL,
+                    temperatureC = if (tempTenths == Int.MIN_VALUE) null else tempTenths / 10f,
+                    voltageV = if (voltageMv == Int.MIN_VALUE) null else voltageMv / 1000f,
+                )
+            }
+        }
     }
 }

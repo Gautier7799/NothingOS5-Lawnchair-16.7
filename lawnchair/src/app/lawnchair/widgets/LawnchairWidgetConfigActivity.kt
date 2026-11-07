@@ -29,7 +29,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -56,7 +58,8 @@ import com.android.launcher3.R
  * Configuration screen shown when a native Lawnchair widget is dropped on the home screen.
  *
  * Persists the per-instance options in [NativeWidgetPreferences] and then asks the owning
- * provider to redraw itself.
+ * provider to redraw itself. The available options are derived from the widget being configured so
+ * a widget only offers settings that actually apply to it.
  */
 class LawnchairWidgetConfigActivity : ComponentActivity() {
 
@@ -75,26 +78,38 @@ class LawnchairWidgetConfigActivity : ComponentActivity() {
             return
         }
 
-        val showClockOptions = isClockWidget(appWidgetId)
+        val providerClass = providerClass(appWidgetId)
+        val options = WidgetConfigOptions.forProvider(providerClass)
+
         val initialStyle = NativeWidgetPreferences.getStyle(this, appWidgetId)
         val initialShowSeconds = NativeWidgetPreferences.getShowSeconds(this, appWidgetId)
+        val initialShowHeader = NativeWidgetPreferences.getShowHeader(this, appWidgetId)
+        val initialShowDetail = NativeWidgetPreferences.getShowDetail(this, appWidgetId)
 
         setContent {
             LawnchairTheme {
                 EdgeToEdge()
                 var style by remember { mutableIntStateOf(initialStyle) }
                 var showSeconds by remember { mutableStateOf(initialShowSeconds) }
+                var showHeader by remember { mutableStateOf(initialShowHeader) }
+                var showDetail by remember { mutableStateOf(initialShowDetail) }
 
                 Scaffold { innerPadding ->
                     WidgetConfigContent(
-                        showClockOptions = showClockOptions,
+                        options = options,
                         selectedStyle = style,
                         showSeconds = showSeconds,
+                        showHeader = showHeader,
+                        showDetail = showDetail,
                         onStyleSelect = { style = it },
                         onShowSecondsChange = { showSeconds = it },
+                        onShowHeaderChange = { showHeader = it },
+                        onShowDetailChange = { showDetail = it },
                         onSave = {
                             NativeWidgetPreferences.setStyle(this, appWidgetId, style)
                             NativeWidgetPreferences.setShowSeconds(this, appWidgetId, showSeconds)
+                            NativeWidgetPreferences.setShowHeader(this, appWidgetId, showHeader)
+                            NativeWidgetPreferences.setShowDetail(this, appWidgetId, showDetail)
                             requestUpdate(appWidgetId)
                             setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId))
                             finish()
@@ -110,13 +125,12 @@ class LawnchairWidgetConfigActivity : ComponentActivity() {
         }
     }
 
-    private fun isClockWidget(appWidgetId: Int): Boolean {
-        val provider = AppWidgetManager.getInstance(this)
+    private fun providerClass(appWidgetId: Int): String? = runCatching {
+        AppWidgetManager.getInstance(this)
             ?.getAppWidgetInfo(appWidgetId)
             ?.provider
             ?.className
-        return provider == ClockWidgetProvider::class.java.name
-    }
+    }.getOrNull()
 
     private fun requestUpdate(appWidgetId: Int) {
         val manager = AppWidgetManager.getInstance(this) ?: return
@@ -130,13 +144,41 @@ class LawnchairWidgetConfigActivity : ComponentActivity() {
     }
 }
 
+/** Which options apply to a given widget provider. */
+data class WidgetConfigOptions(
+    val showSeconds: Boolean,
+    val showHeader: Boolean,
+    val showDetail: Boolean,
+) {
+    companion object {
+        fun forProvider(providerClass: String?): WidgetConfigOptions = when (providerClass) {
+            ClockWidgetProvider::class.java.name -> WidgetConfigOptions(showSeconds = true, showHeader = true, showDetail = true)
+
+            DateWidgetProvider::class.java.name -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = false)
+
+            BatteryWidgetProvider::class.java.name,
+            StorageWidgetProvider::class.java.name,
+            VolumeWidgetProvider::class.java.name,
+            ConnectivityWidgetProvider::class.java.name,
+            AlarmWidgetProvider::class.java.name,
+            -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = true)
+
+            else -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = false)
+        }
+    }
+}
+
 @Composable
 private fun WidgetConfigContent(
-    showClockOptions: Boolean,
+    options: WidgetConfigOptions,
     selectedStyle: Int,
     showSeconds: Boolean,
+    showHeader: Boolean,
+    showDetail: Boolean,
     onStyleSelect: (Int) -> Unit,
     onShowSecondsChange: (Boolean) -> Unit,
+    onShowHeaderChange: (Boolean) -> Unit,
+    onShowDetailChange: (Boolean) -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
@@ -144,6 +186,7 @@ private fun WidgetConfigContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
     ) {
         Text(
@@ -167,25 +210,37 @@ private fun WidgetConfigContent(
             selected = selectedStyle == NativeWidgetPreferences.STYLE_TRANSPARENT,
             onSelect = { onStyleSelect(NativeWidgetPreferences.STYLE_TRANSPARENT) },
         )
+        StyleOption(
+            label = stringResource(R.string.widget_style_tonal),
+            selected = selectedStyle == NativeWidgetPreferences.STYLE_TONAL,
+            onSelect = { onStyleSelect(NativeWidgetPreferences.STYLE_TONAL) },
+        )
         Text(
             text = stringResource(R.string.widget_settings_use_dynamic_color_applied_note),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        if (showClockOptions) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.widget_clock_show_seconds),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(checked = showSeconds, onCheckedChange = onShowSecondsChange)
-            }
+        if (options.showHeader) {
+            ToggleRow(
+                label = stringResource(R.string.widget_show_header),
+                checked = showHeader,
+                onCheckedChange = onShowHeaderChange,
+            )
+        }
+        if (options.showDetail) {
+            ToggleRow(
+                label = stringResource(R.string.widget_show_detail),
+                checked = showDetail,
+                onCheckedChange = onShowDetailChange,
+            )
+        }
+        if (options.showSeconds) {
+            ToggleRow(
+                label = stringResource(R.string.widget_clock_show_seconds),
+                checked = showSeconds,
+                onCheckedChange = onShowSecondsChange,
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -201,6 +256,27 @@ private fun WidgetConfigContent(
                 Text(text = stringResource(android.R.string.ok))
             }
         }
+    }
+}
+
+@Composable
+private fun ToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

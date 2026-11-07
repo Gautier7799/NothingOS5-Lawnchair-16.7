@@ -33,4 +33,13 @@
     <color name="widget_accent">@color/system_accent1_500</color>
     <color name="widget_warning">@color/system_accent3_500</color>
     <color name="widget_on_accent">@color/system_accent1_0</color>
+
+    <!-- Tonal ("accent container") card, used by the tonal style option. -->
+    <color name="widget_tonal_surface">@color/system_accent1_100</color>
+    <color name="widget_on_tonal_surface">@color/system_accent1_900</color>
+    <color name="widget_on_tonal_surface_variant">@color/system_accent1_800</color>
+    <color name="widget_tonal_outline">@color/system_accent1_200</color>
+
+    <!-- Positive state (e.g. connected / normal temperature). -->
+    <color name="widget_success">@color/system_accent2_500</color>
 </resources>

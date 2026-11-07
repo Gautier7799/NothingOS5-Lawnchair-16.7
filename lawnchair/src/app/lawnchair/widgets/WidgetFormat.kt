@@ -16,6 +16,8 @@
 
 package app.lawnchair.widgets
 
+import java.util.Locale
+
 /**
  * Pure, framework-free formatting helpers shared by the native Lawnchair widgets.
  *
@@ -26,6 +28,12 @@ object WidgetFormat {
 
     /** How a battery reading should be presented. */
     enum class BatteryTone { NORMAL, LOW, CRITICAL, CHARGING }
+
+    /** Do Not Disturb presentation state. */
+    enum class DndState { ACCESS_REQUIRED, OFF, PRIORITY, ALARMS, ALL }
+
+    /** The kind of device the audio is currently routed to. */
+    enum class AudioOutput { BLUETOOTH, HEADSET, USB, SPEAKER }
 
     private const val LOW_THRESHOLD = 30
     private const val CRITICAL_THRESHOLD = 15
@@ -112,6 +120,81 @@ object WidgetFormat {
     }
 
     private fun two(value: Int): String = if (value < 10) "0$value" else value.toString()
+
+    /** Formats a battery temperature in degrees Celsius with one decimal place. */
+    fun formatTemperature(celsius: Float): String = String.format(Locale.US, "%.1f\u00b0C", celsius)
+
+    /** Formats a battery voltage with two decimal places. */
+    fun formatVoltage(volts: Float): String = String.format(Locale.US, "%.2fV", volts)
+
+    /**
+     * Classifies the current audio output from the set of connected output device types.
+     *
+     * Bluetooth takes precedence over wired headsets, which take precedence over USB, and a plain
+     * speaker is the fallback when nothing else is connected.
+     */
+    fun classifyOutput(deviceTypes: List<Int>): AudioOutput = when {
+        deviceTypes.isEmpty() -> AudioOutput.SPEAKER
+
+        // AudioDeviceInfo.TYPE_BLUETOOTH_A2DP (8) / TYPE_BLUETOOTH_SCO (7)
+        deviceTypes.any { it == 8 || it == 7 } -> AudioOutput.BLUETOOTH
+
+        // TYPE_WIRED_HEADSET (3) / TYPE_WIRED_HEADPHONES (4)
+        deviceTypes.any { it == 3 || it == 4 } -> AudioOutput.HEADSET
+
+        // TYPE_USB_DEVICE (11) / TYPE_USB_HEADSET (22) / TYPE_USB_ACCESSORY (12)
+        deviceTypes.any { it == 11 || it == 22 || it == 12 } -> AudioOutput.USB
+
+        else -> AudioOutput.SPEAKER
+    }
+
+    /**
+     * Maps the notification-policy access flag and the current interruption filter to a
+     * presentation state.
+     *
+     * @param accessGranted whether notification-policy access has been granted
+     * @param interruptionFilter a `NotificationManager.INTERRUPTION_FILTER_*` value
+     */
+    fun dndState(accessGranted: Boolean, interruptionFilter: Int): DndState = when {
+        !accessGranted -> DndState.ACCESS_REQUIRED
+
+        // INTERRUPTION_FILTER_ALL == 1 means DND is off.
+        interruptionFilter == 1 -> DndState.OFF
+
+        // INTERRUPTION_FILTER_PRIORITY == 2
+        interruptionFilter == 2 -> DndState.PRIORITY
+
+        // INTERRUPTION_FILTER_ALARMS == 4
+        interruptionFilter == 4 -> DndState.ALARMS
+
+        // INTERRUPTION_FILTER_NONE == 3 (total silence)
+        interruptionFilter == 3 -> DndState.ALL
+
+        else -> DndState.OFF
+    }
+
+    /**
+     * Number of calendar days between two day-of-year values, tolerating a year boundary.
+     *
+     * Returns 0 for today, 1 for tomorrow and so on.
+     */
+    fun dayOffset(nowYear: Int, nowDayOfYear: Int, targetYear: Int, targetDayOfYear: Int): Int = when {
+        targetYear > nowYear -> (if (isLeapYear(nowYear)) 366 else 365) - nowDayOfYear + targetDayOfYear
+        targetYear < nowYear -> -((if (isLeapYear(targetYear)) 366 else 365) - targetDayOfYear + nowDayOfYear)
+        else -> targetDayOfYear - nowDayOfYear
+    }
+
+    /** Human label for an alarm that fires [dayOffset] days from now. */
+    fun formatAlarmDay(dayOffset: Int, weekday: String, label: String?): String {
+        val day = when (dayOffset) {
+            0 -> "Today"
+            1 -> "Tomorrow"
+            else -> weekday.ifBlank { "In $dayOffset days" }
+        }
+        return if (label.isNullOrBlank()) day else "$day \u00b7 $label"
+    }
+
+    private fun isLeapYear(year: Int): Boolean = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 
     private val MONTHS = arrayOf(
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
