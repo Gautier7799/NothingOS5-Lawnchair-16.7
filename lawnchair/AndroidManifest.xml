@@ -199,6 +199,67 @@
                 android:resource="@xml/smartspace_appwidget_info" />
         </receiver>
 
+        <!-- Lawnchair native widget library -->
+        <receiver
+            android:name="app.lawnchair.widgets.ClockWidgetProvider"
+            android:label="@string/widget_clock_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_clock_info" />
+        </receiver>
+
+        <!-- Lawnchair native widget library -->
+        <receiver
+            android:name="app.lawnchair.widgets.DateWidgetProvider"
+            android:label="@string/widget_date_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_date_info" />
+        </receiver>
+
+        <!-- Lawnchair native widget library -->
+        <receiver
+            android:name="app.lawnchair.widgets.BatteryWidgetProvider"
+            android:label="@string/widget_battery_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_battery_info" />
+        </receiver>
+
+        <!-- Lawnchair native widget library -->
+        <receiver
+            android:name="app.lawnchair.widgets.StorageWidgetProvider"
+            android:label="@string/widget_storage_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_storage_info" />
+        </receiver>
+
+        <activity
+            android:name="app.lawnchair.widgets.LawnchairWidgetConfigActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Lawnchair.WidgetConfig">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <meta-data
             android:name="xyz.paphonb.quickstepswitcher.minSdk"
             android:value="${quickstepMinSdk}" />

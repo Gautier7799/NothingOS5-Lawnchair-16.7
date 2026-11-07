@@ -1094,4 +1094,25 @@
     <string name="lawnchair_action_failed">Failed to trigger action</string>
 
     <string name="please_wait">Please wait…</string>
+
+    <!-- Lawnchair native widget library -->
+    <string name="widget_clock_label">Clock</string>
+    <string name="widget_clock_description">Live time and date</string>
+    <string name="widget_date_label">Date</string>
+    <string name="widget_date_description">Today at a glance</string>
+    <string name="widget_battery_label">Battery</string>
+    <string name="widget_battery_description">Battery level and charging state</string>
+    <string name="widget_storage_label">Storage</string>
+    <string name="widget_storage_description">Internal storage usage</string>
+    <string name="widget_battery_status_charging">Charging</string>
+    <string name="widget_battery_status_full">Full</string>
+    <string name="widget_battery_status_discharging">Discharging</string>
+    <string name="widget_storage_detail">%1$s of %2$s used</string>
+    <string name="widget_storage_unavailable">Unavailable</string>
+    <string name="widget_settings_label">Widget library</string>
+    <string name="widget_settings_use_dynamic_color_applied_note">Dynamic color is applied by Lawnchair when the widget is shown on the home screen.</string>
+    <string name="widget_style_label">Style</string>
+    <string name="widget_style_filled">Filled card</string>
+    <string name="widget_style_transparent">Transparent</string>
+    <string name="widget_clock_show_seconds">Show seconds</string>
 </resources>
