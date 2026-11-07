@@ -190,3 +190,35 @@ make test
 make check          # needs OPENHANDS_CLOUD_API_KEY
 make run            # serves on 0.0.0.0:12000
 ```
+
+## 9. Deliverable archive
+
+`make archive` (or `python3 scripts/build_archive.py`) writes a source archive
+containing the application, tests, docs and deploy configs — no secrets, no
+virtualenv, no build output.
+
+```
+$ make archive
+python3 scripts/build_archive.py
+wrote /…/dist/openhands-mcp-bridge-1.0.0.zip (36 files, 61.1 KiB)
+
+$ sha256sum dist/openhands-mcp-bridge-1.0.0.zip
+21f750f871bf053af57f7a9e6c593e64e89e7b3daf86f21b500346f8c16817e1
+```
+
+The digest changes on every rebuild (ZIP stores timestamps), so treat the
+value above as illustrative and recompute it after building. `dist/` is
+git-ignored — the archive is a build artefact, not a committed file.
+
+The archive was extracted to a clean directory, installed into a fresh
+virtualenv and tested, to prove it is self-contained:
+
+```
+$ unzip -q dist/openhands-mcp-bridge-1.0.0.zip -d /tmp/zipcheck && cd /tmp/zipcheck
+$ python -m venv .venv && .venv/bin/pip install -e ".[dev]"
+$ PYTHONPATH=src .venv/bin/python -m pytest
+83 passed in 5.47s
+```
+
+Scanning the extracted tree for the live API key and MCP token produced no
+matches.

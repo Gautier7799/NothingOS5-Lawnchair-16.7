@@ -19,14 +19,30 @@ NothingOS5-Lawnchair-16.7/     # git root; only LICENSE + README.md upstream
 Everything runs from `mcp-bridge/`. There is a venv at `mcp-bridge/.venv`.
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m pytest            # 77 tests, no network
+PYTHONPATH=src .venv/bin/python -m pytest            # 83 tests, no network
 uvx ruff check src tests                             # must stay clean
 PYTHONPATH=src .venv/bin/python -m openhands_mcp_bridge check   # needs the API key
 PYTHONPATH=src .venv/bin/python -m openhands_mcp_bridge http    # serve on :12000
 python3 scripts/build_archive.py                     # dist/openhands-mcp-bridge-1.0.0.zip
 ```
 
-`make help` lists the same targets.
+`make help` lists the same targets (`make archive` builds the ZIP).
+
+## Live verification
+
+The bridge was deployed on the sandbox host and exercised against the real
+OpenHands Cloud API. `docs/VERIFICATION.md` holds the raw evidence. Two real
+defects were found that way and are now fixed, with regression tests:
+
+* an unknown conversation id returns `[null]` with HTTP 200 upstream, which
+  used to surface as an `AttributeError`; it now maps to `code: not_found`.
+* unexpected exceptions used to be stringified into the tool result by FastMCP;
+  `server.py::_dispatch` now returns a generic `upstream_error` payload and
+  logs the detail server-side.
+
+Helper scripts used for live checks live in `/tmp` (not committed):
+`/tmp/deploy-bridge.sh`, `/tmp/verify-public.sh`, `/tmp/live_e2e.py`,
+`/tmp/live_pagination.py`, `/tmp/live_redaction.py`, `/tmp/mcp_helpers.py`.
 
 ## Hard rules for this project
 

@@ -4,7 +4,7 @@ PY := .venv/bin/python
 PYTHONPATH := src
 
 .DEFAULT_GOAL := help
-.PHONY: help venv install test lint format check run stdio docker clean
+.PHONY: help venv install test lint format check run stdio docker archive clean
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -36,6 +36,9 @@ stdio: ## Serve MCP over stdio (local clients)
 
 docker: ## Build the container image
 	docker build -t openhands-mcp-bridge:1.0.0 .
+
+archive: ## Build the distributable source ZIP
+	python3 scripts/build_archive.py
 
 clean: ## Remove caches and build artefacts
 	rm -rf .pytest_cache .ruff_cache dist build src/*.egg-info
