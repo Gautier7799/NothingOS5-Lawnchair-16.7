@@ -55,6 +55,10 @@ class ClockWidgetProvider : LawnchairWidgetProvider() {
             // TextClock formats itself, so the seconds toggle maps to the minute field's format.
             views.setCharSequence(R.id.widget_clock_minute, "setFormat12Hour", if (showSeconds) "mm:ss" else "mm")
             views.setCharSequence(R.id.widget_clock_minute, "setFormat24Hour", if (showSeconds) "mm:ss" else "mm")
+            views.setCharSequence(R.id.widget_clock_period, "setFormat12Hour", "a")
+            // A 24-hour clock has no AM/PM marker, so collapse the field to a space rather than
+            // hiding it: RemoteViews cannot toggle a view inside a fresh layout reliably here.
+            views.setCharSequence(R.id.widget_clock_period, "setFormat24Hour", " ")
             views.setTextColor(R.id.widget_clock_hour, primary)
             views.setTextColor(R.id.widget_clock_minute, primary)
             views.setTextColor(R.id.widget_clock_period, NativeWidgetPreferences.variantColor(context, appWidgetId))

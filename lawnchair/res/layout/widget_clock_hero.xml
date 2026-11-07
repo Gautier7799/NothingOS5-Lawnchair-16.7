@@ -68,7 +68,6 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/widget_clock_period_gap"
             android:format12Hour="a"
-            android:format24Hour=""
             android:textColor="@color/widget_on_surface_variant"
             android:textSize="@dimen/widget_clock_period_text_size"
             android:textStyle="bold"

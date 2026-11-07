@@ -48,4 +48,10 @@
     <color name="widget_inset_surface_outline">@color/system_neutral1_200</color>
     <color name="widget_on_inset_surface">@color/system_neutral1_900</color>
     <color name="widget_on_inset_surface_variant">@color/system_neutral2_700</color>
+
+    <!--
+      Faint neutral scrim for the transparent card style's inset. A scrim is neutral by design, so
+      it only needs to track light/dark (see values-night) rather than the accent hue.
+    -->
+    <color name="widget_transparent_inset">#1F1A1C1E</color>
 </resources>
