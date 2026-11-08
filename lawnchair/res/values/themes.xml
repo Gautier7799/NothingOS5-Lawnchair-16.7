@@ -31,8 +31,4 @@
         <item name="android:enforceNavigationBarContrast">false</item>
         <item name="windowNoTitle">true</item>
     </style>
-
-    <style name="Theme.Lawnchair.WidgetConfig" parent="Theme.Lawnchair">
-        <item name="android:windowBackground">?android:attr/colorBackground</item>
-    </style>
 </resources>
