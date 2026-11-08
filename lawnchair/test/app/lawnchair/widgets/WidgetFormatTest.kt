@@ -96,4 +96,62 @@ class WidgetFormatTest {
         assertThat(WidgetFormat.batteryTone(10, charging = true)).isEqualTo(WidgetFormat.BatteryTone.CHARGING)
         assertThat(WidgetFormat.batteryTone(90, charging = true)).isEqualTo(WidgetFormat.BatteryTone.CHARGING)
     }
+
+    @Test
+    fun formatTemperature_oneDecimalWithUnit() {
+        assertThat(WidgetFormat.formatTemperature(31.0f)).isEqualTo("31.0\u00b0C")
+        assertThat(WidgetFormat.formatTemperature(27.5f)).isEqualTo("27.5\u00b0C")
+    }
+
+    @Test
+    fun formatVoltage_twoDecimalsWithUnit() {
+        assertThat(WidgetFormat.formatVoltage(4.2f)).isEqualTo("4.20V")
+        assertThat(WidgetFormat.formatVoltage(3.851f)).isEqualTo("3.85V")
+    }
+
+    @Test
+    fun classifyOutput_prefersBluetoothThenHeadsetThenUsb() {
+        assertThat(WidgetFormat.classifyOutput(emptyList())).isEqualTo(WidgetFormat.AudioOutput.SPEAKER)
+        assertThat(WidgetFormat.classifyOutput(listOf(2))).isEqualTo(WidgetFormat.AudioOutput.SPEAKER)
+        assertThat(WidgetFormat.classifyOutput(listOf(8))).isEqualTo(WidgetFormat.AudioOutput.BLUETOOTH)
+        assertThat(WidgetFormat.classifyOutput(listOf(3))).isEqualTo(WidgetFormat.AudioOutput.HEADSET)
+        assertThat(WidgetFormat.classifyOutput(listOf(11))).isEqualTo(WidgetFormat.AudioOutput.USB)
+        // Bluetooth wins even when a headset is also connected.
+        assertThat(WidgetFormat.classifyOutput(listOf(3, 8))).isEqualTo(WidgetFormat.AudioOutput.BLUETOOTH)
+    }
+
+    @Test
+    fun dndState_mapsAccessAndFilter() {
+        assertThat(WidgetFormat.dndState(accessGranted = false, interruptionFilter = 1))
+            .isEqualTo(WidgetFormat.DndState.ACCESS_REQUIRED)
+        assertThat(WidgetFormat.dndState(accessGranted = true, interruptionFilter = 1))
+            .isEqualTo(WidgetFormat.DndState.OFF)
+        assertThat(WidgetFormat.dndState(accessGranted = true, interruptionFilter = 2))
+            .isEqualTo(WidgetFormat.DndState.PRIORITY)
+        assertThat(WidgetFormat.dndState(accessGranted = true, interruptionFilter = 4))
+            .isEqualTo(WidgetFormat.DndState.ALARMS)
+        assertThat(WidgetFormat.dndState(accessGranted = true, interruptionFilter = 3))
+            .isEqualTo(WidgetFormat.DndState.ALL)
+        assertThat(WidgetFormat.dndState(accessGranted = true, interruptionFilter = 0))
+            .isEqualTo(WidgetFormat.DndState.OFF)
+    }
+
+    @Test
+    fun dayOffset_handlesSameYearAndYearBoundary() {
+        assertThat(WidgetFormat.dayOffset(2026, 100, 2026, 100)).isEqualTo(0)
+        assertThat(WidgetFormat.dayOffset(2026, 100, 2026, 101)).isEqualTo(1)
+        // Dec 31 (day 365 in a non-leap year) -> Jan 1 next year is tomorrow.
+        assertThat(WidgetFormat.dayOffset(2026, 365, 2027, 1)).isEqualTo(1)
+        // Leap year: Dec 31 is day 366.
+        assertThat(WidgetFormat.dayOffset(2028, 366, 2029, 1)).isEqualTo(1)
+    }
+
+    @Test
+    fun formatAlarmDay_labelsRelativeDaysAndLabel() {
+        assertThat(WidgetFormat.formatAlarmDay(0, "Mon", null)).isEqualTo("Today")
+        assertThat(WidgetFormat.formatAlarmDay(1, "Tue", null)).isEqualTo("Tomorrow")
+        assertThat(WidgetFormat.formatAlarmDay(3, "Wed", null)).isEqualTo("Wed")
+        assertThat(WidgetFormat.formatAlarmDay(3, "Wed", "Work")).isEqualTo("Wed \u00b7 Work")
+        assertThat(WidgetFormat.formatAlarmDay(0, "Mon", "Wake")).isEqualTo("Today \u00b7 Wake")
+    }
 }

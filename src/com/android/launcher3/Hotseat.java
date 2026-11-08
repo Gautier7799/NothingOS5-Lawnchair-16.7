@@ -202,29 +202,90 @@ public class Hotseat extends FrameLayout implements Insettable {
     }
 
     private void setUpBackground() {
-        if(!preferenceManager.getHotseatBG().get()) return;
-
-        var bgColor = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatBackgroundColor());
+        var bgColor = PreferenceCacheExtensionsKt.firstCached(
+                preferenceManager2.getHotseatBackgroundColor());
         var transparency = preferenceManager.getHotseatBGAlpha().get();
-        var alphaValue = (transparency * 255) / 100;
+        // Keep opacity fully controlled by the existing Lawnchair preference.
+        int alphaValue = Math.max(0, Math.min(255, (transparency * 255) / 100));
         var baseColor = bgColor.getColorPreferenceEntry().getLightColor().invoke(getContext());
-        var finalColor = Color.argb(alphaValue, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor));
-        int insetHorizontalLeft = preferenceManager.getHotseatBGHorizontalInsetLeft().get();
-        int insetHorizontalRight = preferenceManager.getHotseatBGHorizontalInsetRight().get();
-        int insetVerticalTop = preferenceManager.getHotseatBGVerticalInsetTop().get();
-        int insetVerticalBottom = preferenceManager.getHotseatBGVerticalInsetBottom().get();
+        var finalColor = Color.argb(alphaValue, Color.red(baseColor),
+                Color.green(baseColor), Color.blue(baseColor));
+
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
         float cornerRadius = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
-                cornerRadiusDp,
+                Math.max(cornerRadiusDp, 32f),
                 getResources().getDisplayMetrics());
+
         GradientDrawable background = new GradientDrawable();
         background.setColor(finalColor);
         background.setCornerRadius(cornerRadius);
-        InsetDrawable bg = new InsetDrawable(background,
-                insetHorizontalLeft, insetVerticalTop, insetHorizontalRight, insetVerticalBottom);
-        setBackground(bg);
+
+        // Measure the actual dock icon row instead of deriving the capsule from the
+        // QSB position. The QSB can be moved/disabled independently and is not a
+        // reliable anchor for the dock background.
+        Runnable updateCapsuleBounds = () -> {
+            int containerWidth = mIconsContainer.getWidth();
+            int containerHeight = mIconsContainer.getHeight();
+            CellLayout cellLayout = mPagedView.getCurrentCellLayout();
+            if (containerWidth <= 0 || containerHeight <= 0 || cellLayout == null
+                    || cellLayout.getChildCount() == 0) {
+                return;
+            }
+
+            // CellLayout's direct child is the full grid container, not the icons.
+            // Measure visible dock items and keep the capsule close to the icon row.
+            ShortcutAndWidgetContainer shortcuts = cellLayout.getShortcutsAndWidgets();
+            if (shortcuts == null || shortcuts.getChildCount() == 0) return;
+
+            Rect iconBounds = new Rect();
+            boolean foundIcon = false;
+            for (int i = 0; i < shortcuts.getChildCount(); i++) {
+                View child = shortcuts.getChildAt(i);
+                if (child == null || child.getVisibility() != VISIBLE) continue;
+
+                Rect childBounds = new Rect();
+                if (child instanceof BubbleTextView bubbleTextView) {
+                    bubbleTextView.getIconBounds(childBounds);
+                } else {
+                    childBounds.set(0, 0, child.getWidth(), child.getHeight());
+                }
+                if (childBounds.isEmpty()) continue;
+
+                mIconsContainer.offsetDescendantRectToMyCoords(child, childBounds);
+                if (!foundIcon) {
+                    iconBounds.set(childBounds);
+                    foundIcon = true;
+                } else {
+                    iconBounds.union(childBounds);
+                }
+            }
+            if (!foundIcon || iconBounds.isEmpty()) return;
+
+            // Match the iOS reference proportions on the Pixel 8 home screen.
+            // The capsule is sized from the available dock width, not from the
+            // icon view's measured padding, so the result is deterministic.
+            int capsuleWidth = containerWidth;
+            int capsuleHeight = Math.round(containerWidth * 0.264f);
+            int left = (containerWidth - capsuleWidth) / 2;
+            int right = containerWidth - capsuleWidth - left;
+            int top = iconBounds.centerY() - capsuleHeight / 2;
+            int bottom = containerHeight - top - capsuleHeight;
+
+            // Keep the existing rounded appearance while matching the reference height.
+            background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
+            mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
+        };
+
+        addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+        mIconsContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+        mPagedView.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+        mIconsContainer.post(updateCapsuleBounds);
+        setBackground(null);
     }
 
     /** Provides translation X for hotseat icons for the channel. */

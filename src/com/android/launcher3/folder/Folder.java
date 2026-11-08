@@ -1038,6 +1038,10 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
     }
 
     private void animateClosed() {
+        final boolean traceCaddyClose = mFolderIcon != null && mFolderIcon.isCaddyCard();
+        final long caddyCloseStartMs = android.os.SystemClock.uptimeMillis();
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "close requested");
+
         if (mIsAnimatingClosed) {
             cancelRunningAnimations();
             return;
@@ -1052,11 +1056,19 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         }
 
         mContent.completePendingPageChanges();
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "pending pages completed +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
         mContent.snapToPageImmediately(mContent.getDestinationPage());
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "page snapped +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
 
         cancelRunningAnimations();
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "old animations cancelled +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
         AnimatorSet animatorSet = getFolderAnimationManager()
                 .createAnimatorSet(/* isOpening */ false);
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "animator set created +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
 
         animatorSet.addListener(new AnimatorListenerAdapter() {
             @Override
@@ -1065,6 +1077,8 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
                     setWindowInsetsAnimationCallback(null);
                 }
                 mIsAnimatingClosed = true;
+                if (traceCaddyClose) Log.d("CaddyCloseTrace", "animation start callback +" 
+                        + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
             }
 
             @Override
@@ -1080,7 +1094,22 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
             }
         });
         addAnimationStartListeners(animatorSet);
+        if (traceCaddyClose) Log.d("CaddyCloseTrace", "listeners added +" 
+                + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
+        // Keep the one-frame alignment test isolated to Caddy cards.
+        if (traceCaddyClose) {
+            animatorSet.setCurrentPlayTime(Math.min(
+                    getSingleFrameMs(getContext()), animatorSet.getTotalDuration()));
+            Log.d("CaddyCloseTrace", "initial play time applied +" 
+                    + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
+        }
         animatorSet.start();
+        if (traceCaddyClose) {
+            Log.d("CaddyCloseTrace", "start() returned +" 
+                    + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms");
+            postOnAnimation(() -> Log.d("CaddyCloseTrace", "first view frame after request +" 
+                    + (android.os.SystemClock.uptimeMillis() - caddyCloseStartMs) + "ms"));
+        }
     }
 
     @Override
@@ -1106,13 +1135,27 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         mActivityContext.getDragController().removeDropTarget(this);
         clearFocus();
         if (mFolderIcon != null) {
-            // Settle first-page preview before revealing the icon to avoid a rearrange flash.
-            if (wasAnimated) {
-                mFolderIcon.onFolderClose(mContent.getCurrentPage());
-            }
+            // Rebuild the first-page preview on every close, including non-animated
+            // closes, so stale preview animations cannot leave ghost icons behind.
+            mFolderIcon.onFolderClose(mContent.getCurrentPage());
+
+            // Restore the Caddy folder card/icon after the expanded Folder is removed.
             mFolderIcon.setVisibility(View.VISIBLE);
-            mFolderIcon.setIconVisible(true);
-            mFolderIcon.mFolderName.setTextVisibility(true);
+            mFolderIcon.setAlpha(1f);
+            if (mFolderIcon.isCaddyCard()) {
+                // Caddy draws its own card content inside FolderIcon. Keep the
+                // native folder preview and label hidden after the native Folder
+                // close animation; otherwise they appear on top of the card.
+                mFolderIcon.setIconVisible(false);
+                mFolderIcon.setTextVisible(false);
+            } else {
+                // Preserve the standard closed-folder appearance everywhere else.
+                mFolderIcon.setIconVisible(true);
+                mFolderIcon.setTextVisible(true);
+            }
+            mFolderIcon.requestLayout();
+            mFolderIcon.invalidate();
+
             if (wasAnimated) {
                 mFolderIcon.animateBgShadowAndStroke();
                 if (mFolderIcon.hasDot()) {
@@ -1927,6 +1970,10 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
     public void onBackInvoked() {
         if (mIsEditingName) {
             mFolderName.dispatchBackKey();
+        } else if (mIsOpen && !mIsAnimatingClosed) {
+            // Caddy hosts drawer folders in the DragLayer; close the active folder
+            // directly instead of relying on the floating-view back delegation.
+            close(true);
         } else {
             super.onBackInvoked();
         }
@@ -1990,7 +2037,11 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
                         mFolderName.dispatchBackKey();
                     } else if (mPendingOutsideClose
                             && !dl.isEventOverView(this, ev)) {
-                        mLauncherDelegate.interceptOutsideTouch(ev, dl, this);
+                        // Close the Caddy folder directly. The launcher delegate's
+                        // outside-touch path may not own drawer-hosted folder views.
+                        if (mIsOpen && !mIsAnimatingClosed) {
+                            close(true);
+                        }
                     }
                 }
                 mPendingOutsideClose = false;

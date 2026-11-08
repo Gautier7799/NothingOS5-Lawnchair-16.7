@@ -23,25 +23,52 @@ import com.android.launcher3.R
 /**
  * Live clock with the current date.
  *
- * The layout uses [android.widget.TextClock], so the platform keeps the time up to date without
- * the provider being woken on every tick.
+ * Renders with [android.widget.TextClock] so the platform keeps the time current without waking
+ * the provider on every tick. Two designs are available: the reference "hero" face (oversized hour
+ * digits with smaller minutes) and a plain single-line time; a wide instance switches to a
+ * single-row layout.
  */
 class ClockWidgetProvider : LawnchairWidgetProvider() {
 
     override fun buildRemoteViews(context: Context, appWidgetId: Int): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_clock)
+        val hero = NativeWidgetPreferences.getHeroClock(context, appWidgetId)
+        val wide = widgetWidth(context, appWidgetId) >= WIDE_WIDTH_DP
+        val layout = when {
+            hero -> R.layout.widget_clock_hero
+            wide -> R.layout.widget_clock_wide
+            else -> R.layout.widget_clock
+        }
+        val views = RemoteViews(context.packageName, layout)
+
         NativeWidgetPreferences.applyCard(context, views, appWidgetId)
+        NativeWidgetPreferences.applyHeader(
+            context,
+            views,
+            appWidgetId,
+            R.drawable.ic_widget_clock,
+            context.getString(R.string.widget_clock_label),
+        )
+
         val showSeconds = NativeWidgetPreferences.getShowSeconds(context, appWidgetId)
-        views.setCharSequence(
-            R.id.widget_clock_time,
-            "setFormat24Hour",
-            if (showSeconds) "HH:mm:ss" else "HH:mm",
-        )
-        views.setCharSequence(
-            R.id.widget_clock_time,
-            "setFormat12Hour",
-            if (showSeconds) "h:mm:ss" else "h:mm",
-        )
+        val primary = NativeWidgetPreferences.primaryColor(context, appWidgetId)
+        if (hero) {
+            // TextClock formats itself, so the seconds toggle maps to the minute field's format.
+            views.setCharSequence(R.id.widget_clock_minute, "setFormat12Hour", if (showSeconds) "mm:ss" else "mm")
+            views.setCharSequence(R.id.widget_clock_minute, "setFormat24Hour", if (showSeconds) "mm:ss" else "mm")
+            views.setCharSequence(R.id.widget_clock_period, "setFormat12Hour", "a")
+            // A 24-hour clock has no AM/PM marker, so collapse the field to a space rather than
+            // hiding it: RemoteViews cannot toggle a view inside a fresh layout reliably here.
+            views.setCharSequence(R.id.widget_clock_period, "setFormat24Hour", " ")
+            views.setTextColor(R.id.widget_clock_hour, primary)
+            views.setTextColor(R.id.widget_clock_minute, primary)
+            views.setTextColor(R.id.widget_clock_period, NativeWidgetPreferences.variantColor(context, appWidgetId))
+        } else {
+            views.setCharSequence(R.id.widget_clock_time, "setFormat24Hour", if (showSeconds) "HH:mm:ss" else "HH:mm")
+            views.setCharSequence(R.id.widget_clock_time, "setFormat12Hour", if (showSeconds) "h:mm:ss" else "h:mm")
+            views.setTextColor(R.id.widget_clock_time, primary)
+        }
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
+        NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
         return views
     }
 }

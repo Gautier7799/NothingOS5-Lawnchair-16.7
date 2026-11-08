@@ -16,14 +16,14 @@
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="110dp"
-    android:minHeight="40dp"
+    android:minHeight="110dp"
     android:targetCellWidth="2"
-    android:targetCellHeight="1"
+    android:targetCellHeight="2"
     android:updatePeriodMillis="0"
     android:configure="app.lawnchair.widgets.LawnchairWidgetConfigActivity"
     android:description="@string/widget_clock_description"
-    android:initialLayout="@layout/widget_clock"
-    android:previewLayout="@layout/widget_clock"
+    android:initialLayout="@layout/widget_clock_hero"
+    android:previewLayout="@layout/widget_clock_hero"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:widgetFeatures="reconfigurable" />

@@ -14,22 +14,33 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
+<!--
+  Date: the day numeral is the hero, framed by the weekday above and the month below. The
+  arrangement is its own composition rather than a label sitting in an information panel, so the
+  widget reads as a date tile instead of a generic card.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_card_background"
-    android:gravity="center"
+    android:gravity="center_vertical"
     android:orientation="vertical"
     android:padding="@dimen/widget_padding">
+
+    <include layout="@layout/widget_header" />
 
     <TextClock
         android:id="@+id/widget_date_weekday"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:ellipsize="end"
         android:format12Hour="EEEE"
         android:format24Hour="EEEE"
-        android:textColor="@color/widget_accent"
+        android:letterSpacing="0.08"
+        android:maxLines="1"
+        android:textAllCaps="true"
+        android:textColor="@color/widget_on_surface_variant"
         android:textSize="@dimen/widget_label_text_size"
         android:textStyle="bold" />
 
@@ -39,6 +50,8 @@
         android:layout_height="wrap_content"
         android:format12Hour="d"
         android:format24Hour="d"
+        android:includeFontPadding="false"
+        android:maxLines="1"
         android:textColor="@color/widget_on_surface"
         android:textSize="@dimen/widget_date_day_text_size"
         android:textStyle="bold" />
@@ -47,8 +60,32 @@
         android:id="@+id/widget_date_month"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:ellipsize="end"
         android:format12Hour="MMMM"
         android:format24Hour="MMMM"
+        android:maxLines="1"
         android:textColor="@color/widget_on_surface_variant"
-        android:textSize="@dimen/widget_label_text_size" />
+        android:textSize="@dimen/widget_metric_text_size" />
+
+    <LinearLayout
+        android:id="@+id/widget_inset"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/widget_inset_margin_top"
+        android:background="@drawable/widget_inset_background"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/widget_inset_padding_horizontal"
+        android:paddingVertical="@dimen/widget_inset_padding_vertical">
+
+        <TextClock
+            android:id="@+id/widget_inset_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:format12Hour="yyyy"
+            android:format24Hour="yyyy"
+            android:maxLines="1"
+            android:textColor="@color/widget_on_inset_surface_variant"
+            android:textSize="@dimen/widget_label_text_size" />
+    </LinearLayout>
 </LinearLayout>

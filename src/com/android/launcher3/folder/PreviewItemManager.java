@@ -275,13 +275,28 @@ public class PreviewItemManager {
         }
     }
 
-    void onFolderClose(int currentPage) {
-        // Snap back to the first-page preview immediately. The previous slide animation
-        // showed a solid preview background while icons rearranged for ~400ms after close.
-        if (currentPage != 0) {
-            updatePreviewItems(false);
+    /**
+     * Cancels stale preview-item animations and rebuilds the closed-folder preview
+     * from the current first-page contents. This also removes temporary enter/exit
+     * drawing params left behind when a folder is closed during an animation.
+     */
+    public void reset() {
+        for (PreviewItemDrawingParams params : mFirstPageParams) {
+            if (params.anim != null) {
+                params.anim.cancel();
+                params.anim = null;
+            }
+            params.hidden = false;
         }
+
+        updatePreviewItems(false);
         onParamsChanged();
+    }
+
+    void onFolderClose(int currentPage) {
+        // Always rebuild the preview, even when already on page zero. Caddy folders
+        // can be closed while preview animations are still running.
+        reset();
     }
 
     void updatePreviewItems(boolean animate) {

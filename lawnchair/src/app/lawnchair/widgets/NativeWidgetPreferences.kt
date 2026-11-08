@@ -18,6 +18,7 @@ package app.lawnchair.widgets
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.view.View
 import android.widget.RemoteViews
 import com.android.launcher3.R
 
@@ -37,8 +38,16 @@ object NativeWidgetPreferences {
     /** Card with no background, letting the wallpaper show through. */
     const val STYLE_TRANSPARENT = 1
 
+    /** Tonal card using the accent container color. */
+    const val STYLE_TONAL = 2
+
     private const val KEY_STYLE = "style"
     private const val KEY_SHOW_SECONDS = "show_seconds"
+    private const val KEY_SHOW_HEADER = "show_header"
+    private const val KEY_SHOW_DETAIL = "show_detail"
+    private const val KEY_WEATHER_LOCATION = "weather_location"
+    private const val KEY_WEATHER_CACHE = "weather_cache"
+    private const val KEY_HERO_CLOCK = "hero_clock"
 
     private fun prefs(context: Context): SharedPreferences = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
 
@@ -56,19 +65,152 @@ object NativeWidgetPreferences {
         prefs(context).edit().putBoolean(key(KEY_SHOW_SECONDS, appWidgetId), show).apply()
     }
 
+    /** Whether the small icon + label header is shown above the widget content. */
+    fun getShowHeader(context: Context, appWidgetId: Int): Boolean = prefs(context).getBoolean(key(KEY_SHOW_HEADER, appWidgetId), true)
+
+    fun setShowHeader(context: Context, appWidgetId: Int, show: Boolean) {
+        prefs(context).edit().putBoolean(key(KEY_SHOW_HEADER, appWidgetId), show).apply()
+    }
+
+    /** Whether the secondary detail line is shown (battery status, storage usage, ...). */
+    fun getShowDetail(context: Context, appWidgetId: Int): Boolean = prefs(context).getBoolean(key(KEY_SHOW_DETAIL, appWidgetId), true)
+
+    fun setShowDetail(context: Context, appWidgetId: Int, show: Boolean) {
+        prefs(context).edit().putBoolean(key(KEY_SHOW_DETAIL, appWidgetId), show).apply()
+    }
+
+    /**
+     * The weather location as a `latitude,longitude,label` triple, or null when unset.
+     *
+     * Storing the resolved coordinates avoids geocoding (and therefore a network round-trip) on
+     * every widget refresh.
+     */
+    fun getWeatherLocation(context: Context, appWidgetId: Int): String? = prefs(context).getString(key(KEY_WEATHER_LOCATION, appWidgetId), null)
+
+    fun setWeatherLocation(context: Context, appWidgetId: Int, location: String?) {
+        prefs(context).edit().putString(key(KEY_WEATHER_LOCATION, appWidgetId), location).apply()
+    }
+
+    /** Last successfully fetched weather snapshot, encoded for display, or null. */
+    fun getWeatherCache(context: Context, appWidgetId: Int): String? = prefs(context).getString(key(KEY_WEATHER_CACHE, appWidgetId), null)
+
+    fun setWeatherCache(context: Context, appWidgetId: Int, cache: String?) {
+        prefs(context).edit().putString(key(KEY_WEATHER_CACHE, appWidgetId), cache).apply()
+    }
+
+    /**
+     * Whether the clock uses the reference "hero" layout: oversized hour digits with smaller
+     * minutes. Defaults to on, since it is the design the library is modelled on.
+     */
+    fun getHeroClock(context: Context, appWidgetId: Int): Boolean = prefs(context).getBoolean(key(KEY_HERO_CLOCK, appWidgetId), true)
+
+    fun setHeroClock(context: Context, appWidgetId: Int, hero: Boolean) {
+        prefs(context).edit().putBoolean(key(KEY_HERO_CLOCK, appWidgetId), hero).apply()
+    }
+
     fun delete(context: Context, appWidgetId: Int) {
         prefs(context).edit()
             .remove(key(KEY_STYLE, appWidgetId))
             .remove(key(KEY_SHOW_SECONDS, appWidgetId))
+            .remove(key(KEY_SHOW_HEADER, appWidgetId))
+            .remove(key(KEY_SHOW_DETAIL, appWidgetId))
+            .remove(key(KEY_WEATHER_LOCATION, appWidgetId))
+            .remove(key(KEY_WEATHER_CACHE, appWidgetId))
+            .remove(key(KEY_HERO_CLOCK, appWidgetId))
             .apply()
     }
 
     /** Applies the configured card background to a freshly built [RemoteViews]. */
     fun applyCard(context: Context, views: RemoteViews, appWidgetId: Int) {
-        val background = when (getStyle(context, appWidgetId)) {
-            STYLE_TRANSPARENT -> R.drawable.widget_card_background_transparent
-            else -> R.drawable.widget_card_background
-        }
-        views.setInt(R.id.widget_root, "setBackgroundResource", background)
+        views.setInt(R.id.widget_root, "setBackgroundResource", cardBackgroundForStyle(getStyle(context, appWidgetId)))
     }
+
+    private fun isTonal(context: Context, appWidgetId: Int) = getStyle(context, appWidgetId) == STYLE_TONAL
+
+    /** Primary text/icon color for the selected style. */
+    fun primaryColor(context: Context, appWidgetId: Int): Int = context.getColor(
+        if (isTonal(context, appWidgetId)) R.color.widget_on_tonal_surface else R.color.widget_on_surface,
+    )
+
+    /** Secondary/detail text color for the selected style. */
+    fun variantColor(context: Context, appWidgetId: Int): Int = context.getColor(
+        if (isTonal(context, appWidgetId)) R.color.widget_on_tonal_surface_variant else R.color.widget_on_surface_variant,
+    )
+
+    /** Accent color for the selected style (kept legible on the tonal container). */
+    fun accentColor(context: Context, appWidgetId: Int): Int = context.getColor(
+        if (isTonal(context, appWidgetId)) R.color.widget_on_tonal_surface else R.color.widget_accent,
+    )
+
+    /** Text color inside the nested tonal panel. */
+    private fun onInsetColor(context: Context, appWidgetId: Int): Int = context.getColor(
+        if (isTonal(context, appWidgetId)) R.color.widget_on_tonal_surface_variant else R.color.widget_on_inset_surface_variant,
+    )
+
+    /**
+     * Applies the nested tonal panel that holds a widget's secondary reading.
+     *
+     * [R.id.widget_inset] and [R.id.widget_inset_detail] must exist in the layout; every native
+     * widget layout includes `@layout/widget_inset`. The panel follows the selected style so the
+     * family stays coherent across filled, tonal and transparent.
+     */
+    fun applyInset(context: Context, views: RemoteViews, appWidgetId: Int) {
+        val background = insetBackgroundForStyle(getStyle(context, appWidgetId))
+        views.setInt(R.id.widget_inset, "setBackgroundResource", background)
+        views.setTextColor(R.id.widget_inset_detail, onInsetColor(context, appWidgetId))
+    }
+
+    /**
+     * Applies the standard header (icon + label) of a widget.
+     *
+     * [R.id.widget_header], [R.id.widget_header_icon] and [R.id.widget_header_label] must exist in
+     * the layout; every native widget layout includes `@layout/widget_header`.
+     */
+    fun applyHeader(
+        context: Context,
+        views: RemoteViews,
+        appWidgetId: Int,
+        iconRes: Int,
+        label: CharSequence,
+    ) {
+        val visible = if (getShowHeader(context, appWidgetId)) View.VISIBLE else View.GONE
+        views.setViewVisibility(R.id.widget_header, visible)
+        if (visible == View.VISIBLE) {
+            views.setImageViewResource(R.id.widget_header_icon, iconRes)
+            views.setInt(R.id.widget_header_icon, "setColorFilter", accentColor(context, appWidgetId))
+            views.setTextViewText(R.id.widget_header_label, label)
+            views.setTextColor(R.id.widget_header_label, variantColor(context, appWidgetId))
+        }
+    }
+
+    /** Shows or hides the nested tonal panel that holds a widget's secondary reading. */
+    fun applyDetailVisibility(context: Context, views: RemoteViews, appWidgetId: Int) {
+        val visible = if (getShowDetail(context, appWidgetId)) View.VISIBLE else View.GONE
+        views.setViewVisibility(R.id.widget_inset, visible)
+    }
+}
+
+/**
+ * Maps a card style to the drawable used by its nested inset panel.
+ *
+ * Kept as a pure function so the style/panel pairing can be unit tested without a device;
+ * [NativeWidgetPreferences.applyInset] is the only caller.
+ */
+internal fun insetBackgroundForStyle(style: Int): Int = when (style) {
+    NativeWidgetPreferences.STYLE_TRANSPARENT -> R.drawable.widget_inset_background_transparent
+    NativeWidgetPreferences.STYLE_TONAL -> R.drawable.widget_inset_background_tonal
+    else -> R.drawable.widget_inset_background
+}
+
+/**
+ * Maps a card style to the shared rounded-rectangle card drawable.
+ *
+ * Every native widget family shares this one card geometry: the reference app's own container
+ * style resolves `appWidgetRadius` to the platform `system_app_widget_background_radius` token
+ * rather than a per-widget silhouette, so a single rounded card is the faithful choice.
+ */
+internal fun cardBackgroundForStyle(style: Int): Int = when (style) {
+    NativeWidgetPreferences.STYLE_TRANSPARENT -> R.drawable.widget_card_background_transparent
+    NativeWidgetPreferences.STYLE_TONAL -> R.drawable.widget_card_background_tonal
+    else -> R.drawable.widget_card_background
 }

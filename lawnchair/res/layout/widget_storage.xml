@@ -20,46 +20,32 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_card_background"
-    android:gravity="center"
+    android:gravity="center_vertical"
     android:orientation="vertical"
     android:padding="@dimen/widget_padding">
 
-    <TextView
-        android:id="@+id/widget_storage_label"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/widget_storage_label"
-        android:textColor="@color/widget_accent"
-        android:textSize="@dimen/widget_label_text_size"
-        android:textStyle="bold" />
+    <include layout="@layout/widget_header" />
 
     <TextView
-        android:id="@+id/widget_storage_percent"
+        android:id="@+id/widget_value"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
         android:textColor="@color/widget_on_surface"
         android:textSize="@dimen/widget_storage_percent_text_size"
         android:textStyle="bold"
-        tools:text="48%" />
+        tools:text="72%" />
 
     <ProgressBar
-        android:id="@+id/widget_storage_bar"
+        android:id="@+id/widget_bar"
         style="@android:style/Widget.ProgressBar.Horizontal"
         android:layout_width="match_parent"
-        android:layout_height="8dp"
+        android:layout_height="@dimen/widget_progress_height"
         android:layout_marginTop="@dimen/widget_bar_margin_top"
         android:max="100"
         android:progressBackgroundTint="@color/widget_surface_variant"
-        android:progressTint="@color/widget_accent"
-        tools:progress="48" />
+        android:progressTint="@color/widget_accent" />
 
-    <TextView
-        android:id="@+id/widget_storage_detail"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="@color/widget_on_surface_variant"
-        android:textSize="@dimen/widget_label_text_size"
-        tools:text="61 GB of 128 GB used" />
+    <include layout="@layout/widget_inset" />
 </LinearLayout>

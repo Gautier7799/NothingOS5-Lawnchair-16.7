@@ -33,4 +33,25 @@
     <color name="widget_accent">@color/system_accent1_500</color>
     <color name="widget_warning">@color/system_accent3_500</color>
     <color name="widget_on_accent">@color/system_accent1_0</color>
+
+    <!-- Tonal ("accent container") card, used by the tonal style option. -->
+    <color name="widget_tonal_surface">@color/system_accent1_100</color>
+    <color name="widget_on_tonal_surface">@color/system_accent1_900</color>
+    <color name="widget_on_tonal_surface_variant">@color/system_accent1_800</color>
+    <color name="widget_tonal_outline">@color/system_accent1_200</color>
+
+    <!-- Positive state (e.g. connected / normal temperature). -->
+    <color name="widget_success">@color/system_accent2_500</color>
+
+    <!-- Nested panel: a subtly distinct tonal surface holding a widget's secondary reading. -->
+    <color name="widget_inset_surface">@color/system_neutral1_100</color>
+    <color name="widget_inset_surface_outline">@color/system_neutral1_200</color>
+    <color name="widget_on_inset_surface">@color/system_neutral1_900</color>
+    <color name="widget_on_inset_surface_variant">@color/system_neutral2_700</color>
+
+    <!--
+      Faint neutral scrim for the transparent card style's inset. A scrim is neutral by design, so
+      it only needs to track light/dark (see values-night) rather than the accent hue.
+    -->
+    <color name="widget_transparent_inset">#1F1A1C1E</color>
 </resources>

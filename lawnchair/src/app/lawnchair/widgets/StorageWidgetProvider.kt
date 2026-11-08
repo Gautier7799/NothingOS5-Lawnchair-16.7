@@ -26,49 +26,58 @@ import com.android.launcher3.R
  * Internal storage usage.
  *
  * Reads the shared data partition via [StatFs]. It refreshes on the platform's periodic update and
- * whenever the widget is reconfigured.
+ * whenever the widget is reconfigured. The detail line reports free space.
  */
 class StorageWidgetProvider : LawnchairWidgetProvider() {
 
     override fun buildRemoteViews(context: Context, appWidgetId: Int): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_storage)
+        val wide = widgetWidth(context, appWidgetId) >= WIDE_WIDTH_DP
+        val layout = if (wide) R.layout.widget_storage_wide else R.layout.widget_storage
+        val views = RemoteViews(context.packageName, layout)
+
         NativeWidgetPreferences.applyCard(context, views, appWidgetId)
+        NativeWidgetPreferences.applyHeader(
+            context,
+            views,
+            appWidgetId,
+            R.drawable.ic_widget_storage,
+            context.getString(R.string.widget_storage_label),
+        )
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
 
         val usage = runCatching {
             val stat = StatFs(Environment.getDataDirectory().absolutePath)
             val total = stat.blockCountLong * stat.blockSizeLong
             val available = stat.availableBlocksLong * stat.blockSizeLong
-            total to (total - available)
+            StorageUsage(total = total, used = total - available, free = available)
         }.getOrNull()
 
-        if (usage == null || usage.first <= 0L) {
-            views.setTextViewText(R.id.widget_storage_percent, context.getString(R.string.widget_storage_unavailable))
-            views.setTextViewText(R.id.widget_storage_detail, "")
-            views.setProgressBar(R.id.widget_storage_bar, 100, 0, false)
+        if (usage == null || usage.total <= 0L) {
+            views.setTextViewText(R.id.widget_value, context.getString(R.string.widget_storage_unavailable))
+            views.setTextViewText(R.id.widget_inset_detail, "")
+            views.setProgressBar(R.id.widget_bar, 100, 0, false)
+            views.setTextColor(R.id.widget_value, NativeWidgetPreferences.primaryColor(context, appWidgetId))
             return views
         }
 
-        val (total, used) = usage
-        val fraction = WidgetFormat.usedFraction(used, total)
+        val fraction = WidgetFormat.usedFraction(usage.used, usage.total)
         val percent = (fraction * 100).toInt()
-        views.setTextViewText(R.id.widget_storage_percent, "$percent%")
+        views.setTextViewText(R.id.widget_value, "$percent%")
         views.setTextViewText(
-            R.id.widget_storage_detail,
-            context.getString(
-                R.string.widget_storage_detail,
-                WidgetFormat.formatBytes(used),
-                WidgetFormat.formatBytes(total),
-            ),
+            R.id.widget_inset_detail,
+            context.getString(R.string.widget_storage_free_detail, WidgetFormat.formatBytes(usage.free)),
         )
-        views.setProgressBar(R.id.widget_storage_bar, 100, percent, false)
+        views.setProgressBar(R.id.widget_bar, 100, percent, false)
         views.setTextColor(
-            R.id.widget_storage_percent,
+            R.id.widget_value,
             if (fraction >= 0.9f) {
                 context.getColor(R.color.widget_warning)
             } else {
-                context.getColor(R.color.widget_on_surface)
+                NativeWidgetPreferences.primaryColor(context, appWidgetId)
             },
         )
         return views
     }
+
+    private data class StorageUsage(val total: Long, val used: Long, val free: Long)
 }

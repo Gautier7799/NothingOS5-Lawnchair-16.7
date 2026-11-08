@@ -30,6 +30,17 @@ class DateWidgetProvider : LawnchairWidgetProvider() {
     override fun buildRemoteViews(context: Context, appWidgetId: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_date)
         NativeWidgetPreferences.applyCard(context, views, appWidgetId)
+        NativeWidgetPreferences.applyHeader(
+            context,
+            views,
+            appWidgetId,
+            R.drawable.ic_widget_calendar,
+            context.getString(R.string.widget_date_label),
+        )
+        views.setTextColor(R.id.widget_date_day, NativeWidgetPreferences.primaryColor(context, appWidgetId))
+        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
+        NativeWidgetPreferences.applyDetailVisibility(context, views, appWidgetId)
+        views.setTextColor(R.id.widget_date_month, NativeWidgetPreferences.variantColor(context, appWidgetId))
         return views
     }
 }

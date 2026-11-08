@@ -16,6 +16,8 @@
 
 package app.lawnchair.widgets
 
+import java.util.Locale
+
 /**
  * Pure, framework-free formatting helpers shared by the native Lawnchair widgets.
  *
@@ -26,6 +28,12 @@ object WidgetFormat {
 
     /** How a battery reading should be presented. */
     enum class BatteryTone { NORMAL, LOW, CRITICAL, CHARGING }
+
+    /** Do Not Disturb presentation state. */
+    enum class DndState { ACCESS_REQUIRED, OFF, PRIORITY, ALARMS, ALL }
+
+    /** The kind of device the audio is currently routed to. */
+    enum class AudioOutput { BLUETOOTH, HEADSET, USB, SPEAKER }
 
     private const val LOW_THRESHOLD = 30
     private const val CRITICAL_THRESHOLD = 15
@@ -112,6 +120,151 @@ object WidgetFormat {
     }
 
     private fun two(value: Int): String = if (value < 10) "0$value" else value.toString()
+
+    /** Formats a battery temperature in degrees Celsius with one decimal place. */
+    fun formatTemperature(celsius: Float): String = String.format(Locale.US, "%.1f\u00b0C", celsius)
+
+    /** Formats a battery voltage with two decimal places. */
+    fun formatVoltage(volts: Float): String = String.format(Locale.US, "%.2fV", volts)
+
+    /** A resolved weather location: coordinates plus the human label to display. */
+    data class WeatherLocation(val latitude: Double, val longitude: Double, val label: String)
+
+    /** Encodes a [WeatherLocation] for storage in [NativeWidgetPreferences]. */
+    fun encodeWeatherLocation(latitude: Double, longitude: Double, label: String): String = "$latitude,$longitude,$label"
+
+    /**
+     * Parses the stored `latitude,longitude,label` form back into a [WeatherLocation].
+     *
+     * Returns null when the value is missing or malformed so callers can fall back to the
+     * "tap to configure" state instead of crashing.
+     */
+    fun parseWeatherLocation(raw: String?): WeatherLocation? {
+        if (raw.isNullOrBlank()) return null
+        val parts = raw.split(",", limit = 3)
+        if (parts.size < 3) return null
+        val latitude = parts[0].toDoubleOrNull() ?: return null
+        val longitude = parts[1].toDoubleOrNull() ?: return null
+        val label = parts[2].trim()
+        if (label.isEmpty()) return null
+        return WeatherLocation(latitude, longitude, label)
+    }
+
+    /** Rounded temperature label, e.g. `21\u00b0`. */
+    fun formatTemperature(celsius: Int): String = "$celsius\u00b0"
+
+    /** Today's high/low label, e.g. `H 24\u00b0 \u00b7 L 15\u00b0`. */
+    fun formatHighLow(high: Int, low: Int): String = "H $high\u00b0 \u00b7 L $low\u00b0"
+
+    /**
+     * Rotation of the hour hand in degrees.
+     *
+     * [hour] is the 12-hour value (0..11 for `Calendar.HOUR`, 12 is treated as 0). The hand advances
+     * smoothly with the minutes so it never sits exactly on the hour mark.
+     */
+    fun hourHandDegrees(hour: Int, minute: Int): Float {
+        val h = ((hour % 12) + 12) % 12
+        return h * 30f + minute.coerceIn(0, 59) * 0.5f
+    }
+
+    /** Rotation of the minute hand in degrees. */
+    fun minuteHandDegrees(minute: Int): Float = minute.coerceIn(0, 59) * 6f
+
+    /**
+     * Human label for when an upcoming event starts, e.g. `Today 14:00`, `Tomorrow 09:30` or
+     * `Fri 10:00`.
+     */
+    fun formatEventWhen(dayOffset: Int, weekday: String, hour: Int, minute: Int, is24Hour: Boolean): String {
+        val day = when {
+            dayOffset <= 0 -> "Now"
+            dayOffset == 1 -> "Tomorrow"
+            else -> weekday.ifBlank { "In $dayOffset days" }
+        }
+        if (dayOffset <= 0) return day
+        return "$day \u00b7 ${formatTime(hour, minute, is24Hour = is24Hour)}"
+    }
+
+    /** A cached weather reading, encoded compactly so it survives process death. */
+    data class WeatherSnapshot(val temperatureC: Int, val weatherCode: Int, val highC: Int, val lowC: Int)
+
+    fun encodeWeatherSnapshot(snapshot: WeatherSnapshot): String = "${snapshot.temperatureC},${snapshot.weatherCode},${snapshot.highC},${snapshot.lowC}"
+
+    fun parseWeatherSnapshot(raw: String?): WeatherSnapshot? {
+        if (raw.isNullOrBlank()) return null
+        val parts = raw.split(",")
+        if (parts.size != 4) return null
+        val values = parts.map { it.trim().toIntOrNull() ?: return null }
+        return WeatherSnapshot(values[0], values[1], values[2], values[3])
+    }
+
+    /**
+     * Classifies the current audio output from the set of connected output device types.
+     *
+     * Bluetooth takes precedence over wired headsets, which take precedence over USB, and a plain
+     * speaker is the fallback when nothing else is connected.
+     */
+    fun classifyOutput(deviceTypes: List<Int>): AudioOutput = when {
+        deviceTypes.isEmpty() -> AudioOutput.SPEAKER
+
+        // AudioDeviceInfo.TYPE_BLUETOOTH_A2DP (8) / TYPE_BLUETOOTH_SCO (7)
+        deviceTypes.any { it == 8 || it == 7 } -> AudioOutput.BLUETOOTH
+
+        // TYPE_WIRED_HEADSET (3) / TYPE_WIRED_HEADPHONES (4)
+        deviceTypes.any { it == 3 || it == 4 } -> AudioOutput.HEADSET
+
+        // TYPE_USB_DEVICE (11) / TYPE_USB_HEADSET (22) / TYPE_USB_ACCESSORY (12)
+        deviceTypes.any { it == 11 || it == 22 || it == 12 } -> AudioOutput.USB
+
+        else -> AudioOutput.SPEAKER
+    }
+
+    /**
+     * Maps the notification-policy access flag and the current interruption filter to a
+     * presentation state.
+     *
+     * @param accessGranted whether notification-policy access has been granted
+     * @param interruptionFilter a `NotificationManager.INTERRUPTION_FILTER_*` value
+     */
+    fun dndState(accessGranted: Boolean, interruptionFilter: Int): DndState = when {
+        !accessGranted -> DndState.ACCESS_REQUIRED
+
+        // INTERRUPTION_FILTER_ALL == 1 means DND is off.
+        interruptionFilter == 1 -> DndState.OFF
+
+        // INTERRUPTION_FILTER_PRIORITY == 2
+        interruptionFilter == 2 -> DndState.PRIORITY
+
+        // INTERRUPTION_FILTER_ALARMS == 4
+        interruptionFilter == 4 -> DndState.ALARMS
+
+        // INTERRUPTION_FILTER_NONE == 3 (total silence)
+        interruptionFilter == 3 -> DndState.ALL
+
+        else -> DndState.OFF
+    }
+
+    /**
+     * Number of calendar days between two day-of-year values, tolerating a year boundary.
+     *
+     * Returns 0 for today, 1 for tomorrow and so on.
+     */
+    fun dayOffset(nowYear: Int, nowDayOfYear: Int, targetYear: Int, targetDayOfYear: Int): Int = when {
+        targetYear > nowYear -> (if (isLeapYear(nowYear)) 366 else 365) - nowDayOfYear + targetDayOfYear
+        targetYear < nowYear -> -((if (isLeapYear(targetYear)) 366 else 365) - targetDayOfYear + nowDayOfYear)
+        else -> targetDayOfYear - nowDayOfYear
+    }
+
+    /** Human label for an alarm that fires [dayOffset] days from now. */
+    fun formatAlarmDay(dayOffset: Int, weekday: String, label: String?): String {
+        val day = when (dayOffset) {
+            0 -> "Today"
+            1 -> "Tomorrow"
+            else -> weekday.ifBlank { "In $dayOffset days" }
+        }
+        return if (label.isNullOrBlank()) day else "$day \u00b7 $label"
+    }
+
+    private fun isLeapYear(year: Int): Boolean = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 
     private val MONTHS = arrayOf(
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",

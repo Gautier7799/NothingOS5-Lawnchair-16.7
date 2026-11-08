@@ -41,6 +41,8 @@ import com.android.launcher3.allapps.search.SearchAdapterProvider;
 import com.android.launcher3.util.ScrollableLayoutManager;
 import com.android.launcher3.views.ActivityContext;
 
+import app.lawnchair.preferences.PreferenceManager;
+
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -228,6 +230,14 @@ public class AllAppsGridAdapter<T extends Context & ActivityContext> extends
             }
             int viewType = items.get(position).viewType;
             if (isIconViewType(viewType)) {
+                // Caddy category cards, the search action card and its alignment
+                // spacer all occupy one half-width cell in the two-column layout.
+                // The default drawer layout keeps its original span behavior.
+                if ((viewType == VIEW_TYPE_FOLDER || viewType == VIEW_TYPE_CADDY_CATEGORY
+                        || viewType == VIEW_TYPE_CADDY_SPACER)
+                        && !PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
+                    return Math.min(totalSpans, (totalSpans / mAppsPerRow) * 2);
+                }
                 return totalSpans / mAppsPerRow;
             } else {
                 if (mAdapterProvider.isViewSupported(viewType)) {

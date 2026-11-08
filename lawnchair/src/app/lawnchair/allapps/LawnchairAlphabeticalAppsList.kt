@@ -12,7 +12,6 @@ import app.lawnchair.launcher
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.util.categorizeAppsWithSystemAndGoogle
-import app.lawnchair.util.observeOnce
 import com.android.launcher3.InvariantDeviceProfile.OnIDPChangeListener
 import com.android.launcher3.allapps.AllAppsStore
 import com.android.launcher3.allapps.AlphabeticalAppsList
@@ -26,6 +25,8 @@ import com.android.launcher3.util.ComponentKey
 import com.android.launcher3.views.ActivityContext
 import com.patrykmichalik.opto.core.onEach
 import java.util.function.Predicate
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 @Suppress("SYNTHETIC_PROPERTY_WITHOUT_JAVA_ORIGIN")
 class LawnchairAlphabeticalAppsList<T>(
@@ -47,6 +48,8 @@ class LawnchairAlphabeticalAppsList<T>(
     )
     private val folderList = mutableListOf<FolderEntry>()
     private val filteredList = mutableListOf<AppInfo>()
+    private val sessionCategoryUse = linkedMapOf<String, Long>()
+    private var sessionUseSequence = 0L
 
     init {
         context.launcher.deviceProfile.inv.addOnChangeListener(this)
@@ -67,11 +70,14 @@ class LawnchairAlphabeticalAppsList<T>(
     }
 
     private fun observeFolders() {
-        viewModel.folders.observeOnce(context as LifecycleOwner) { folders ->
-            if (folders != null) {
-                folderList.clear()
-                folderList.addAll(folders)
-                updateAdapterItems()
+        val lifecycleOwner = context as? LifecycleOwner ?: return
+        lifecycleOwner.lifecycleScope.launch {
+            viewModel.folders.collect { folders ->
+                if (folders != null) {
+                    folderList.clear()
+                    folderList.addAll(folders)
+                    updateAdapterItems()
+                }
             }
         }
     }
@@ -96,20 +102,91 @@ class LawnchairAlphabeticalAppsList<T>(
 
         if (!drawerListDefault) {
             val validApps = appList.mapNotNull { it }
-            val finalCategorizedApps = categorizeAppsWithSystemAndGoogle(validApps, context)
 
-            finalCategorizedApps.forEach { (category, apps) ->
-                if (apps.size == 1) {
-                    mAdapterItems.add(AdapterItem.asApp(apps.first()))
-                } else {
-                    val folderInfo = FolderInfo().apply {
-                        title = category
-                        apps.forEach { add(it) }
+            // User-created Caddy categories take priority over automatic grouping.
+            // Persisted component keys keep each app in the category selected by the user.
+            val customCategories = mutableListOf<Pair<String, List<AppInfo>>>()
+            val customAssignedKeys = linkedSetOf<String>()
+            runCatching {
+                val stored = context.getSharedPreferences(
+                    "caddy_custom_categories",
+                    Context.MODE_PRIVATE,
+                ).getString("categories", "[]") ?: "[]"
+                val json = org.json.JSONArray(stored)
+                for (index in 0 until json.length()) {
+                    val category = json.optJSONObject(index) ?: continue
+                    val title = category.optString("title").trim()
+                    val keys = category.optJSONArray("apps") ?: continue
+                    if (title.isEmpty()) continue
+                    val selectedKeys = (0 until keys.length()).mapNotNull { keys.optString(it) }
+                    val selectedApps = validApps.filter { app ->
+                        val componentKey = app.toComponentKey().toString()
+                        componentKey in selectedKeys ||
+                            app.componentName?.flattenToString()?.let { it in selectedKeys } == true
                     }
-                    mAdapterItems.add(AdapterItem.asFolder(folderInfo))
+                    if (selectedApps.isNotEmpty()) {
+                        customCategories.add(title to selectedApps)
+                        // Normalize both current and legacy stored keys so an app cannot
+                        // appear again in an automatically generated category.
+                        customAssignedKeys.addAll(selectedApps.map { it.toComponentKey().toString() })
+                    }
                 }
+            }.onFailure { Log.w(TAG, "Unable to load custom Caddy categories", it) }
+
+            val automaticApps = validApps.filterNot {
+                it.toComponentKey().toString() in customAssignedKeys
+            }
+            val finalCategorizedApps = categorizeAppsWithSystemAndGoogle(automaticApps, context)
+
+            // Native Launcher folders automatically collapse when they contain one item.
+            // Keep Caddy cards compatible with that behavior by collecting singleton categories
+            // into Other, so every rendered category card contains at least two apps.
+            val caddyCategories = linkedMapOf<String, MutableList<AppInfo>>()
+            finalCategorizedApps.forEach { (category, apps) ->
+                if (apps.size > 1) {
+                    caddyCategories.getOrPut(category) { mutableListOf() }.addAll(apps)
+                } else if (apps.size == 1) {
+                    caddyCategories.getOrPut("Other") { mutableListOf() }.addAll(apps)
+                }
+            }
+
+            customCategories.forEach { (category, apps) ->
+                mAdapterItems.add(
+                    AdapterItem.asCaddyCategory(category, apps) {
+                        sessionCategoryUse[category] = ++sessionUseSequence
+                        updateAdapterItems()
+                    },
+                )
                 position++
             }
+
+            // Category order is session-aware: opening an automatic category moves it
+            // to the front for the remainder of this launcher session.
+            val orderedCategories = caddyCategories.entries.sortedByDescending { (category, _) ->
+                sessionCategoryUse[category] ?: Long.MIN_VALUE
+            }
+            orderedCategories.forEach { (category, apps) ->
+                mAdapterItems.add(
+                    AdapterItem.asCaddyCategory(category, apps) {
+                        sessionCategoryUse[category] = ++sessionUseSequence
+                        updateAdapterItems()
+                    },
+                )
+                position++
+            }
+
+            // Always provide a direct way to create another user-defined category.
+            mAdapterItems.add(AdapterItem.asCaddyAddCategory { updateAdapterItems() })
+            position++
+
+            // Keep Search in the final right-hand card slot in the two-column layout.
+            val categoryCardCount = customCategories.size + caddyCategories.size + 1
+            if (categoryCardCount % 2 == 0) {
+                mAdapterItems.add(AdapterItem.asCaddySpacer())
+                position++
+            }
+            mAdapterItems.add(AdapterItem.asCaddySearchActions())
+            position++
         } else {
             folderList.forEach { folderEntry ->
                 val resolvedApps = folderEntry.itemComponentKeys.mapNotNull { keyString ->
