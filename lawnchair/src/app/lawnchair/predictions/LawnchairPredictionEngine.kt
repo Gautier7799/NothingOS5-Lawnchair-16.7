@@ -118,13 +118,13 @@ class LawnchairPredictionEngine(
 
     /**
      * Returns a fallback ranking by merging weighted usage stats (if enabled and permitted) with a
-     * randomised activity list.
+     * deterministic activity list.
      */
     fun getFallbackRanked(): List<String> {
         val usageStatsRanked =
             if (shouldUseWeightedUsageStats()) getUsageStatsRanked() else emptyList()
-        val randomRanked = getRandomRanked()
-        return mergeRanked(usageStatsRanked, randomRanked)
+        val activityRanked = getActivityFallbackRanked()
+        return mergeRanked(usageStatsRanked, activityRanked)
     }
 
     /**
@@ -182,10 +182,10 @@ class LawnchairPredictionEngine(
         )
     }
 
-    private fun getRandomRanked(): List<String> {
+    private fun getActivityFallbackRanked(): List<String> {
         val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return emptyList()
         val appFilter = AppFilter(context)
-        return userProfilesInPredictionOrder()
+        val keys = userProfilesInPredictionOrder()
             .asSequence()
             .flatMap { user ->
                 try {
@@ -201,7 +201,8 @@ class LawnchairPredictionEngine(
             .map { activityInfo -> toStoreKey(activityInfo.componentName, activityInfo.user) }
             .distinct()
             .toList()
-            .shuffled()
+        // Deterministic order so the suggestion row does not reshuffle between updates.
+        return PredictionOrdering.stableFallback(keys)
     }
 
     private fun resolvePackageToStoreKey(
