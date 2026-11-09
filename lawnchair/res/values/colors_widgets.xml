@@ -54,4 +54,15 @@
       it only needs to track light/dark (see values-night) rather than the accent hue.
     -->
     <color name="widget_transparent_inset">#1F1A1C1E</color>
+
+    <!--
+      Roles used by the ported Material You widgets. The reference app drives these from its own
+      theme attributes (`bg`, `bgOn`, `bgIcon`, `fontMain`), which it resolves to the framework
+      accent palette. The same roles are aliased here so the ported layouts and drawables keep the
+      reference's exact colours while still following the wallpaper through AccentColorExtractor.
+    -->
+    <color name="widget_m3_bg">@color/system_accent2_100</color>
+    <color name="widget_m3_bg_on">@color/system_accent1_300</color>
+    <color name="widget_m3_bg_icon">@color/system_accent1_700</color>
+    <color name="widget_m3_font_main">@color/system_accent2_800</color>
 </resources>

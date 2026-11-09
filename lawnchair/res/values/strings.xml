@@ -1186,10 +1186,8 @@
     <!-- Steps widget -->
     <string name="widget_steps_label">Steps</string>
     <string name="widget_steps_description">Today\'s step count and goal</string>
-    <string name="widget_steps_unit">steps</string>
+    <string name="widget_steps_caption">TOTAL STEP TODAY</string>
     <string name="widget_steps_permission">Allow access</string>
-    <string name="widget_steps_permission_hint">Physical activity permission is needed</string>
-    <string name="widget_steps_no_sensor">No step sensor on this device</string>
 
     <!-- Weather widget -->
     <string name="widget_weather_label">Weather</string>

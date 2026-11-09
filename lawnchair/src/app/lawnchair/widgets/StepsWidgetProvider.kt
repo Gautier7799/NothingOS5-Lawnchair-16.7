@@ -18,7 +18,6 @@ package app.lawnchair.widgets
 
 import android.Manifest
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -41,41 +40,46 @@ class StepsWidgetProvider : LawnchairWidgetProvider() {
 
     override fun buildRemoteViews(context: Context, appWidgetId: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_steps)
-        NativeWidgetPreferences.applyCard(context, views, appWidgetId)
-        NativeWidgetPreferences.applyHeader(
-            context,
-            views,
-            appWidgetId,
-            R.drawable.ic_widget_steps,
-            context.getString(R.string.widget_steps_label),
-        )
-        NativeWidgetPreferences.applyInset(context, views, appWidgetId)
+        val accent = NativeWidgetPreferences.primaryColor(context, appWidgetId)
 
         if (!hasActivityPermission(context)) {
-            views.setTextViewText(R.id.widget_value, context.getString(R.string.widget_steps_permission))
-            views.setTextColor(R.id.widget_value, NativeWidgetPreferences.primaryColor(context, appWidgetId))
-            views.setTextViewText(R.id.widget_inset_detail, context.getString(R.string.widget_steps_permission_hint))
-            views.setProgressBar(R.id.widget_bar, 100, 0, false)
-            views.setViewVisibility(R.id.widget_steps_unit, View.GONE)
+            views.setViewVisibility(R.id.widget_steps_permission, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_steps_count, View.GONE)
+            views.setViewVisibility(R.id.widget_steps_caption, View.GONE)
+            views.setProgressBar(R.id.widget_steps_progress, 100, 0, false)
             return views
         }
 
         val steps = StepReader.todaySteps(context, appWidgetId)
-        val goal = NativeWidgetPreferences.getStepGoal(context, appWidgetId)
         if (steps == null) {
-            views.setTextViewText(R.id.widget_value, context.getString(R.string.widget_unavailable))
-            views.setTextColor(R.id.widget_value, NativeWidgetPreferences.primaryColor(context, appWidgetId))
-            views.setTextViewText(R.id.widget_inset_detail, context.getString(R.string.widget_steps_no_sensor))
-            views.setProgressBar(R.id.widget_bar, 100, 0, false)
-            views.setViewVisibility(R.id.widget_steps_unit, View.GONE)
+            views.setViewVisibility(R.id.widget_steps_permission, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_steps_count, View.GONE)
+            views.setViewVisibility(R.id.widget_steps_caption, View.GONE)
+            views.setProgressBar(R.id.widget_steps_progress, 100, 0, false)
             return views
         }
 
-        views.setViewVisibility(R.id.widget_steps_unit, View.VISIBLE)
-        views.setTextViewText(R.id.widget_value, WidgetFormat.stepCountLabel(steps))
-        views.setTextColor(R.id.widget_value, NativeWidgetPreferences.primaryColor(context, appWidgetId))
-        views.setTextViewText(R.id.widget_inset_detail, WidgetFormat.stepGoalLabel(steps, goal))
-        views.setProgressBar(R.id.widget_bar, 100, WidgetFormat.stepGoalPercent(steps, goal), false)
+        views.setViewVisibility(R.id.widget_steps_permission, View.GONE)
+        views.setViewVisibility(R.id.widget_steps_count, View.VISIBLE)
+        views.setViewVisibility(R.id.widget_steps_caption, View.VISIBLE)
+
+        val goal = NativeWidgetPreferences.getStepGoal(context, appWidgetId)
+        views.setImageViewBitmap(
+            R.id.widget_steps_count,
+            TextBitmapRenderer.render(
+                text = WidgetFormat.stepCountLabel(steps),
+                textSizePx = context.resources.getDimension(R.dimen.widget_steps_count_text_size),
+                color = accent,
+            ),
+        )
+        views.setProgressBar(
+            R.id.widget_steps_progress,
+            100,
+            WidgetFormat.stepGoalPercent(steps, goal),
+            false,
+        )
+        // A tap opens the user's activity app, matching where the reference's pedometer leads.
+        views.setOnClickPendingIntent(R.id.widget_steps_root, SystemAppLauncher.health(context, appWidgetId))
         return views
     }
 
