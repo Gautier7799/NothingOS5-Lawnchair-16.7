@@ -1,5 +1,7 @@
 package app.lawnchair.predictions
 
+import android.app.prediction.AppTarget
+import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -59,6 +61,10 @@ class LawnchairAppPredictor(private val context: Context) : StatsLogCompatManage
     private var dismissedApps: MutableSet<String> = loadDismissedApps()
     private var lastPruneTime = 0L
 
+    private var lastAllAppsTargets: List<AppTarget> = emptyList()
+    private var lastHotseatTargets: List<AppTarget> = emptyList()
+    private var lastWidgetTargets: List<AppTarget> = emptyList()
+
     private var activeModel: LauncherModel? = null
     private var activeDataModel: BgDataModel? = null
     private var activeAllAppsState: PredictorState? = null
@@ -80,11 +86,18 @@ class LawnchairAppPredictor(private val context: Context) : StatsLogCompatManage
         activeHotseatState = hotseatState
         activeWidgetsState = widgetsState
         activeIdp = idp
+        // Reset cached targets so the first update after (re)registering always dispatches.
+        lastAllAppsTargets = emptyList()
+        lastHotseatTargets = emptyList()
+        lastWidgetTargets = emptyList()
         StatsLogCompatManager.LOGS_CONSUMER.add(this)
     }
 
     fun unregister() {
         StatsLogCompatManager.LOGS_CONSUMER.remove(this)
+        lastAllAppsTargets = emptyList()
+        lastHotseatTargets = emptyList()
+        lastWidgetTargets = emptyList()
         activeModel = null
         activeDataModel = null
         activeAllAppsState = null
@@ -169,9 +182,29 @@ class LawnchairAppPredictor(private val context: Context) : StatsLogCompatManage
             dataModel,
         )
 
-        model.enqueueModelUpdateTask(PredictionUpdateTask(allAppsState, allAppsTargets))
-        model.enqueueModelUpdateTask(PredictionUpdateTask(hotseatState, hotseatTargets))
-        model.enqueueModelUpdateTask(WidgetsPredictionUpdateTask(widgetsState, widgetTargets))
+        // Skip dispatching when nothing changed, mirroring PredictorState.registerPredictor.
+        // Without this guard every event rebinds the drawer suggestion row and makes the
+        // icons flicker.
+        if (PredictionOrdering.keysDiffer(targetKeys(lastAllAppsTargets), targetKeys(allAppsTargets))) {
+            lastAllAppsTargets = allAppsTargets
+            model.enqueueModelUpdateTask(PredictionUpdateTask(allAppsState, allAppsTargets))
+        }
+        if (PredictionOrdering.keysDiffer(targetKeys(lastHotseatTargets), targetKeys(hotseatTargets))) {
+            lastHotseatTargets = hotseatTargets
+            model.enqueueModelUpdateTask(PredictionUpdateTask(hotseatState, hotseatTargets))
+        }
+        if (PredictionOrdering.keysDiffer(targetKeys(lastWidgetTargets), targetKeys(widgetTargets))) {
+            lastWidgetTargets = widgetTargets
+            model.enqueueModelUpdateTask(WidgetsPredictionUpdateTask(widgetsState, widgetTargets))
+        }
+    }
+
+    private fun targetKeys(targets: List<AppTarget>): List<String> = targets.map { target ->
+        val userToken = userCache.getSerialNumberForUser(target.user).toString()
+        PredictionAppKey.create(
+            ComponentName(target.packageName, target.className ?: ""),
+            userToken,
+        )
     }
 
     @WorkerThread
@@ -181,6 +214,10 @@ class LawnchairAppPredictor(private val context: Context) : StatsLogCompatManage
         hotseatState: PredictorState,
         widgetsState: PredictorState,
     ) {
+        // Clear the cached targets so the next non-empty update is always dispatched.
+        lastAllAppsTargets = emptyList()
+        lastHotseatTargets = emptyList()
+        lastWidgetTargets = emptyList()
         model.enqueueModelUpdateTask(PredictionUpdateTask(allAppsState, emptyList()))
         model.enqueueModelUpdateTask(PredictionUpdateTask(hotseatState, emptyList()))
         model.enqueueModelUpdateTask(WidgetsPredictionUpdateTask(widgetsState, emptyList()))

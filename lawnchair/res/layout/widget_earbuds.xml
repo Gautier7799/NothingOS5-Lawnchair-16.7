@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright 2026, Lawnchair
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!--
+  Earbuds: the accessory name is the hero, and the three component levels (left, right, case) sit
+  side by side beneath it. The reference renders the buds as a picture; a text row is used here
+  because the per-component values are the information the user actually needs.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_card_background"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:padding="@dimen/widget_padding">
+
+    <include layout="@layout/widget_header" />
+
+    <TextView
+        android:id="@+id/widget_value"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/widget_on_surface"
+        android:textSize="@dimen/widget_metric_text_size"
+        android:textStyle="bold"
+        tools:text="Galaxy Buds" />
+
+    <LinearLayout
+        android:id="@+id/widget_earbuds_levels"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/widget_bar_margin_top"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_earbuds_left"
+                android:textColor="@color/widget_on_surface_variant"
+                android:textSize="@dimen/widget_label_text_size" />
+
+            <TextView
+                android:id="@+id/widget_earbuds_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/widget_on_surface"
+                android:textSize="@dimen/widget_metric_text_size"
+                android:textStyle="bold"
+                tools:text="80%" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_earbuds_right"
+                android:textColor="@color/widget_on_surface_variant"
+                android:textSize="@dimen/widget_label_text_size" />
+
+            <TextView
+                android:id="@+id/widget_earbuds_right"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/widget_on_surface"
+                android:textSize="@dimen/widget_metric_text_size"
+                android:textStyle="bold"
+                tools:text="80%" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_earbuds_case"
+                android:textColor="@color/widget_on_surface_variant"
+                android:textSize="@dimen/widget_label_text_size" />
+
+            <TextView
+                android:id="@+id/widget_earbuds_case"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/widget_on_surface"
+                android:textSize="@dimen/widget_metric_text_size"
+                android:textStyle="bold"
+                tools:text="60%" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <include layout="@layout/widget_inset" />
+</LinearLayout>

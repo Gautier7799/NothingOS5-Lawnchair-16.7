@@ -60,7 +60,11 @@ abstract class LawnchairWidgetProvider : AppWidgetProvider() {
         appWidgetIds.forEach { NativeWidgetPreferences.delete(context, it) }
     }
 
-    final override fun onReceive(context: Context, intent: Intent) {
+    /**
+     * Handles the shared refresh broadcasts. Subclasses that need extra actions override this and
+     * call `super` first so the shared handling still runs.
+     */
+    override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         when (intent.action) {
             ACTION_REFRESH -> refreshAll(context)

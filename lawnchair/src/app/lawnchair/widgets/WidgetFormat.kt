@@ -266,6 +266,74 @@ object WidgetFormat {
 
     private fun isLeapYear(year: Int): Boolean = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 
+    /**
+     * Label for a step count, grouped with thin spaces so five-digit values stay readable.
+     * Negative input is treated as zero.
+     */
+    fun stepCountLabel(steps: Int): String {
+        val value = steps.coerceAtLeast(0)
+        val digits = value.toString()
+        return digits.reversed().chunked(3).joinToString("\u2009").reversed()
+    }
+
+    /** Progress toward a step goal as a 0..100 percentage. A non-positive goal yields 0. */
+    fun stepGoalPercent(steps: Int, goal: Int): Int {
+        if (goal <= 0) return 0
+        return (steps.coerceAtLeast(0) * 100 / goal).coerceIn(0, 100)
+    }
+
+    /** A step goal label, e.g. `7,320 / 10,000 steps`. */
+    fun stepGoalLabel(steps: Int, goal: Int): String = "${stepCountLabel(steps)} / ${stepCountLabel(goal)} steps"
+
+    /**
+     * A battery percentage for an accessory, or an em dash when the level is unknown.
+     *
+     * Earbuds and other accessories frequently report no level at all, so the widget must have a
+     * neutral representation instead of a misleading `0%`.
+     */
+    fun accessoryBatteryLabel(level: Int?): String = if (level == null) "\u2014" else "${level.coerceIn(0, 100)}%"
+
+    /**
+     * A now-playing line, degrading gracefully when the media session has partial metadata.
+     *
+     * Falls back to a placeholder when both fields are missing so the widget never renders an
+     * empty line.
+     */
+    fun trackLabel(title: String?, artist: String?, fallback: String): String {
+        val cleanTitle = title?.trim().orEmpty()
+        val cleanArtist = artist?.trim().orEmpty()
+        return when {
+            cleanTitle.isNotEmpty() && cleanArtist.isNotEmpty() -> "$cleanTitle \u00b7 $cleanArtist"
+            cleanTitle.isNotEmpty() -> cleanTitle
+            cleanArtist.isNotEmpty() -> cleanArtist
+            else -> fallback
+        }
+    }
+
+    /** Formats a playback position/duration pair as `m:ss` (or `h:mm:ss` past an hour). */
+    fun playbackPosition(positionMs: Long, durationMs: Long): String {
+        val totalSeconds = (positionMs.coerceAtLeast(0) / 1000).toInt()
+        val durationSeconds = (durationMs.coerceAtLeast(0) / 1000).toInt()
+        return "${clock(totalSeconds)} / ${clock(durationSeconds)}"
+    }
+
+    private fun clock(totalSeconds: Int): String {
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) "$hours:${two(minutes)}:${two(seconds)}" else "$minutes:${two(seconds)}"
+    }
+
+    /**
+     * A human label for how far away an upcoming observance is, e.g. `Today`, `Tomorrow` or
+     * `in 12 days`. A non-positive [daysUntil] reads as `Today`.
+     */
+    fun formatObservanceWhen(daysUntil: Int): String = when {
+        daysUntil <= 0 -> "Today"
+        daysUntil == 1 -> "Tomorrow"
+        else -> "in $daysUntil days"
+    }
+
     private val MONTHS = arrayOf(
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",

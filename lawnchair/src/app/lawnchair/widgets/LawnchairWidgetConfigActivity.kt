@@ -187,6 +187,16 @@ data class WidgetConfigOptions(
             AlarmWidgetProvider::class.java.name,
             -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = true)
 
+            OnThisDayWidgetProvider::class.java.name,
+            QuoteWidgetProvider::class.java.name,
+            FactWidgetProvider::class.java.name,
+            -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = true)
+
+            EarbudsWidgetProvider::class.java.name,
+            MusicWidgetProvider::class.java.name,
+            StepsWidgetProvider::class.java.name,
+            -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = false)
+
             else -> WidgetConfigOptions(showSeconds = false, showHeader = true, showDetail = false)
         }
     }

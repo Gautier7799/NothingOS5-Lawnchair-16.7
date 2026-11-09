@@ -154,4 +154,55 @@ class WidgetFormatTest {
         assertThat(WidgetFormat.formatAlarmDay(3, "Wed", "Work")).isEqualTo("Wed \u00b7 Work")
         assertThat(WidgetFormat.formatAlarmDay(0, "Mon", "Wake")).isEqualTo("Today \u00b7 Wake")
     }
+
+    @Test
+    fun stepCountLabel_groupsThousandsWithThinSpaces() {
+        assertThat(WidgetFormat.stepCountLabel(0)).isEqualTo("0")
+        assertThat(WidgetFormat.stepCountLabel(999)).isEqualTo("999")
+        assertThat(WidgetFormat.stepCountLabel(1000)).isEqualTo("1\u2009000")
+        assertThat(WidgetFormat.stepCountLabel(12345)).isEqualTo("12\u2009345")
+    }
+
+    @Test
+    fun stepCountLabel_clampsNegativeToZero() {
+        assertThat(WidgetFormat.stepCountLabel(-5)).isEqualTo("0")
+    }
+
+    @Test
+    fun stepGoalPercent_isClampedAndGuardsZeroGoal() {
+        assertThat(WidgetFormat.stepGoalPercent(5000, 10000)).isEqualTo(50)
+        assertThat(WidgetFormat.stepGoalPercent(20000, 10000)).isEqualTo(100)
+        assertThat(WidgetFormat.stepGoalPercent(100, 0)).isEqualTo(0)
+        assertThat(WidgetFormat.stepGoalPercent(-10, 10000)).isEqualTo(0)
+    }
+
+    @Test
+    fun accessoryBatteryLabel_usesEmDashWhenUnknown() {
+        assertThat(WidgetFormat.accessoryBatteryLabel(null)).isEqualTo("\u2014")
+        assertThat(WidgetFormat.accessoryBatteryLabel(80)).isEqualTo("80%")
+        assertThat(WidgetFormat.accessoryBatteryLabel(150)).isEqualTo("100%")
+        assertThat(WidgetFormat.accessoryBatteryLabel(-1)).isEqualTo("0%")
+    }
+
+    @Test
+    fun trackLabel_joinsTitleAndArtistAndFallsBack() {
+        assertThat(WidgetFormat.trackLabel("Song", "Artist", "Nothing")).isEqualTo("Song \u00b7 Artist")
+        assertThat(WidgetFormat.trackLabel("Song", null, "Nothing")).isEqualTo("Song")
+        assertThat(WidgetFormat.trackLabel("  ", "Artist", "Nothing")).isEqualTo("Artist")
+        assertThat(WidgetFormat.trackLabel(null, null, "Nothing")).isEqualTo("Nothing")
+    }
+
+    @Test
+    fun playbackPosition_formatsMinutesAndHours() {
+        assertThat(WidgetFormat.playbackPosition(65000, 215000)).isEqualTo("1:05 / 3:35")
+        assertThat(WidgetFormat.playbackPosition(3661000, 7200000)).isEqualTo("1:01:01 / 2:00:00")
+        assertThat(WidgetFormat.playbackPosition(-1, -1)).isEqualTo("0:00 / 0:00")
+    }
+
+    @Test
+    fun formatObservanceWhen_labelsRelativeDays() {
+        assertThat(WidgetFormat.formatObservanceWhen(0)).isEqualTo("Today")
+        assertThat(WidgetFormat.formatObservanceWhen(1)).isEqualTo("Tomorrow")
+        assertThat(WidgetFormat.formatObservanceWhen(12)).isEqualTo("in 12 days")
+    }
 }

@@ -1147,6 +1147,50 @@
     <string name="widget_show_header">Show label</string>
     <string name="widget_show_detail">Show details</string>
 
+    <!-- Earbuds widget -->
+    <string name="widget_earbuds_label">Earbuds</string>
+    <string name="widget_earbuds_description">Battery levels of your earbuds</string>
+    <string name="widget_earbuds_none">No earbuds</string>
+    <string name="widget_earbuds_hint">Connect a Bluetooth accessory</string>
+    <string name="widget_earbuds_connected">Connected</string>
+    <string name="widget_earbuds_left">L</string>
+    <string name="widget_earbuds_right">R</string>
+    <string name="widget_earbuds_case">Case</string>
+    <string name="widget_earbuds_detail">Overall %1$s</string>
+
+    <!-- Music widget -->
+    <string name="widget_music_label">Music</string>
+    <string name="widget_music_description">Now playing with playback controls</string>
+    <string name="widget_music_nothing">Nothing playing</string>
+    <string name="widget_music_hint">Start playback to see it here</string>
+    <string name="widget_music_playing">Playing</string>
+    <string name="widget_music_unknown_track">Unknown track</string>
+    <string name="widget_music_previous">Previous</string>
+    <string name="widget_music_play_pause">Play or pause</string>
+    <string name="widget_music_next">Next</string>
+
+    <!-- On this day widget -->
+    <string name="widget_on_this_day_label">On this day</string>
+    <string name="widget_on_this_day_description">Today\'s observance or the next one</string>
+    <string name="widget_on_this_day_today">Today</string>
+    <string name="widget_on_this_day_empty">No observance today</string>
+
+    <!-- Quote and fact widgets -->
+    <string name="widget_quote_label">Quote</string>
+    <string name="widget_quote_description">A quote of the day</string>
+    <string name="widget_fact_label">Fact</string>
+    <string name="widget_fact_description">A fact of the day</string>
+    <string name="widget_daily_content_empty">No content for today</string>
+    <string name="widget_daily_content_day_of">%1$s</string>
+
+    <!-- Steps widget -->
+    <string name="widget_steps_label">Steps</string>
+    <string name="widget_steps_description">Today\'s step count and goal</string>
+    <string name="widget_steps_unit">steps</string>
+    <string name="widget_steps_permission">Allow access</string>
+    <string name="widget_steps_permission_hint">Physical activity permission is needed</string>
+    <string name="widget_steps_no_sensor">No step sensor on this device</string>
+
     <!-- Weather widget -->
     <string name="widget_weather_label">Weather</string>
     <string name="widget_weather_description">Current conditions and today\'s range</string>
