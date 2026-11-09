@@ -23,6 +23,32 @@ data class CaddyCategoryGroup<T>(
  */
 object CaddyCategoryEngine {
 
+    /**
+     * Compares two app lists by a caller-supplied stable key rather than object identity.
+     *
+     * [AdapterItem.isContentSame] decides whether a diffed card keeps its current view. Launcher
+     * `AppInfo` objects have no `equals`, so the previous identity-based `List.equals` check treated
+     * freshly rebuilt but otherwise identical card contents as changed. That forced DiffUtil to
+     * rebind every Caddy card on each drawer refresh, which made the preview icons flicker. Comparing
+     * by stable key keeps an unchanged card stable.
+     */
+    fun <T> sameByKey(
+        first: List<T>?,
+        second: List<T>?,
+        keyOf: java.util.function.Function<T, String>,
+    ): Boolean {
+        if (first == null || second == null) return first === second
+        if (first.size != second.size) return false
+        for (index in first.indices) {
+            if (keyOf.apply(first[index]) != keyOf.apply(second[index])) return false
+        }
+        return true
+    }
+
+    /** Stable component key for a launcher app, independent of object identity. */
+    fun appKey(app: com.android.launcher3.model.data.AppInfo): String = app.componentName?.let { "${app.user.hashCode()}:${it.flattenToString()}" }
+        ?: "${app.user.hashCode()}:${app.targetPackage}"
+
     fun <T, K : Any> buildGroups(
         allApps: List<T>,
         categorizedApps: Map<String, List<T>>,

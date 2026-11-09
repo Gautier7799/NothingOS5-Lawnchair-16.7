@@ -21,6 +21,7 @@ on:
       - feature/caddy-smart-drawer-v87
       - fix/suggestions-custom-apps
       - openhands/remove-native-widget-library
+      - openhands/stabilize-drawer-suggestions
 
 permissions:
   contents: read
