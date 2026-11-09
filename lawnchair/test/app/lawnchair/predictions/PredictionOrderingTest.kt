@@ -71,4 +71,25 @@ class PredictionOrderingTest {
     fun keysDiffer_emptyListsAreEqual() {
         assertThat(PredictionOrdering.keysDiffer(emptyList(), emptyList())).isFalse()
     }
+
+    @Test
+    fun rankByScoreDescending_ordersByCountThenKey() {
+        val scores = linkedMapOf("b" to 2, "a" to 2, "c" to 5)
+        assertThat(PredictionOrdering.rankByScoreDescending(scores))
+            .containsExactly("c", "a", "b")
+            .inOrder()
+    }
+
+    @Test
+    fun rankByScoreDescending_isOrderIndependentForTies() {
+        val first = linkedMapOf("b" to 1, "a" to 1, "d" to 1)
+        val second = linkedMapOf("d" to 1, "b" to 1, "a" to 1)
+        assertThat(PredictionOrdering.rankByScoreDescending(first))
+            .isEqualTo(PredictionOrdering.rankByScoreDescending(second))
+    }
+
+    @Test
+    fun rankByScoreDescending_emptyInputReturnsEmpty() {
+        assertThat(PredictionOrdering.rankByScoreDescending(emptyMap())).isEmpty()
+    }
 }

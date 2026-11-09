@@ -80,12 +80,9 @@ class LawnchairPredictionStore(
             // Entries are stored newest-first; distinct() keeps the newest occurrence.
             entries.distinct()
         } else {
-            entries
-                .groupingBy { it }
-                .eachCount()
-                .entries
-                .sortedByDescending { it.value }
-                .map { it.key }
+            PredictionOrdering.rankByScoreDescending(
+                entries.groupingBy { it }.eachCount(),
+            )
         }
     }
 

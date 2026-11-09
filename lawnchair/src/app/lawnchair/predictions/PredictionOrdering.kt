@@ -28,4 +28,16 @@ object PredictionOrdering {
         if (previous.size != current.size) return true
         return previous.indices.any { previous[it] != current[it] }
     }
+
+    /**
+     * Ranks store keys by descending hit count, breaking ties by key.
+     *
+     * The count map from `groupingBy` only has a stable order when the input order is stable. Two
+     * keys with equal counts would otherwise swap positions depending on insertion order, which
+     * reorders the suggestion row between updates. The key tiebreaker makes the result fully
+     * deterministic.
+     */
+    fun rankByScoreDescending(scores: Map<String, Int>): List<String> = scores.entries
+        .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+        .map { it.key }
 }
