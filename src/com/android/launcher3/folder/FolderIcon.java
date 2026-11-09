@@ -578,6 +578,13 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         mBackground.setInvalidateDelegate(this);
     }
 
+    /** Selects the Home Screen 2x2 Caddy preview without changing native folder behavior. */
+    public void setHomeCaddyPreview(boolean enabled) {
+        mPreviewLayoutRule.setUseHomeCaddyGrid(enabled);
+        mPreviewItemManager.updatePreviewItems(false);
+        invalidate();
+    }
+
     public void setCaddyCard(boolean isCaddyCard) {
         mIsCaddyCard = isCaddyCard;
         if (isCaddyCard) {

@@ -27,6 +27,7 @@ public class ClippedFolderIconLayoutRule {
     private boolean mIsRtl;
     private float mBaselineIconScale;
     private int mNumFolderColumns;
+    private boolean mUseHomeCaddyGrid;
 
     /**
      * initialize the layout rule
@@ -46,6 +47,11 @@ public class ClippedFolderIconLayoutRule {
         mNumFolderColumns = Math.max(1, numFolderColumns);
     }
 
+    /** Enables the equal 2x2 preview used by native Home Screen Caddy folders. */
+    public void setUseHomeCaddyGrid(boolean enabled) {
+        mUseHomeCaddyGrid = enabled;
+    }
+
     /**
      * Computes positions for icons in Preview.
      *
@@ -55,7 +61,9 @@ public class ClippedFolderIconLayoutRule {
      */
     public PreviewItemDrawingParams computePreviewItemDrawingParams(int index, int curNumItems,
             PreviewItemDrawingParams params) {
-        float totalScale = scaleForItem(curNumItems, 0);
+        float totalScale = mUseHomeCaddyGrid && curNumItems == MAX_NUM_ITEMS_IN_PREVIEW
+                ? HOME_CADDY_ICON_FRACTION * mBaselineIconScale
+                : scaleForItem(curNumItems, 0);
         float transX;
         float transY;
 
@@ -70,6 +78,8 @@ public class ClippedFolderIconLayoutRule {
         } else if (index >= MAX_NUM_ITEMS_IN_PREVIEW) {
             // Items beyond those displayed in the preview are animated to the center
             mTmpPoint[0] = mTmpPoint[1] = mAvailableSpace / 2 - (mIconSize * totalScale) / 2;
+        } else if (mUseHomeCaddyGrid && curNumItems == MAX_NUM_ITEMS_IN_PREVIEW) {
+            getHomeCaddyGridPosition(index, mTmpPoint);
         } else {
             getPosition(index, curNumItems, mTmpPoint);
         }
@@ -95,11 +105,15 @@ public class ClippedFolderIconLayoutRule {
      */
     public PreviewItemDrawingParams computeSpringAnimationItemParams(int index, int numItemsInPage,
             int page, PreviewItemDrawingParams params) {
-        float totalScale = scaleForItem(numItemsInPage, page);
+        float totalScale = mUseHomeCaddyGrid && numItemsInPage == MAX_NUM_ITEMS_IN_PREVIEW
+                ? HOME_CADDY_ICON_FRACTION * mBaselineIconScale
+                : scaleForItem(numItemsInPage, page);
         float transX;
         float transY;
 
-        if (numItemsInPage <= MAX_NUM_ITEMS_IN_PREVIEW) {
+        if (mUseHomeCaddyGrid && numItemsInPage == MAX_NUM_ITEMS_IN_PREVIEW) {
+            getHomeCaddyGridPosition(index, mTmpPoint);
+        } else if (numItemsInPage <= MAX_NUM_ITEMS_IN_PREVIEW) {
             getPosition(index, numItemsInPage, mTmpPoint);
         } else {
             // Never divide by zero if a transient/uninitialized profile reaches this rule.
@@ -126,6 +140,20 @@ public class ClippedFolderIconLayoutRule {
      * Positions in the grid: 0 1  // 0 is row 0, col 1
      * 2 3  // 3 is row 1, col 1`
      */
+    private static final float HOME_CADDY_ICON_FRACTION = 0.36f;
+
+    /** Places four icons in balanced, equally sized 2x2 cells. */
+    private void getHomeCaddyGridPosition(int index, float[] result) {
+        int row = index / 2;
+        int col = index % 2;
+        if (mIsRtl) col = 1 - col;
+        float iconSize = mAvailableSpace * HOME_CADDY_ICON_FRACTION;
+        float centerX = mAvailableSpace * (col == 0 ? 0.29f : 0.71f);
+        float centerY = mAvailableSpace * (row == 0 ? 0.29f : 0.71f);
+        result[0] = centerX - iconSize / 2f;
+        result[1] = centerY - iconSize / 2f;
+    }
+
     private void getGridPosition(int row, int col, float[] result) {
         // We use position 0 and 3 to calculate the x and y distances between items.
         getPosition(0, 4, result);

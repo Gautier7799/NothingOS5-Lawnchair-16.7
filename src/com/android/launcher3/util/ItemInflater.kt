@@ -85,7 +85,15 @@ class ItemInflater<T>(
                         parent,
                         item as FolderInfo,
                     )
-                    .apply { onFocusChangeListener = focusListener }
+                    .apply {
+                        onFocusChangeListener = focusListener
+                        // Only native workspace folders use the Caddy 2x2 preview.
+                        // Drawer-hosted Caddy category cards keep their own renderer.
+                        setHomeCaddyPreview(
+                            container == Favorites.CONTAINER_DESKTOP ||
+                                container == Favorites.CONTAINER_HOTSEAT
+                        )
+                    }
             Favorites.ITEM_TYPE_APP_PAIR ->
                 return AppPairIcon.inflateIcon(
                     R.layout.app_pair_icon,
