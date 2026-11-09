@@ -36,7 +36,6 @@ import android.view.Gravity;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -69,7 +68,6 @@ import com.android.launcher3.model.data.ItemInfoWithIcon;
 import com.android.launcher3.views.ActivityContext;
 
 import app.lawnchair.preferences.PreferenceManager;
-import app.lawnchair.util.LawnchairUtilsKt;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -657,104 +655,29 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
      * AppInfo shortcut and keeps the normal click/long-click handlers.
      */
     private void bindIndependentCaddyCard(FrameLayout host, AdapterItem item) {
-        host.removeAllViews();
-        host.setClipToPadding(false);
-        host.setClipChildren(false);
-        // Add a small gutter between neighboring Caddy cards without changing
-        // the RecyclerView's grid sizing or the normal app drawer.
-        host.setPadding(dp(4), dp(4), dp(4), dp(4));
-
-        int densityPadding = dp(14);
-        int themeColor = resolveCaddyDynamicColor();
-        // Translucent Nothing-style glass, tinted by Lawnchair's existing folder /
-        // preview color so the user's selected and dynamic colors remain visible.
-        int glassRed = Math.round(Color.red(themeColor) * 0.30f + 28 * 0.70f);
-        int glassGreen = Math.round(Color.green(themeColor) * 0.30f + 31 * 0.70f);
-        int glassBlue = Math.round(Color.blue(themeColor) * 0.30f + 38 * 0.70f);
-        int topGlass = Color.argb(184, glassRed, glassGreen, glassBlue);
-        int bottomGlass = Color.argb(148,
-                Math.max(12, glassRed - 10),
-                Math.max(14, glassGreen - 10),
-                Math.max(18, glassBlue - 10));
-        int foreground = Color.WHITE;
-        int accentStroke = Color.argb(116, Color.red(themeColor),
-                Color.green(themeColor), Color.blue(themeColor));
-
-        LinearLayout card = new LinearLayout(mActivityContext);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setGravity(Gravity.CENTER_VERTICAL);
-        card.setPadding(densityPadding, dp(12), densityPadding, dp(12));
-        card.setClickable(true);
-        card.setFocusable(true);
-        card.setOnClickListener(v -> {
-            if (item.caddyIsAddCategory) {
-                showCaddyCategoryEditor(item);
-            } else {
-                if (item.caddyOpenAction != null) {
-                    item.caddyOpenAction.run();
-                }
-                showCaddyCategory(item);
-            }
-        });
-        GradientDrawable background = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[] { topGlass, bottomGlass });
-        background.setCornerRadius(dp(28));
-        background.setStroke(dp(1), accentStroke);
-        card.setBackground(background);
-        card.setClipToOutline(true);
-        card.setElevation(dp(1));
-        host.addView(card, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-        TextView title = new TextView(mActivityContext);
-        title.setText(item.caddyIsAddCategory ? "+  Add category" : item.caddyTitle);
-        title.setTextColor(foreground);
-        title.setTextSize(14);
-        title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
-        title.setMaxLines(1);
-        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        card.addView(title, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        if (item.caddyIsAddCategory) {
-            TextView addHint = new TextView(mActivityContext);
-            addHint.setText("＋");
-            addHint.setTextColor(foreground);
-            addHint.setTextSize(38);
-            addHint.setGravity(Gravity.CENTER);
-            card.addView(addHint, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-            host.setContentDescription("Add a custom app category");
-            return;
-        }
-
-        List<AppInfo> apps = item.caddyApps == null ? java.util.Collections.emptyList()
-                : item.caddyApps;
-        android.widget.GridLayout grid = new android.widget.GridLayout(mActivityContext);
-        grid.setColumnCount(2);
-        grid.setRowCount(2);
-        grid.setUseDefaultMargins(false);
-        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(128));
-        gridLp.topMargin = dp(8);
-        card.addView(grid, gridLp);
-
-        // Keep the category preview visually balanced: four equal icon slots
-        // in a consistent 2x2 grid. Remaining apps are available after opening.
-        for (int i = 0; i < Math.min(apps.size(), 4); i++) {
-            AppInfo app = apps.get(i);
-            FrameLayout cell = new FrameLayout(mActivityContext);
-            android.widget.GridLayout.LayoutParams cellLp =
-                    new android.widget.GridLayout.LayoutParams();
-            cellLp.width = 0;
-            cellLp.height = dp(64);
-            cellLp.columnSpec = android.widget.GridLayout.spec(i % 2, 1f);
-            cellLp.rowSpec = android.widget.GridLayout.spec(i / 2);
-            grid.addView(cell, cellLp);
-            addCaddyAppIcon(cell, app, dp(56));
-        }
-        host.setContentDescription(item.caddyTitle);
+        app.lawnchair.allapps.caddy.CaddyCardRenderer.INSTANCE.renderCategoryCard(
+                host,
+                item.caddyTitle,
+                item.caddyApps == null
+                        ? java.util.Collections.emptyList() : item.caddyApps,
+                item.caddyIsAddCategory,
+                () -> {
+                    if (item.caddyIsAddCategory) {
+                        showCaddyCategoryEditor(item);
+                    } else {
+                        if (item.caddyOpenAction != null) {
+                            item.caddyOpenAction.run();
+                        }
+                        showCaddyCategory(item);
+                    }
+                    return kotlin.Unit.INSTANCE;
+                },
+                (icon, app) -> {
+                    icon.setOnFocusChangeListener(mIconFocusListener);
+                    icon.setOnClickListener(mOnIconClickListener);
+                    icon.setOnLongClickListener(mOnIconLongClickListener);
+                    return kotlin.Unit.INSTANCE;
+                });
     }
 
     /**
@@ -1131,80 +1054,14 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         });
     }
 
-    private void addCaddyAppIcon(FrameLayout cell, AppInfo app, int iconSize) {
-        // Use the same launcher icon widget as the default drawer. Its tag,
-        // popup anchor, and long-press lifecycle are understood by Lawnchair's
-        // native app action/drag handlers.
-        BubbleTextView icon = (BubbleTextView) mLayoutInflater.inflate(
-                R.layout.all_apps_icon, cell, false);
-        icon.applyFromApplicationInfo(app);
-        icon.setTextVisibility(false);
-        icon.setLongPressTimeoutFactor(1f);
-        icon.setContentDescription(app.title);
-        icon.setOnFocusChangeListener(mIconFocusListener);
-        icon.setOnClickListener(mOnIconClickListener);
-        icon.setOnLongClickListener(mOnIconLongClickListener);
-        // all_apps_icon.xml enables centerVertically, which reserves a text line
-        // even when setTextVisibility(false) only makes that text transparent.
-        // In Caddy's compact preview cell that produces negative top padding and
-        // clips adaptive icons into a flat-bottom shape. Disable that mode and
-        // center only the actual drawable using BubbleTextView's native icon size.
-        icon.setCenterVertically(false);
-        int topInset = Math.max(0, (cell.getLayoutParams().height - icon.getIconSize()) / 2);
-        icon.setPadding(icon.getPaddingLeft(), topInset, icon.getPaddingRight(), 0);
-        icon.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER);
-        cell.setClipChildren(false);
-        cell.setClipToPadding(false);
-        icon.setClipToOutline(false);
-        cell.addView(icon, iconParams);
-    }
-
     /**
      * Resolve Android's themed accent so Caddy follows the system Monet palette
      * (including wallpaper-based colors on Android 12+). Keep Lawnchair's folder
      * tint as a compatibility fallback for themes that do not expose colorAccent.
      */
     private int resolveCaddyDynamicColor() {
-        // Prefer Android's Monet palette directly. On Pixel / Android 12+ these
-        // framework colors are supplied by the active wallpaper or system theme.
-        // Use the themed accent next so custom ROMs and app themes remain supported.
-        android.content.res.Resources resources = mActivityContext.getResources();
-        String[] systemPaletteColors = {
-                "system_accent1_600",
-                "system_accent2_600",
-                "system_accent3_600"
-        };
-        for (String colorName : systemPaletteColors) {
-            int colorId = resources.getIdentifier(colorName, "color", "android");
-            if (colorId != 0) {
-                try {
-                    return resources.getColor(colorId, mActivityContext.getTheme());
-                } catch (RuntimeException ignored) {
-                    // Try the next system palette entry or themed accent.
-                }
-            }
-        }
-
-        TypedValue value = new TypedValue();
-        if (mActivityContext.getTheme().resolveAttribute(
-                android.R.attr.colorAccent, value, true)) {
-            if (value.resourceId != 0) {
-                try {
-                    return resources.getColor(value.resourceId, mActivityContext.getTheme());
-                } catch (RuntimeException ignored) {
-                    // Fall through to the resolved inline color or legacy fallback.
-                }
-            }
-            if (value.type >= TypedValue.TYPE_FIRST_COLOR_INT
-                    && value.type <= TypedValue.TYPE_LAST_COLOR_INT) {
-                return value.data;
-            }
-        }
-        return LawnchairUtilsKt.resolveFolderPreviewColor(mActivityContext);
+        return app.lawnchair.allapps.caddy.CaddyCardRenderer.INSTANCE
+                .resolveDynamicColor(mActivityContext);
     }
 
     private int dp(float value) {
