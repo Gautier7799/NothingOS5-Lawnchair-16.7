@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright 2026, Lawnchair
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!--
+  On this day: the observance name is the hero, with today's date shown above it so the widget
+  stays anchored in time even when the observance is only the next one.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_card_background"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:padding="@dimen/widget_padding">
+
+    <include layout="@layout/widget_header" />
+
+    <TextView
+        android:id="@+id/widget_on_this_day_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:letterSpacing="0.06"
+        android:maxLines="1"
+        android:textAllCaps="true"
+        android:textColor="@color/widget_on_surface_variant"
+        android:textSize="@dimen/widget_label_text_size"
+        android:textStyle="bold"
+        tools:text="Sat, 8 Nov" />
+
+    <TextView
+        android:id="@+id/widget_value"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="3"
+        android:textColor="@color/widget_on_surface"
+        android:textSize="@dimen/widget_metric_text_size"
+        android:textStyle="bold"
+        tools:text="World Town Planning Day" />
+
+    <include layout="@layout/widget_inset" />
+</LinearLayout>

@@ -28,6 +28,10 @@
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Required by the Steps widget to read the step-counter sensor. -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- Required by the Earbuds widget to read accessory battery levels on API 31+. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
@@ -331,6 +335,81 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_calendar_info" />
+        </receiver>
+
+        <receiver
+            android:name="app.lawnchair.widgets.EarbudsWidgetProvider"
+            android:label="@string/widget_earbuds_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <!-- Vendor broadcasts carrying accessory battery levels and connection changes. -->
+                <action android:name="android.bluetooth.device.action.BATTERY_LEVEL_CHANGED" />
+                <action android:name="android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_earbuds_info" />
+        </receiver>
+
+        <receiver
+            android:name="app.lawnchair.widgets.MusicWidgetProvider"
+            android:label="@string/widget_music_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_music_info" />
+        </receiver>
+
+        <receiver
+            android:name="app.lawnchair.widgets.OnThisDayWidgetProvider"
+            android:label="@string/widget_on_this_day_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_on_this_day_info" />
+        </receiver>
+
+        <receiver
+            android:name="app.lawnchair.widgets.QuoteWidgetProvider"
+            android:label="@string/widget_quote_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quote_info" />
+        </receiver>
+
+        <receiver
+            android:name="app.lawnchair.widgets.FactWidgetProvider"
+            android:label="@string/widget_fact_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fact_info" />
+        </receiver>
+
+        <receiver
+            android:name="app.lawnchair.widgets.StepsWidgetProvider"
+            android:label="@string/widget_steps_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_steps_info" />
         </receiver>
 
         <activity

@@ -23,6 +23,9 @@ on:
       - feature/lawnchair-native-widget-library
       - openhands/native-widget-library-v107
       - openhands/native-widget-library-completion
+      - openhands/remove-native-widget-library
+      - openhands/stabilize-drawer-suggestions
+      - openhands/port-reference-widgets
 
 permissions:
   contents: read

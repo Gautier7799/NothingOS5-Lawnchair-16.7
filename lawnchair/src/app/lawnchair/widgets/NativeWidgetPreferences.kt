@@ -32,6 +32,9 @@ object NativeWidgetPreferences {
 
     private const val FILE_NAME = "lawnchair_widgets"
 
+    /** Default daily step target for the pedometer widget. */
+    const val DEFAULT_STEP_GOAL = 10000
+
     /** Filled card using the themed surface color. */
     const val STYLE_FILLED = 0
 
@@ -48,6 +51,11 @@ object NativeWidgetPreferences {
     private const val KEY_WEATHER_LOCATION = "weather_location"
     private const val KEY_WEATHER_CACHE = "weather_cache"
     private const val KEY_HERO_CLOCK = "hero_clock"
+    private const val KEY_DAILY_KIND = "daily_kind"
+    private const val KEY_DAILY_OFFSET = "daily_offset"
+    private const val KEY_STEP_GOAL = "step_goal"
+    private const val KEY_STEP_BASELINE = "step_baseline"
+    private const val KEY_STEP_BASELINE_DAY = "step_baseline_day"
 
     private fun prefs(context: Context): SharedPreferences = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
 
@@ -108,6 +116,51 @@ object NativeWidgetPreferences {
         prefs(context).edit().putBoolean(key(KEY_HERO_CLOCK, appWidgetId), hero).apply()
     }
 
+    /** Which data set the daily-content widget shows (quote or fact). */
+    fun getDailyKind(
+        context: Context,
+        appWidgetId: Int,
+        default: DailyContentWidgetProvider.Kind = DailyContentWidgetProvider.Kind.QUOTE,
+    ): DailyContentWidgetProvider.Kind {
+        val stored = prefs(context).getString(key(KEY_DAILY_KIND, appWidgetId), null) ?: return default
+        return runCatching { DailyContentWidgetProvider.Kind.valueOf(stored) }.getOrDefault(default)
+    }
+
+    fun setDailyKind(context: Context, appWidgetId: Int, kind: DailyContentWidgetProvider.Kind) {
+        prefs(context).edit().putString(key(KEY_DAILY_KIND, appWidgetId), kind.name).apply()
+    }
+
+    /** How many days ahead of today the daily-content widget is currently showing. */
+    fun getDailyOffset(context: Context, appWidgetId: Int): Int = prefs(context).getInt(key(KEY_DAILY_OFFSET, appWidgetId), 0)
+
+    fun setDailyOffset(context: Context, appWidgetId: Int, offset: Int) {
+        prefs(context).edit().putInt(key(KEY_DAILY_OFFSET, appWidgetId), offset.coerceAtLeast(0)).apply()
+    }
+
+    /** The step-count goal used by the pedometer widget. */
+    fun getStepGoal(context: Context, appWidgetId: Int): Int = prefs(context).getInt(key(KEY_STEP_GOAL, appWidgetId), DEFAULT_STEP_GOAL)
+
+    fun setStepGoal(context: Context, appWidgetId: Int, goal: Int) {
+        prefs(context).edit().putInt(key(KEY_STEP_GOAL, appWidgetId), goal.coerceAtLeast(1)).apply()
+    }
+
+    /** The sensor's since-boot step total captured at the start of the current day, or null. */
+    fun getStepBaseline(context: Context, appWidgetId: Int): Float? {
+        val raw = prefs(context).getFloat(key(KEY_STEP_BASELINE, appWidgetId), Float.NaN)
+        return if (raw.isNaN()) null else raw
+    }
+
+    fun setStepBaseline(context: Context, appWidgetId: Int, total: Float) {
+        prefs(context).edit().putFloat(key(KEY_STEP_BASELINE, appWidgetId), total).apply()
+    }
+
+    /** Epoch day on which [getStepBaseline] was captured. */
+    fun getStepBaselineDay(context: Context, appWidgetId: Int): Long = prefs(context).getLong(key(KEY_STEP_BASELINE_DAY, appWidgetId), -1L)
+
+    fun setStepBaselineDay(context: Context, appWidgetId: Int, epochDay: Long) {
+        prefs(context).edit().putLong(key(KEY_STEP_BASELINE_DAY, appWidgetId), epochDay).apply()
+    }
+
     fun delete(context: Context, appWidgetId: Int) {
         prefs(context).edit()
             .remove(key(KEY_STYLE, appWidgetId))
@@ -117,6 +170,11 @@ object NativeWidgetPreferences {
             .remove(key(KEY_WEATHER_LOCATION, appWidgetId))
             .remove(key(KEY_WEATHER_CACHE, appWidgetId))
             .remove(key(KEY_HERO_CLOCK, appWidgetId))
+            .remove(key(KEY_DAILY_KIND, appWidgetId))
+            .remove(key(KEY_DAILY_OFFSET, appWidgetId))
+            .remove(key(KEY_STEP_GOAL, appWidgetId))
+            .remove(key(KEY_STEP_BASELINE, appWidgetId))
+            .remove(key(KEY_STEP_BASELINE_DAY, appWidgetId))
             .apply()
     }
 

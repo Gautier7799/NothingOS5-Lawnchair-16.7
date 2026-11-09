@@ -1,0 +1,409 @@
+{
+  "observances": [
+    {
+      "month": 1,
+      "day": 1,
+      "name": "Global Family Day"
+    },
+    {
+      "month": 1,
+      "day": 4,
+      "name": "World Braille Day"
+    },
+    {
+      "month": 1,
+      "day": 11,
+      "name": "International Thank-You Day"
+    },
+    {
+      "month": 1,
+      "day": 30,
+      "name": "World Leprosy Day"
+    },
+    {
+      "month": 2,
+      "day": 12,
+      "name": "International Day of Women and Girls in Science"
+    },
+    {
+      "month": 2,
+      "day": 21,
+      "name": "International Mother Language Day"
+    },
+    {
+      "month": 2,
+      "day": 22,
+      "name": "World Thinking Day"
+    },
+    {
+      "month": 3,
+      "name": "Earth Hour",
+      "rule": {
+        "kind": "lastWeekdayOfMonth",
+        "weekday": "SATURDAY",
+        "month": 3
+      }
+    },
+    {
+      "month": 3,
+      "day": 8,
+      "name": "International Women's Day"
+    },
+    {
+      "month": 3,
+      "day": 21,
+      "name": "World Down Syndrome Day"
+    },
+    {
+      "month": 3,
+      "day": 22,
+      "name": "World Water Day"
+    },
+    {
+      "month": 3,
+      "day": 23,
+      "name": "World Meteorological Day"
+    },
+    {
+      "month": 3,
+      "day": 24,
+      "name": "World TB Day"
+    },
+    {
+      "month": 4,
+      "day": 2,
+      "name": "International Children's Book Day"
+    },
+    {
+      "month": 4,
+      "day": 7,
+      "name": "World Health Day"
+    },
+    {
+      "month": 4,
+      "day": 12,
+      "name": "Yuri's Night"
+    },
+    {
+      "month": 4,
+      "day": 13,
+      "name": "International Special Librarians Day"
+    },
+    {
+      "month": 4,
+      "day": 21,
+      "name": "International Creativity and Innovation Day"
+    },
+    {
+      "month": 4,
+      "day": 22,
+      "name": "Earth Day"
+    },
+    {
+      "month": 4,
+      "day": 23,
+      "name": "World Book Day"
+    },
+    {
+      "month": 4,
+      "day": 25,
+      "name": "World Malaria Day"
+    },
+    {
+      "month": 5,
+      "day": 3,
+      "name": "World Press Freedom Day"
+    },
+    {
+      "month": 5,
+      "day": 5,
+      "name": "International Midwives Day"
+    },
+    {
+      "month": 5,
+      "day": 8,
+      "name": "World Red Cross Day"
+    },
+    {
+      "month": 5,
+      "day": 10,
+      "name": "World Lupus Day"
+    },
+    {
+      "month": 5,
+      "day": 12,
+      "name": "International Nurses Day"
+    },
+    {
+      "month": 5,
+      "day": 13,
+      "name": "IEEE Global Engineering Day"
+    },
+    {
+      "month": 5,
+      "day": 15,
+      "name": "International Day of Families"
+    },
+    {
+      "month": 5,
+      "day": 17,
+      "name": "World Hypertension Day"
+    },
+    {
+      "month": 5,
+      "day": 18,
+      "name": "International Museum Day"
+    },
+    {
+      "month": 5,
+      "day": 21,
+      "name": "World Day for Cultural Diversity"
+    },
+    {
+      "month": 5,
+      "day": 22,
+      "name": "International Day for Biological Diversity"
+    },
+    {
+      "month": 5,
+      "day": 24,
+      "name": "World Schizophrenia Day"
+    },
+    {
+      "month": 5,
+      "day": 31,
+      "name": "World No-Tobacco Day"
+    },
+    {
+      "month": 6,
+      "day": 1,
+      "name": "World Milk Day"
+    },
+    {
+      "month": 6,
+      "day": 3,
+      "name": "World Bicycle Day"
+    },
+    {
+      "month": 6,
+      "day": 5,
+      "name": "World Environment Day"
+    },
+    {
+      "month": 6,
+      "day": 8,
+      "name": "World Ocean Day"
+    },
+    {
+      "month": 6,
+      "day": 14,
+      "name": "World Blood Donor Day"
+    },
+    {
+      "month": 6,
+      "day": 16,
+      "name": "International Day of the African Child"
+    },
+    {
+      "month": 6,
+      "day": 17,
+      "name": "World Day to Combat Desertification & Drought"
+    },
+    {
+      "month": 6,
+      "day": 20,
+      "name": "World Refugee Day"
+    },
+    {
+      "month": 6,
+      "day": 21,
+      "name": "International Yoga Day"
+    },
+    {
+      "month": 6,
+      "day": 26,
+      "name": "International Day Against Drug Abuse and Trafficking"
+    },
+    {
+      "month": 7,
+      "day": 11,
+      "name": "World Population Day"
+    },
+    {
+      "month": 7,
+      "day": 28,
+      "name": "World Hepatitis Day"
+    },
+    {
+      "month": 8,
+      "name": "International Friendship Day",
+      "rule": {
+        "kind": "firstSundayOfMonth",
+        "month": 8
+      }
+    },
+    {
+      "month": 8,
+      "day": 8,
+      "name": "Universal & International Infinity Day"
+    },
+    {
+      "month": 8,
+      "day": 9,
+      "name": "International Day of the World's Indigenous People"
+    },
+    {
+      "month": 8,
+      "day": 10,
+      "name": "International Biodiesel Day"
+    },
+    {
+      "month": 8,
+      "day": 12,
+      "name": "International Youth Day"
+    },
+    {
+      "month": 8,
+      "day": 13,
+      "name": "International Lefthanders Day"
+    },
+    {
+      "month": 8,
+      "day": 23,
+      "name": "International Day for the Remembrance of the Slave Trade & its Abolition"
+    },
+    {
+      "month": 9,
+      "name": "Software Freedom Day",
+      "rule": {
+        "kind": "thirdSaturdayOfMonth",
+        "month": 9
+      }
+    },
+    {
+      "month": 9,
+      "day": 8,
+      "name": "International Literacy Day"
+    },
+    {
+      "month": 9,
+      "day": 16,
+      "name": "International Day for the Preservation of the Ozone Layer"
+    },
+    {
+      "month": 9,
+      "day": 21,
+      "name": "World Gratitude Day"
+    },
+    {
+      "month": 9,
+      "day": 22,
+      "name": "World Car-Free Day"
+    },
+    {
+      "month": 9,
+      "day": 29,
+      "name": "Inventors Day"
+    },
+    {
+      "month": 10,
+      "day": 1,
+      "name": "International Music Day"
+    },
+    {
+      "month": 10,
+      "day": 2,
+      "name": "World Farm Animals Day"
+    },
+    {
+      "month": 10,
+      "day": 3,
+      "name": "World Temperance Day"
+    },
+    {
+      "month": 10,
+      "day": 4,
+      "name": "World Animal Day"
+    },
+    {
+      "month": 10,
+      "day": 5,
+      "name": "World Teacher's Day"
+    },
+    {
+      "month": 10,
+      "day": 10,
+      "name": "World Mental Health Day"
+    },
+    {
+      "month": 10,
+      "day": 16,
+      "name": "World Food Day"
+    },
+    {
+      "month": 10,
+      "day": 17,
+      "name": "International Day for the Eradication of Poverty"
+    },
+    {
+      "month": 10,
+      "day": 24,
+      "name": "United Nations Day"
+    },
+    {
+      "month": 10,
+      "day": 29,
+      "name": "International Internet Day"
+    },
+    {
+      "month": 11,
+      "day": 8,
+      "name": "World Town Planning Day"
+    },
+    {
+      "month": 11,
+      "day": 14,
+      "name": "World Diabetes Day"
+    },
+    {
+      "month": 11,
+      "day": 16,
+      "name": "International Day for Tolerance"
+    },
+    {
+      "month": 11,
+      "day": 25,
+      "name": "International Day for the Elimination of Violence Against Women"
+    },
+    {
+      "month": 11,
+      "day": 30,
+      "name": "International Computer Security Day"
+    },
+    {
+      "month": 12,
+      "day": 1,
+      "name": "World Aids Day"
+    },
+    {
+      "month": 12,
+      "day": 2,
+      "name": "International Day for the Abolition of Slavery"
+    },
+    {
+      "month": 12,
+      "day": 5,
+      "name": "International Volunteers Day"
+    },
+    {
+      "month": 12,
+      "day": 7,
+      "name": "International Civil Aviation Day"
+    },
+    {
+      "month": 12,
+      "day": 10,
+      "name": "Human Rights Day"
+    }
+  ]
+}

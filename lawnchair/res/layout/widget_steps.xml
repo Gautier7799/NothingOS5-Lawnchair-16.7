@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright 2026, Lawnchair
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!--
+  Pedometer ("Step Counter"), ported from Material You Widgets v2.5.
+
+  The structure follows the reference `step_counter_widget_r` layout exactly: a rounded card, a
+  horizontal progress bar across the top, the step total pinned to the bottom-start, the caption
+  above it and a full-bleed permission illustration that is shown only while the activity
+  permission is missing. The step total is drawn into an ImageView as a bitmap, which is how the
+  reference renders its large number so it can use its own typeface and spacing.
+-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_steps_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_steps_card"
+    android:gravity="center">
+
+    <ProgressBar
+        android:id="@+id/widget_steps_progress"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100"
+        android:progressDrawable="@drawable/widget_steps_progress" />
+
+    <ImageView
+        android:id="@+id/widget_steps_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        android:contentDescription="@string/widget_steps_label"
+        tools:ignore="ContentDescription" />
+
+    <TextView
+        android:id="@+id/widget_steps_caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/widget_steps_count"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        android:letterSpacing="0.06"
+        android:text="@string/widget_steps_caption"
+        android:textAllCaps="true"
+        android:textColor="@color/widget_m3_font_main"
+        android:textSize="13sp" />
+
+    <ImageView
+        android:id="@+id/widget_steps_permission"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/widget_steps_permission"
+        android:src="@drawable/widget_steps_permission"
+        android:visibility="gone" />
+</RelativeLayout>

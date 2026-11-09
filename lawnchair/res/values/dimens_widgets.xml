@@ -71,4 +71,7 @@
     <dimen name="widget_clock_minute_gap">4dp</dimen>
     <dimen name="widget_clock_period_text_size">14sp</dimen>
     <dimen name="widget_clock_period_gap">6dp</dimen>
+
+    <!-- Pedometer: the hero count is rasterised, so its size is consumed as pixels. -->
+    <dimen name="widget_steps_count_text_size">34sp</dimen>
 </resources>

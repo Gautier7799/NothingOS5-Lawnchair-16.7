@@ -230,9 +230,15 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
          */
         public boolean isContentSame(AdapterItem other) {
             if (viewType == VIEW_TYPE_CADDY_CATEGORY) {
+                // Compare apps by stable key: Launcher AppInfo has no equals(), so the default
+                // identity-based List.equals marked freshly rebuilt but identical cards as changed.
+                // That forced DiffUtil to rebind every Caddy card (and reload its icon drawables)
+                // on each drawer refresh, which made the preview icons flicker.
                 return itemInfo == null && other.itemInfo == null
                         && java.util.Objects.equals(caddyTitle, other.caddyTitle)
-                        && java.util.Objects.equals(caddyApps, other.caddyApps)
+                        && app.lawnchair.allapps.caddy.CaddyCategoryEngine.INSTANCE.sameByKey(
+                                caddyApps, other.caddyApps,
+                                app.lawnchair.allapps.caddy.CaddyCategoryEngine.INSTANCE::appKey)
                         && caddyIsSearchActions == other.caddyIsSearchActions
                         && caddyIsAddCategory == other.caddyIsAddCategory;
             }
