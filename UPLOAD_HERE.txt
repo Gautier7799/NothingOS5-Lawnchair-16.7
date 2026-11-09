@@ -1,0 +1,14 @@
+Upload your .zip files to THIS branch: uploads/inbox
+
+How to upload (web):
+1. Open https://github.com/Gautier7799/NothingOS5-Lawnchair-16.7/tree/uploads/inbox
+2. Click "Add file" -> "Upload files".
+3. Drag your .zip in. The target branch is already uploads/inbox.
+4. Click "Commit changes".
+
+Then tell the OpenHands agent the exact file name. The agent will fetch it
+with the GitHub API and unzip it into a quarantine folder.
+
+Notes:
+- Nothing here is executed. Files are only read/unpacked.
+- Do not upload secrets. If the zip holds credentials, tell the agent first.
