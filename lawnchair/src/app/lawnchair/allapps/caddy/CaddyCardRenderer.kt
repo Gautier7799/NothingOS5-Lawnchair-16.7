@@ -282,17 +282,22 @@ object CaddyCardRenderer {
         icon.clipToOutline = false
         cell.addView(icon, iconParams)
         if (fitGridToHost) {
-            // Re-measure the square icon against its actual cell after GridLayout
-            // has assigned weighted row/column sizes. Keep a small inner gutter.
+            // BubbleTextView draws its launcher icon at the DeviceProfile's fixed
+            // drawable size. Shrinking its LayoutParams alone clips that drawable
+            // (the exact flat-bottom / half-icon defect seen in Home cards).
+            // Keep the native view filling the cell so click and long-press hit
+            // targets remain stable, and scale its drawing to the measured cell.
+            iconParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+            iconParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+            icon.layoutParams = iconParams
             cell.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
                 val available = (minOf(view.width, view.height) - dp(context, 8f))
-                    .coerceAtLeast(dp(context, 24f))
-                val size = minOf(iconSize, available)
-                val params = icon.layoutParams as FrameLayout.LayoutParams
-                if (params.width != size || params.height != size) {
-                    params.width = size
-                    params.height = size
-                    icon.layoutParams = params
+                    .coerceAtLeast(dp(context, 16f))
+                val nativeIconSize = icon.iconSize.coerceAtLeast(1)
+                val scale = (available.toFloat() / nativeIconSize).coerceAtMost(1f)
+                if (icon.scaleX != scale || icon.scaleY != scale) {
+                    icon.scaleX = scale
+                    icon.scaleY = scale
                 }
             }
         }
