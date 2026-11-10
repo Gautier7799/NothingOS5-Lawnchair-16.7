@@ -165,7 +165,15 @@ class CaddyHomeCardController(
         detach(id)
         if (!isRegionFree(cellLayout, targetX, targetY, current.spanX, current.spanY)) {
             // The drop landed on another card: merge the two instead of rejecting the move.
-            val target = cardAt(cellLayout, current.screenId, targetX, targetY, id)
+            val target = cardOverlappingRegion(
+                cellLayout,
+                current.screenId,
+                targetX,
+                targetY,
+                current.spanX,
+                current.spanY,
+                id,
+            )
             if (target != null) {
                 return mergeOnto(id, target.id)
             }
@@ -181,16 +189,25 @@ class CaddyHomeCardController(
         return true
     }
 
-    /** The other card whose grid region contains the cell ([x], [y]) on [screenId], if any. */
-    private fun cardAt(cellLayout: CellLayout, screenId: Int, x: Int, y: Int, exceptId: Int): CaddyHomeCardInfo? {
-        val cards = repository.load()
-        val inRangeX = x in 0 until cellLayout.countX
-        val inRangeY = y in 0 until cellLayout.countY
-        if (!inRangeX || !inRangeY) return null
-        return cards.firstOrNull { card ->
+    /** The card whose grid rectangle intersects the proposed drop region, if any. */
+    private fun cardOverlappingRegion(
+        cellLayout: CellLayout,
+        screenId: Int,
+        x: Int,
+        y: Int,
+        spanX: Int,
+        spanY: Int,
+        exceptId: Int,
+    ): CaddyHomeCardInfo? {
+        if (x < 0 || y < 0 || x + spanX > cellLayout.countX || y + spanY > cellLayout.countY) {
+            return null
+        }
+        return repository.load().firstOrNull { card ->
             card.id != exceptId && card.screenId == screenId &&
-                x >= card.cellX && x < card.cellX + card.spanX &&
-                y >= card.cellY && y < card.cellY + card.spanY
+                CaddyHomeCardLayout.overlaps(
+                    x, y, spanX, spanY,
+                    card.cellX, card.cellY, card.spanX, card.spanY,
+                )
         }
     }
 
