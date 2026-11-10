@@ -23,6 +23,7 @@ on:
       - openhands/remove-native-widget-library
       - openhands/stabilize-drawer-suggestions
       - openhands/caddy-cards-on-home-screen
+      - openhands/caddy-home
 
 permissions:
   contents: read

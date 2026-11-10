@@ -102,6 +102,11 @@ fun HomeScreenPreferences(
             )
         }
         PreferenceGroup(heading = stringResource(id = R.string.home_screen_actions)) {
+            SwitchPreference(
+                adapter = prefs2.hideWorkspaceSmartspace.getAdapter(),
+                label = stringResource(R.string.hide_workspace_smartspace_label),
+                description = stringResource(R.string.hide_workspace_smartspace_description),
+            )
             ClickablePreference(
                 label = stringResource(id = R.string.remove_all_views_from_home_screen),
                 confirmationText = stringResource(id = R.string.remove_all_views_from_home_screen_desc),

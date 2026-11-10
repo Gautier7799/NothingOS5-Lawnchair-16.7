@@ -774,6 +774,10 @@
     <string name="popup_menu">Pop-up menu</string>
     <string name="popup_menu_items">Pop-up menu items</string>
     <string name="edit_menu_items">Edit pop-up menu items</string>
+    <string name="blur_behind_popup_label">Blur behind pop-up</string>
+    <string name="blur_behind_popup_description">Blur and dim the background when an app info pop-up opens</string>
+    <string name="hide_workspace_smartspace_label">Hide search bar</string>
+    <string name="hide_workspace_smartspace_description">Hide the Google search bar from the home screen. The dock stays visible.</string>
 
     <string name="wallpaper_quick_picker">Wallpaper quick picker</string>
 

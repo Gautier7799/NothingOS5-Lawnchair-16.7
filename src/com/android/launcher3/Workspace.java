@@ -664,7 +664,8 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
     public void bindAndInitFirstWorkspaceScreen() {
         // Add the first page
         CellLayout firstPage = insertNewWorkspaceScreen(Workspace.FIRST_SCREEN_ID, getChildCount());
-        if (!PreferenceCacheExtensionsKt.firstCached(mPreferenceManager2.getEnableSmartspace())) {
+        if (!PreferenceCacheExtensionsKt.firstCached(mPreferenceManager2.getEnableSmartspace())
+            || PreferenceCacheExtensionsKt.firstCached(mPreferenceManager2.getHideWorkspaceSmartspace())) {
             mFirstPagePinnedItem = null;
             return;
         }

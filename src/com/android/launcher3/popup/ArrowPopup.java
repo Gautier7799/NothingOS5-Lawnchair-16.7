@@ -58,6 +58,7 @@ import com.android.launcher3.views.BaseDragLayer;
 
 import app.lawnchair.theme.color.tokens.ColorTokens;
 import app.lawnchair.theme.drawable.DrawableTokens;
+import app.lawnchair.popup.PopupBlur;
 
 /**
  * A container for shortcuts to deep links and notifications associated with an app.
@@ -560,6 +561,7 @@ public abstract class ArrowPopup<T extends Context & ActivityContext>
 
     protected void animateOpen() {
         setVisibility(View.VISIBLE);
+        PopupBlur.INSTANCE.apply(getContext(), mActivityContext);
         mOpenCloseAnimator = getOpenCloseAnimator(
                         true,
                         OPEN_DURATION_U,
@@ -720,6 +722,7 @@ public abstract class ArrowPopup<T extends Context & ActivityContext>
             mOpenCloseAnimator.cancel();
             mOpenCloseAnimator = null;
         }
+        PopupBlur.INSTANCE.clear(mActivityContext);
         mIsOpen = false;
         mDeferContainerRemoval = false;
         getPopupContainer().removeView(this);

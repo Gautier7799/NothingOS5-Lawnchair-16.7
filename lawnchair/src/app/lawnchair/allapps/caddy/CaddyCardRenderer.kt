@@ -50,7 +50,7 @@ import com.android.launcher3.model.data.AppInfo
  */
 object CaddyCardRenderer {
 
-    /** Fills [host] with the card surface, title and up to four app icons. */
+    /** Fills [host] with the card surface, title and up to [maxIcons] app icons. */
     @JvmOverloads
     fun renderCategoryCard(
         host: FrameLayout,
@@ -60,6 +60,8 @@ object CaddyCardRenderer {
         cardClick: (() -> Unit)? = null,
         iconBinder: (BubbleTextView, AppInfo) -> Unit,
         fitGridToHost: Boolean = false,
+        columns: Int = 2,
+        maxIcons: Int = MAX_PREVIEW_ICONS,
     ) {
         val context = host.context
         host.removeAllViews()
@@ -154,8 +156,8 @@ object CaddyCardRenderer {
         }
 
         val grid = GridLayout(context)
-        grid.columnCount = 2
-        grid.rowCount = 2
+        grid.columnCount = columns
+        grid.rowCount = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
         grid.useDefaultMargins = false
         // Drawer cards have a known preview height. Workspace cards are measured
         // from a 2x2 CellLayout span, which varies with the active grid/device profile.
@@ -169,19 +171,19 @@ object CaddyCardRenderer {
         gridLp.topMargin = dp(context, if (fitGridToHost) 4f else 8f)
         card.addView(grid, gridLp)
 
-        // Keep the category preview visually balanced: four equal icon slots
-        // in a consistent 2x2 grid. Remaining apps are available after opening.
-        for (index in 0 until minOf(apps.size, MAX_PREVIEW_ICONS)) {
+        // Keep the category preview visually balanced: equal icon slots in a
+        // consistent grid. Remaining apps are available after opening.
+        for (index in 0 until minOf(apps.size, maxIcons)) {
             val app = apps[index]
             val cell = FrameLayout(context)
             val cellLp = GridLayout.LayoutParams()
             cellLp.width = 0
             cellLp.height = if (fitGridToHost) 0 else dp(context, 64f)
-            cellLp.columnSpec = GridLayout.spec(index % 2, 1f)
+            cellLp.columnSpec = GridLayout.spec(index % columns, 1f)
             cellLp.rowSpec = if (fitGridToHost) {
-                GridLayout.spec(index / 2, 1f)
+                GridLayout.spec(index / columns, 1f)
             } else {
-                GridLayout.spec(index / 2)
+                GridLayout.spec(index / columns)
             }
             grid.addView(cell, cellLp)
             addCaddyAppIcon(

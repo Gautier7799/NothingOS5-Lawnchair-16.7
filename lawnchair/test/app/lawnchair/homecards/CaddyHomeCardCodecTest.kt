@@ -87,4 +87,30 @@ class CaddyHomeCardCodecTest {
     fun appCount_reflectsAssignedApps() {
         assertThat(sample.appCount).isEqualTo(2)
     }
+
+    @Test
+    fun roundTrip_preservesResizedSpans() {
+        val resized = sample.copy(spanX = 4, spanY = 3)
+        val decoded = CaddyHomeCardCodec.decode(CaddyHomeCardCodec.encode(listOf(resized)))
+        assertThat(decoded[0].spanX).isEqualTo(4)
+        assertThat(decoded[0].spanY).isEqualTo(3)
+    }
+
+    @Test
+    fun decode_legacySixFieldRecord_defaultsSpansToTwo() {
+        val legacy = listOf("42", "Games", "com.a#0,com.b#0", "1", "2", "3").joinToString("\t")
+        val decoded = CaddyHomeCardCodec.decode(legacy)
+        assertThat(decoded).hasSize(1)
+        assertThat(decoded[0].spanX).isEqualTo(CaddyHomeCardInfo.DEFAULT_SPAN)
+        assertThat(decoded[0].spanY).isEqualTo(CaddyHomeCardInfo.DEFAULT_SPAN)
+    }
+
+    @Test
+    fun decode_nonNumericSpan_fallsBackToDefault() {
+        val broken = listOf("42", "Games", "", "1", "2", "3", "x", "y").joinToString("\t")
+        val decoded = CaddyHomeCardCodec.decode(broken)
+        assertThat(decoded).hasSize(1)
+        assertThat(decoded[0].spanX).isEqualTo(CaddyHomeCardInfo.DEFAULT_SPAN)
+        assertThat(decoded[0].spanY).isEqualTo(CaddyHomeCardInfo.DEFAULT_SPAN)
+    }
 }

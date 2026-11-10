@@ -103,4 +103,14 @@ class CaddyHomeCardRepositoryTest {
         val reloaded = CaddyHomeCardRepository(store).load()
         assertThat(reloaded.map { it.id }).containsExactly(1, 2).inOrder()
     }
+
+    @Test
+    fun update_persistsResizedSpans() {
+        val repository = CaddyHomeCardRepository(InMemoryStore())
+        repository.add(card(1))
+        repository.update(card(1).copy(spanX = 4, spanY = 3))
+        val loaded = repository.load()
+        assertThat(loaded[0].spanX).isEqualTo(4)
+        assertThat(loaded[0].spanY).isEqualTo(3)
+    }
 }

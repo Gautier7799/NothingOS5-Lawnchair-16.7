@@ -449,6 +449,23 @@ class PreferenceManager2 @Inject constructor(
         onSet = { reloadHelper.recreate() },
     )
 
+    /**
+     * Blurs the surface behind the App Info / shortcut popup. Applies to both the app
+     * drawer (Caddy Drawer) and the workspace (Caddy Home), since both open the same
+     * [com.android.launcher3.popup.PopupContainerWithArrow].
+     */
+    val blurBehindPopup = preference(
+        key = booleanPreferencesKey(name = "blur_behind_popup"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_blur_behind_popup),
+    )
+
+    /** Hides the workspace Smartspace / Google search widget without touching the dock. */
+    val hideWorkspaceSmartspace = preference(
+        key = booleanPreferencesKey(name = "hide_workspace_smartspace"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_hide_workspace_smartspace),
+        onSet = { reloadHelper.restart() },
+    )
+
     val appDrawerHapticFeedback = preference(
         key = booleanPreferencesKey(name = "app_drawer_haptic_feedback"),
         defaultValue = context.resources.getBoolean(R.bool.config_default_app_drawer_haptic_feedback),

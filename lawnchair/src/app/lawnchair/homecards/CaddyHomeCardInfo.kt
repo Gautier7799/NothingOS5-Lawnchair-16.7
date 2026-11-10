@@ -34,7 +34,13 @@ data class CaddyHomeCardInfo(
     val screenId: Int = -1,
     val cellX: Int = 0,
     val cellY: Int = 0,
+    val spanX: Int = DEFAULT_SPAN,
+    val spanY: Int = DEFAULT_SPAN,
 ) {
     /** Number of apps assigned to the card. */
     val appCount: Int get() = appKeys.size
+
+    companion object {
+        const val DEFAULT_SPAN = 2
+    }
 }
