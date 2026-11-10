@@ -160,6 +160,13 @@ object CaddyCardRenderer {
             return
         }
 
+        if (fitGridToHost && cellSizePx <= 0) {
+            // The workspace card has not been measured yet, or has no usable icon area.
+            // Never fall back to fixed-size drawer icons: they overflow compact cards.
+            host.contentDescription = title
+            return
+        }
+
         val grid = GridLayout(context)
         grid.columnCount = columns
         grid.rowCount = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
