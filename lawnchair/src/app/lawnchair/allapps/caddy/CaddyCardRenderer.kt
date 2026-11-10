@@ -252,6 +252,9 @@ object CaddyCardRenderer {
             .inflate(R.layout.all_apps_icon, cell, false) as BubbleTextView
         icon.applyFromApplicationInfo(app)
         icon.setTextVisibility(false)
+        // Home cards are icon-only. Removing the invisible label lets TextView's
+        // CENTER gravity center the actual drawable in the available cell.
+        if (fitGridToHost) icon.text = ""
         icon.setLongPressTimeoutFactor(1f)
         icon.contentDescription = app.title
         iconBinder(icon, app)
@@ -273,8 +276,8 @@ object CaddyCardRenderer {
         }
         icon.gravity = Gravity.CENTER
         val iconParams = FrameLayout.LayoutParams(
-            if (fitGridToHost) iconSize else ViewGroup.LayoutParams.MATCH_PARENT,
-            if (fitGridToHost) iconSize else ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
             Gravity.CENTER,
         )
         cell.clipChildren = false
@@ -282,23 +285,15 @@ object CaddyCardRenderer {
         icon.clipToOutline = false
         cell.addView(icon, iconParams)
         if (fitGridToHost) {
-            // BubbleTextView draws its launcher icon at the DeviceProfile's fixed
-            // drawable size. Shrinking its LayoutParams alone clips that drawable
-            // (the exact flat-bottom / half-icon defect seen in Home cards).
-            // Keep the native view filling the cell so click and long-press hit
-            // targets remain stable, and scale its drawing to the measured cell.
-            iconParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-            iconParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-            icon.layoutParams = iconParams
+            // Change BubbleTextView's real drawable bounds to fit the measured
+            // cell. Scaling the whole View leaves its internal drawable at the
+            // DeviceProfile size and can clip it before the View transform applies.
             cell.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
                 val available = (minOf(view.width, view.height) - dp(context, 8f))
                     .coerceAtLeast(dp(context, 16f))
-                val nativeIconSize = icon.iconSize.coerceAtLeast(1)
-                val scale = (available.toFloat() / nativeIconSize).coerceAtMost(1f)
-                if (icon.scaleX != scale || icon.scaleY != scale) {
-                    icon.scaleX = scale
-                    icon.scaleY = scale
-                }
+                icon.setIconSizeOverride(available)
+                icon.scaleX = 1f
+                icon.scaleY = 1f
             }
         }
     }
