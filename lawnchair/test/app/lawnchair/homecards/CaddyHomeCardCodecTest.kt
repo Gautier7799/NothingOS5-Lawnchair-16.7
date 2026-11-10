@@ -50,7 +50,7 @@ class CaddyHomeCardCodecTest {
 
     @Test
     fun decode_legacySixFieldFormat_usesDefaultSpan() {
-        val legacy = "42\\tGames\\tcom.a#0,com.b#0\\t1\\t2\\t3"
+        val legacy = "42\tGames\tcom.a#0,com.b#0\t1\t2\t3"
         val decoded = CaddyHomeCardCodec.decode(legacy)
         assertThat(decoded).hasSize(1)
         assertThat(decoded[0].spanX).isEqualTo(2)
@@ -59,7 +59,7 @@ class CaddyHomeCardCodecTest {
 
     @Test
     fun decode_clampsInvalidSpans() {
-        val invalid = "42\\tGames\\tcom.a#0\\t1\\t2\\t3\\t99\\t0"
+        val invalid = "42\tGames\tcom.a#0\t1\t2\t3\t99\t0"
         val decoded = CaddyHomeCardCodec.decode(invalid)
         assertThat(decoded).hasSize(1)
         assertThat(decoded[0].spanX).isEqualTo(8)
