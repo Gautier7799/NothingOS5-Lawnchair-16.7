@@ -263,17 +263,27 @@ public class Hotseat extends FrameLayout implements Insettable {
             }
             if (!foundIcon || iconBounds.isEmpty()) return;
 
-            // Match the iOS reference proportions on the Pixel 8 home screen.
-            // The capsule is sized from the available dock width, not from the
-            // icon view's measured padding, so the result is deterministic.
-            int capsuleWidth = containerWidth;
-            int capsuleHeight = Math.round(containerWidth * 0.264f);
-            int left = (containerWidth - capsuleWidth) / 2;
-            int right = containerWidth - capsuleWidth - left;
-            int top = iconBounds.centerY() - capsuleHeight / 2;
+            // Build a genuinely floating iOS-style capsule around the icon row.
+            // Its width follows the measured icons and their real spacing, so it
+            // adapts naturally from one to four icons without resizing the icons.
+            float density = getResources().getDisplayMetrics().density;
+            int horizontalPadding = Math.round(16f * density);
+            int minimumSideInset = Math.min(Math.round(16f * density), containerWidth / 4);
+            int maximumCapsuleWidth = Math.max(1, containerWidth - minimumSideInset * 2);
+            int capsuleWidth = Math.min(maximumCapsuleWidth,
+                    iconBounds.width() + horizontalPadding * 2);
+
+            // Keep a stable dock height independent of the number of icons.
+            int capsuleHeight = Math.min(containerHeight, Math.round(72f * density));
+            int desiredLeft = iconBounds.centerX() - capsuleWidth / 2;
+            int left = Math.max(minimumSideInset,
+                    Math.min(desiredLeft, containerWidth - minimumSideInset - capsuleWidth));
+            int right = containerWidth - left - capsuleWidth;
+            int top = Math.max(0, Math.min(containerHeight - capsuleHeight,
+                    iconBounds.centerY() - capsuleHeight / 2));
             int bottom = containerHeight - top - capsuleHeight;
 
-            // Keep the existing rounded appearance while matching the reference height.
+            // A half-height radius produces the continuous capsule silhouette used by iOS.
             background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
