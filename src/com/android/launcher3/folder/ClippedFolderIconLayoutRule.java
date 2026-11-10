@@ -28,6 +28,7 @@ public class ClippedFolderIconLayoutRule {
     private float mBaselineIconScale;
     private int mNumFolderColumns;
     private boolean mUseHomeCaddyGrid;
+    private float mHomeCaddyTopInset;
 
     /**
      * initialize the layout rule
@@ -52,6 +53,11 @@ public class ClippedFolderIconLayoutRule {
         mUseHomeCaddyGrid = enabled;
     }
 
+    /** Reserves the top strip of the preview for the card title. */
+    public void setHomeCaddyTopInset(float insetFraction) {
+        mHomeCaddyTopInset = Math.max(0f, Math.min(0.4f, insetFraction));
+    }
+
     /**
      * Computes positions for icons in Preview.
      *
@@ -62,7 +68,7 @@ public class ClippedFolderIconLayoutRule {
     public PreviewItemDrawingParams computePreviewItemDrawingParams(int index, int curNumItems,
             PreviewItemDrawingParams params) {
         float totalScale = mUseHomeCaddyGrid && curNumItems == MAX_NUM_ITEMS_IN_PREVIEW
-                ? HOME_CADDY_ICON_FRACTION * mBaselineIconScale
+                ? homeCaddyIconFraction() * mBaselineIconScale
                 : scaleForItem(curNumItems, 0);
         float transX;
         float transY;
@@ -106,7 +112,7 @@ public class ClippedFolderIconLayoutRule {
     public PreviewItemDrawingParams computeSpringAnimationItemParams(int index, int numItemsInPage,
             int page, PreviewItemDrawingParams params) {
         float totalScale = mUseHomeCaddyGrid && numItemsInPage == MAX_NUM_ITEMS_IN_PREVIEW
-                ? HOME_CADDY_ICON_FRACTION * mBaselineIconScale
+                ? homeCaddyIconFraction() * mBaselineIconScale
                 : scaleForItem(numItemsInPage, page);
         float transX;
         float transY;
@@ -140,16 +146,46 @@ public class ClippedFolderIconLayoutRule {
      * Positions in the grid: 0 1  // 0 is row 0, col 1
      * 2 3  // 3 is row 1, col 1`
      */
-    private static final float HOME_CADDY_ICON_FRACTION = 0.36f;
+    // Icons fill this share of their cell, leaving a clear gap between neighbours so no
+    // icon is ever clipped by the cell edge.
+    private static final float HOME_CADDY_CELL_FILL = 0.84f;
+    // Keeps the outer icons clear of the card's rounded corners.
+    private static final float HOME_CADDY_SIDE_INSET = 0.05f;
+    private static final float HOME_CADDY_BOTTOM_INSET = 0.05f;
 
-    /** Places four icons in balanced, equally sized 2x2 cells. */
+    private float homeCaddyCellSize() {
+        float topInset = mAvailableSpace * mHomeCaddyTopInset;
+        float sideInset = mAvailableSpace * HOME_CADDY_SIDE_INSET;
+        float bottomInset = mAvailableSpace * HOME_CADDY_BOTTOM_INSET;
+        float availW = mAvailableSpace - 2f * sideInset;
+        float availH = mAvailableSpace - topInset - bottomInset;
+        return Math.max(0f, Math.min(availW, availH) / 2f);
+    }
+
+    /** Icon size as a fraction of the preview square, shared by scale and position. */
+    private float homeCaddyIconFraction() {
+        if (mAvailableSpace <= 0f) return 0f;
+        return homeCaddyCellSize() * HOME_CADDY_CELL_FILL / mAvailableSpace;
+    }
+
+    /**
+     * Places four icons in balanced, equally sized 2x2 cells below the reserved title strip.
+     * Cell centres are used so the icons stay symmetric and never touch the card edge.
+     */
     private void getHomeCaddyGridPosition(int index, float[] result) {
         int row = index / 2;
         int col = index % 2;
         if (mIsRtl) col = 1 - col;
-        float iconSize = mAvailableSpace * HOME_CADDY_ICON_FRACTION;
-        float centerX = mAvailableSpace * (col == 0 ? 0.29f : 0.71f);
-        float centerY = mAvailableSpace * (row == 0 ? 0.29f : 0.71f);
+        float topInset = mAvailableSpace * mHomeCaddyTopInset;
+        float bottomInset = mAvailableSpace * HOME_CADDY_BOTTOM_INSET;
+        float availH = mAvailableSpace - topInset - bottomInset;
+        float cell = homeCaddyCellSize();
+        float gridSize = cell * 2f;
+        float left = (mAvailableSpace - gridSize) / 2f;
+        float top = topInset + (availH - gridSize) / 2f;
+        float iconSize = cell * HOME_CADDY_CELL_FILL;
+        float centerX = left + cell * (col + 0.5f);
+        float centerY = top + cell * (row + 0.5f);
         result[0] = centerX - iconSize / 2f;
         result[1] = centerY - iconSize / 2f;
     }

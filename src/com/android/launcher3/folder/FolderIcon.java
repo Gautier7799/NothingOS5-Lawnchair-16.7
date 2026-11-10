@@ -581,14 +581,29 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     /** Selects the Home Screen 2x2 Caddy preview without changing native folder behavior. */
     public void setHomeCaddyPreview(boolean enabled) {
         mPreviewLayoutRule.setUseHomeCaddyGrid(enabled);
+        mPreviewLayoutRule.setHomeCaddyTopInset(
+                enabled ? CaddyCardBackground.TITLE_INSET_FRACTION : 0f);
         if (enabled) {
             // Swap in the Caddy card surface so a Home Screen Caddy folder looks like the
             // drawer category card. The native PreviewBackground is preserved for other folders.
-            mBackground = new CaddyCardBackground(getContext());
+            CaddyCardBackground background = new CaddyCardBackground(getContext());
+            background.setTitle(mInfo == null ? null : mInfo.title);
+            mBackground = background;
             mBackground.setInvalidateDelegate(this);
+            // The card draws its own title, so the native label below it would duplicate it.
+            if (mFolderName != null) {
+                mFolderName.setVisibility(INVISIBLE);
+            }
         }
         mPreviewItemManager.updatePreviewItems(false);
         invalidate();
+    }
+
+    /** Refreshes the title drawn inside a Home Screen Caddy card. */
+    public void setHomeCaddyTitle(CharSequence title) {
+        if (mBackground instanceof CaddyCardBackground) {
+            ((CaddyCardBackground) mBackground).setTitle(title);
+        }
     }
 
     public void setCaddyCard(boolean isCaddyCard) {
@@ -681,6 +696,11 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
 
     /** Sets the visibility of the icon's title text */
     public void setTextVisible(boolean visible) {
+        if (mBackground instanceof CaddyCardBackground) {
+            // A Caddy card draws its own title, so the native label below it stays hidden.
+            mFolderName.setVisibility(INVISIBLE);
+            return;
+        }
         if (visible) {
             mFolderName.setVisibility(VISIBLE);
         } else {
@@ -728,6 +748,7 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
 
     public void onTitleChanged(CharSequence title) {
         mFolderName.setText(title);
+        setHomeCaddyTitle(title);
         setContentDescription(getAccessiblityTitle(title));
     }
 
