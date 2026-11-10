@@ -115,7 +115,11 @@ object CaddyCardRenderer {
         background.cornerRadius = dp(context, 28f).toFloat()
         background.setStroke(dp(context, 1f), accentStroke)
         card.background = background
-        card.clipToOutline = true
+        // Drawer previews stay clipped to their rounded outline. Workspace previews use
+        // native-size BubbleTextView children scaled into smaller cells; clipping those
+        // transformed children to the rounded outline crops adaptive-icon edges. Keep the
+        // rounded background, but do not use it as a content clip on workspace cards.
+        card.clipToOutline = !fitGridToHost
         card.elevation = dp(context, 1f).toFloat()
         host.addView(
             card,
