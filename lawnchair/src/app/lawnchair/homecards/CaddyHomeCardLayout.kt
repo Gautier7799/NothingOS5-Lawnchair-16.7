@@ -33,14 +33,16 @@ object CaddyHomeCardLayout {
         rows: Int,
         sideInsetPx: Int,
         titleReservePx: Int,
-        minCellPx: Int,
     ): Int {
         if (width <= 0 || height <= 0) return 0
         val safeColumns = columns.coerceAtLeast(1)
         val safeRows = rows.coerceAtLeast(1)
         val horizontal = (width - sideInsetPx) / safeColumns
         val vertical = (height - titleReservePx) / safeRows
-        return maxOf(minCellPx, minOf(horizontal, vertical))
+        // Never force a minimum slot larger than the space actually available.
+        // The old 40dp floor could exceed a dense card's width/height and push
+        // the drawable outside its cell, recreating clipped or distorted icons.
+        return minOf(horizontal, vertical).coerceAtLeast(1)
     }
 
     /** The scale to apply to an icon laid out at [nativePx] so it fits a [slotPx] slot. */
