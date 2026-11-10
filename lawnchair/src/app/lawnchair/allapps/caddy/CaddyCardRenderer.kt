@@ -51,6 +51,7 @@ import com.android.launcher3.model.data.AppInfo
 object CaddyCardRenderer {
 
     /** Fills [host] with the card surface, title and up to four app icons. */
+    @JvmOverloads
     fun renderCategoryCard(
         host: FrameLayout,
         title: String,
@@ -58,6 +59,7 @@ object CaddyCardRenderer {
         isAddCategory: Boolean = false,
         cardClick: (() -> Unit)? = null,
         iconBinder: (BubbleTextView, AppInfo) -> Unit,
+        fitGridToHost: Boolean = false,
     ) {
         val context = host.context
         host.removeAllViews()
@@ -92,7 +94,12 @@ object CaddyCardRenderer {
         val card = LinearLayout(context)
         card.orientation = LinearLayout.VERTICAL
         card.gravity = Gravity.CENTER_VERTICAL
-        card.setPadding(densityPadding, dp(context, 12f), densityPadding, dp(context, 12f))
+        card.setPadding(
+            densityPadding,
+            dp(context, if (fitGridToHost) 8f else 12f),
+            densityPadding,
+            dp(context, if (fitGridToHost) 8f else 12f),
+        )
         card.isClickable = true
         card.isFocusable = true
         card.setOnClickListener { cardClick?.invoke() }
@@ -150,11 +157,16 @@ object CaddyCardRenderer {
         grid.columnCount = 2
         grid.rowCount = 2
         grid.useDefaultMargins = false
+        // Drawer cards have a known preview height. Workspace cards are measured
+        // from a 2x2 CellLayout span, which varies with the active grid/device profile.
+        // Let the workspace grid consume the remaining measured height instead of
+        // forcing 128dp and clipping the second icon row on compact home-screen cells.
         val gridLp = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            dp(context, 128f),
+            if (fitGridToHost) 0 else dp(context, 128f),
+            if (fitGridToHost) 1f else 0f,
         )
-        gridLp.topMargin = dp(context, 8f)
+        gridLp.topMargin = dp(context, if (fitGridToHost) 4f else 8f)
         card.addView(grid, gridLp)
 
         // Keep the category preview visually balanced: four equal icon slots
@@ -164,11 +176,22 @@ object CaddyCardRenderer {
             val cell = FrameLayout(context)
             val cellLp = GridLayout.LayoutParams()
             cellLp.width = 0
-            cellLp.height = dp(context, 64f)
+            cellLp.height = if (fitGridToHost) 0 else dp(context, 64f)
             cellLp.columnSpec = GridLayout.spec(index % 2, 1f)
-            cellLp.rowSpec = GridLayout.spec(index / 2)
+            cellLp.rowSpec = if (fitGridToHost) {
+                GridLayout.spec(index / 2, 1f)
+            } else {
+                GridLayout.spec(index / 2)
+            }
             grid.addView(cell, cellLp)
-            addCaddyAppIcon(context, cell, app, dp(context, 56f), iconBinder)
+            addCaddyAppIcon(
+                context,
+                cell,
+                app,
+                dp(context, if (fitGridToHost) 54f else 56f),
+                iconBinder,
+                fitGridToHost,
+            )
         }
         host.contentDescription = title
     }
@@ -179,6 +202,7 @@ object CaddyCardRenderer {
         app: AppInfo,
         iconSize: Int,
         iconBinder: (BubbleTextView, AppInfo) -> Unit,
+        fitGridToHost: Boolean,
     ) {
         // Use the same launcher icon widget as the default drawer. Its tag,
         // popup anchor, and long-press lifecycle are understood by Lawnchair's
@@ -196,12 +220,20 @@ object CaddyCardRenderer {
         // clips adaptive icons into a flat-bottom shape. Disable that mode and
         // center only the actual drawable using BubbleTextView's native icon size.
         icon.setCenterVertically(false)
-        val topInset = Math.max(0, (cell.layoutParams?.height ?: 0) - icon.iconSize) / 2
-        icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
+        // A workspace card's preview row is dynamically measured. Give its
+        // BubbleTextView a square, centered viewport so its drawable cannot be
+        // laid out against a full-height cell and then clipped by the card edge.
+        // The drawer retains its original full-cell layout.
+        if (fitGridToHost) {
+            icon.setPadding(0, 0, 0, 0)
+        } else {
+            val topInset = Math.max(0, (cell.layoutParams?.height ?: 0) - icon.iconSize) / 2
+            icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
+        }
         icon.gravity = Gravity.CENTER
         val iconParams = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT,
+            if (fitGridToHost) iconSize else ViewGroup.LayoutParams.MATCH_PARENT,
+            if (fitGridToHost) iconSize else ViewGroup.LayoutParams.MATCH_PARENT,
             Gravity.CENTER,
         )
         cell.clipChildren = false
