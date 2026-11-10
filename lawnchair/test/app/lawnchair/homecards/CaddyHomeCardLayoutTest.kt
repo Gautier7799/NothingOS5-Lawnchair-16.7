@@ -49,6 +49,20 @@ class CaddyHomeCardLayoutTest {
     }
 
     @Test
+    fun cellSize_doesNotReserveTitleSpaceWhenTheTitleIsHidden() {
+        // With no title, only the host/card padding and the grid gap remain.
+        val cell = CaddyHomeCardLayout.cellSizePx(
+            width = 400,
+            height = 244,
+            columns = 2,
+            rows = 2,
+            sideInsetPx = 36,
+            titleReservePx = 28,
+        )
+        assertThat(cell).isEqualTo(108)
+    }
+
+    @Test
     fun cellSize_neverExceedsAvailableSlotOnADenseGrid() {
         val cell = CaddyHomeCardLayout.cellSizePx(
             width = 120,
