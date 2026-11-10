@@ -127,7 +127,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
             columns = columns,
             rows = rows,
             sideInsetPx = dp(GRID_SIDE_INSET_DP),
-            titleReservePx = dp(TITLE_RESERVE_DP),
+            titleReservePx = dp(if (showTitle) TITLE_RESERVE_DP else NO_TITLE_RESERVE_DP),
         )
         lastCellPx = cellPx
         CaddyCardRenderer.renderCategoryCard(
@@ -159,7 +159,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
                 columns = columns,
                 rows = rows,
                 sideInsetPx = dp(GRID_SIDE_INSET_DP),
-                titleReservePx = dp(TITLE_RESERVE_DP),
+                titleReservePx = dp(if (showTitle) TITLE_RESERVE_DP else NO_TITLE_RESERVE_DP),
             )
             if (cell != lastCellPx) render()
         }
@@ -359,6 +359,8 @@ class CaddyHomeCardView @JvmOverloads constructor(
 
         /** Height reserved for the title row and paddings above the icon grid. */
         const val TITLE_RESERVE_DP = 44f
+        /** Host/card padding and grid gap only; used when the title row is hidden. */
+        const val NO_TITLE_RESERVE_DP = 28f
 
         /** How close to a corner a touch must start to hit that corner action. */
         const val CORNER_HIT_DP = 56f
