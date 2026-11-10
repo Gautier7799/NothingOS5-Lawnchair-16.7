@@ -42,7 +42,24 @@ object CaddyHomeCardLayout {
         // Never force a minimum slot larger than the space actually available.
         // The old 40dp floor could exceed a dense card's width/height and push
         // the drawable outside its cell, recreating clipped or distorted icons.
-        return minOf(horizontal, vertical).coerceAtLeast(1)
+        return minOf(horizontal, vertical).coerceAtLeast(0)
+    }
+
+    /** True when two workspace card rectangles share at least one grid cell. */
+    fun overlaps(
+        firstX: Int,
+        firstY: Int,
+        firstSpanX: Int,
+        firstSpanY: Int,
+        secondX: Int,
+        secondY: Int,
+        secondSpanX: Int,
+        secondSpanY: Int,
+    ): Boolean {
+        return firstX < secondX + secondSpanX &&
+            firstX + firstSpanX > secondX &&
+            firstY < secondY + secondSpanY &&
+            firstY + firstSpanY > secondY
     }
 
     /** The scale to apply to an icon laid out at [nativePx] so it fits a [slotPx] slot. */
