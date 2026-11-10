@@ -17,6 +17,7 @@
 package app.lawnchair.homecards
 
 import android.content.Context
+import android.view.View
 import com.android.launcher3.CellLayout
 import com.android.launcher3.Launcher
 import com.android.launcher3.celllayout.CellLayoutLayoutParams
@@ -39,12 +40,13 @@ class CaddyHomeCardController(
 
     private val context: Context get() = launcher
 
+    // The live views, keyed by card id. A view is only ever created here through
+    // [placement], which guarantees one view per card id.
     private val attached = mutableMapOf<Int, CaddyHomeCardView>()
 
-    // Views need unique ids inside their CellLayout, so assign them sequentially
-    // instead of deriving one from the category id (whose hash could collide).
-    private val viewIds = mutableMapOf<Int, Int>()
-    private var nextViewId = 0
+    // Owns view identity and cell occupancy. Kept Android free so its invariants
+    // (no duplicate views, cells released on removal) are unit tested.
+    private val placement = CaddyHomeCardPlacement()
 
     /** How two cards merge when one is dropped on another: [CaddyHomeCardGrouping.MODE_STACK] or MODE_COMBINE. */
     var mergeMode: String = CaddyHomeCardGrouping.MODE_STACK
@@ -74,7 +76,7 @@ class CaddyHomeCardController(
         val desiredIds = desired.mapTo(mutableSetOf()) { it.id }
 
         // Drop views whose category no longer exists.
-        attached.keys.toList().forEach { id ->
+        placement.attachedIds().forEach { id ->
             if (id !in desiredIds) removeView(id)
         }
 
@@ -114,7 +116,7 @@ class CaddyHomeCardController(
         // Free the card's own cells first, then check the requested region. The grid does not
         // reject overlaps itself, so without this a bigger card could grow over its neighbours.
         detach(id)
-        if (!isRegionFree(cellLayout, updated.cellX, updated.cellY, clampedX, clampedY)) {
+        if (!isRegionFree(cellLayout, updated.cellX, updated.cellY, clampedX, clampedY, updated.screenId)) {
             attach(current)
             return false
         }
@@ -140,10 +142,10 @@ class CaddyHomeCardController(
         val targetY = current.cellY + deltaCellsY
         // Free the card's own cells first, otherwise a small move would collide with itself.
         detach(id)
-        if (!isRegionFree(cellLayout, targetX, targetY, current.spanX, current.spanY)) {
+        if (!isRegionFree(cellLayout, targetX, targetY, current.spanX, current.spanY, current.screenId)) {
             // The drop landed on another card: merge the two instead of rejecting the move.
-            val target = cardAt(cellLayout, current.screenId, targetX, targetY, id)
-            if (target != null) {
+            val target = placement.cardAt(current.screenId, targetX, targetY, current.spanX, current.spanY)
+            if (target != null && target.id != id) {
                 return mergeOnto(id, target.id)
             }
             attach(current)
@@ -156,19 +158,6 @@ class CaddyHomeCardController(
         }
         repository.update(moved)
         return true
-    }
-
-    /** The other card whose grid region contains the cell ([x], [y]) on [screenId], if any. */
-    private fun cardAt(cellLayout: CellLayout, screenId: Int, x: Int, y: Int, exceptId: Int): CaddyHomeCardInfo? {
-        val cards = repository.load()
-        val inRangeX = x in 0 until cellLayout.countX
-        val inRangeY = y in 0 until cellLayout.countY
-        if (!inRangeX || !inRangeY) return null
-        return cards.firstOrNull { card ->
-            card.id != exceptId && card.screenId == screenId &&
-                x >= card.cellX && x < card.cellX + card.spanX &&
-                y >= card.cellY && y < card.cellY + card.spanY
-        }
     }
 
     /**
@@ -197,12 +186,19 @@ class CaddyHomeCardController(
     /** Detaches every card and re-attaches the given set, used after a merge or cycle. */
     private fun repaint(cards: List<CaddyHomeCardInfo>) {
         val ids = cards.mapTo(mutableSetOf()) { it.id }
-        attached.keys.toList().forEach { id -> if (id !in ids) removeView(id) }
+        placement.attachedIds().forEach { id -> if (id !in ids) removeView(id) }
         cards.forEach { attach(it) }
     }
 
-    /** True when the [spanX] x [spanY] region at ([x], [y]) is inside the page and unoccupied. */
-    private fun isRegionFree(cellLayout: CellLayout, x: Int, y: Int, spanX: Int, spanY: Int): Boolean {
+    /**
+     * True when the [spanX] x [spanY] region at ([x], [y]) is inside the page and free of other
+     * launcher items and of other Caddy cards.
+     *
+     * [cellLayout.isOccupied] reports the cells the launcher has marked. A card being re-laid out
+     * is released from both the grid and [placement] before this runs, so the card never collides
+     * with its own previous position.
+     */
+    private fun isRegionFree(cellLayout: CellLayout, x: Int, y: Int, spanX: Int, spanY: Int, screenId: Int): Boolean {
         if (x < 0 || y < 0) return false
         if (x + spanX > cellLayout.countX || y + spanY > cellLayout.countY) return false
         for (cx in x until x + spanX) {
@@ -210,12 +206,20 @@ class CaddyHomeCardController(
                 if (cellLayout.isOccupied(cx, cy)) return false
             }
         }
-        return true
+        return placement.isRegionFree(screenId, x, y, spanX, spanY, cellLayout.countX, cellLayout.countY)
     }
 
+    /**
+     * Takes the card's view off the workspace and frees the cells it occupied, keeping the view
+     * itself so a following [attach] reuses it.
+     *
+     * The view must be removed through its containing [CellLayout], because that is the only
+     * removal path that also calls `markCellsAsUnoccupiedForView`; the view's direct parent is
+     * the CellLayout's inner `ShortcutAndWidgetContainer`, not the CellLayout itself.
+     */
     private fun detach(id: Int) {
-        attached.remove(id)?.let { view -> (view.parent as? CellLayout)?.removeView(view) }
-        viewIds.remove(id)
+        attached[id]?.let { view -> cellLayoutOf(view)?.removeView(view) }
+        placement.releaseCells(id)
     }
 
     private fun maxSpanX(): Int = (launcher.deviceProfile?.inv?.numColumns ?: MIN_SPAN).coerceAtLeast(MIN_SPAN)
@@ -229,7 +233,7 @@ class CaddyHomeCardController(
     fun removeCard(id: Int): Boolean {
         val existing = repository.load().firstOrNull { it.id == id } ?: return false
         hiddenStore.hide(id)
-        detach(id)
+        removeView(id)
         repository.remove(existing.id)
         return true
     }
@@ -240,23 +244,22 @@ class CaddyHomeCardController(
     }
 
     fun detachAll() {
-        attached.keys.toList().forEach(::removeView)
-        viewIds.clear()
+        placement.attachedIds().forEach(::removeView)
+        placement.clear()
     }
 
+    /** Detaches one card's view, freeing its cells. The view token is released as well. */
     private fun removeView(id: Int) {
-        attached.remove(id)?.let { view ->
-            (view.parent as? CellLayout)?.removeView(view)
-        }
-        viewIds.remove(id)
+        attached.remove(id)?.let { view -> cellLayoutOf(view)?.removeView(view) }
+        placement.release(id)
     }
 
     private fun placeAtFreeCells(card: CaddyHomeCardInfo): CaddyHomeCardInfo? {
-        val placement = findPlacement(card.spanX, card.spanY) ?: return null
+        val cells = findPlacement(card.spanX, card.spanY) ?: return null
         return card.copy(
-            screenId = placement.first,
-            cellX = placement.second[0],
-            cellY = placement.second[1],
+            screenId = cells.first,
+            cellX = cells.second[0],
+            cellY = cells.second[1],
         )
     }
 
@@ -271,7 +274,11 @@ class CaddyHomeCardController(
             }
         }
         val cellLayout = cellLayoutFor(card) ?: return false
-        val view = attached.getOrPut(card.id) { CaddyHomeCardView(context) }
+        // One stable view per card id: [placement] hands back the same token across re-attach,
+        // so a resize or move can never leave a second, orphaned view behind.
+        val view = attached.getOrPut(card.id) {
+            CaddyHomeCardView(context).also { it.id = placement.tokenFor(card.id) }
+        }
         view.showTitle = showTitles
         view.iconColumns = columns
         view.bind(card, ::resolveApp)
@@ -279,16 +286,57 @@ class CaddyHomeCardController(
         view.onResize = { spanX, spanY -> resize(card.id, spanX, spanY) }
         view.onDelete = { removeCard(card.id) }
         view.onGroupTap = { card.group.takeIf { it.isNotEmpty() }?.let { cycleGroup(it) } ?: false }
+
+        val params = CellLayoutLayoutParams(card.cellX, card.cellY, card.spanX, card.spanY)
         if (view.parent == null) {
-            val params = CellLayoutLayoutParams(card.cellX, card.cellY, card.spanX, card.spanY)
-            val viewId = viewIds.getOrPut(card.id) { nextViewId++ }
-            if (!cellLayout.addViewToCellLayout(view, -1, viewId, params, true)) {
+            if (!cellLayout.addViewToCellLayout(view, -1, view.id, params, true)) {
                 attached.remove(card.id)
-                viewIds.remove(card.id)
+                placement.release(card.id)
                 return false
             }
+        } else {
+            // The view is already hosted. Re-apply its grid position and span so a resize or a
+            // move takes effect on the existing view instead of being silently ignored.
+            relayoutExisting(cellLayout, view, params)
         }
+        placement.occupy(card)
         return true
+    }
+
+    /**
+     * Re-applies the grid position and span of an already-hosted view.
+     *
+     * The launcher's occupancy grid is derived from the view's [CellLayoutLayoutParams], so the old
+     * cells are released before the params change and the new cells are marked after, otherwise the
+     * grid and the view would disagree about which cells the card holds.
+     */
+    private fun relayoutExisting(
+        cellLayout: CellLayout,
+        view: CaddyHomeCardView,
+        params: CellLayoutLayoutParams,
+    ) {
+        cellLayout.markCellsAsUnoccupiedForView(view)
+        view.layoutParams = params
+        cellLayout.markCellsAsOccupiedForView(view)
+        view.requestLayout()
+    }
+
+    /**
+     * The [CellLayout] that currently hosts [view], or null when it is not attached.
+     *
+     * A workspace child is added to the CellLayout's inner `ShortcutAndWidgetContainer`, so the
+     * view's direct parent is that container and never the CellLayout. The owning CellLayout is
+     * the only object that can remove the view while also releasing its cells, so it is found by
+     * looking it up among the workspace screens.
+     */
+    private fun cellLayoutOf(view: View): CellLayout? {
+        val workspace = launcher.workspace ?: return null
+        val screenOrder = workspace.screenOrder
+        for (index in 0 until screenOrder.size()) {
+            val cellLayout = workspace.getScreenWithId(screenOrder.get(index)) ?: continue
+            if (cellLayout.shortcutsAndWidgets.indexOfChild(view) >= 0) return cellLayout
+        }
+        return null
     }
 
     private fun cellLayoutFor(card: CaddyHomeCardInfo): CellLayout? {
