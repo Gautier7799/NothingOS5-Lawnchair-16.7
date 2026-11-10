@@ -31,7 +31,6 @@ class CaddyHomeCardLayoutTest {
             rows = 2,
             sideInsetPx = 0,
             titleReservePx = 0,
-            minCellPx = 10,
         )
         assertThat(cell).isEqualTo(100)
     }
@@ -51,7 +50,7 @@ class CaddyHomeCardLayoutTest {
     }
 
     @Test
-    fun cellSize_neverGoesBelowTheMinimumEvenOnADenseGrid() {
+    fun cellSize_neverExceedsTheAvailableSpaceOnADenseGrid() {
         val cell = CaddyHomeCardLayout.cellSizePx(
             width = 120,
             height = 120,
@@ -59,15 +58,14 @@ class CaddyHomeCardLayoutTest {
             rows = 4,
             sideInsetPx = 36,
             titleReservePx = 44,
-            minCellPx = 40,
         )
-        assertThat(cell).isEqualTo(40)
+        assertThat(cell).isEqualTo(10)
     }
 
     @Test
     fun cellSize_isZeroBeforeTheCardHasBeenMeasured() {
         assertThat(
-            CaddyHomeCardLayout.cellSizePx(0, 0, 2, 2, 36, 44, 40),
+            CaddyHomeCardLayout.cellSizePx(0, 0, 2, 2, 36, 44),
         ).isEqualTo(0)
     }
 
@@ -80,9 +78,18 @@ class CaddyHomeCardLayoutTest {
             rows = 0,
             sideInsetPx = 0,
             titleReservePx = 0,
-            minCellPx = 1,
         )
         assertThat(cell).isEqualTo(200)
+    }
+
+    @Test
+    fun overlaps_detectsPartialIntersection() {
+        assertThat(CaddyHomeCardLayout.overlaps(0, 0, 2, 2, 1, 1, 2, 2)).isTrue()
+    }
+
+    @Test
+    fun overlaps_allowsAdjacentCards() {
+        assertThat(CaddyHomeCardLayout.overlaps(0, 0, 2, 2, 2, 0, 2, 2)).isFalse()
     }
 
     @Test
