@@ -75,6 +75,31 @@ class CaddyHomeCardLayoutTest {
     }
 
     @Test
+    fun cellSize_isZeroWhenInsetsConsumeTheViewport() {
+        val cell = CaddyHomeCardLayout.cellSizePx(
+            width = 30,
+            height = 40,
+            columns = 2,
+            rows = 2,
+            sideInsetPx = 36,
+            titleReservePx = 44,
+        )
+        assertThat(cell).isEqualTo(0)
+    }
+
+    @Test
+    fun overlaps_detectsPartialAndContainedCardIntersections() {
+        assertThat(CaddyHomeCardLayout.overlaps(0, 0, 2, 2, 1, 1, 2, 2)).isTrue()
+        assertThat(CaddyHomeCardLayout.overlaps(0, 0, 4, 4, 1, 1, 1, 1)).isTrue()
+    }
+
+    @Test
+    fun overlaps_doesNotTreatTouchingEdgesAsAnOverlap() {
+        assertThat(CaddyHomeCardLayout.overlaps(0, 0, 2, 2, 2, 0, 2, 2)).isFalse()
+        assertThat(CaddyHomeCardLayout.overlaps(0, 0, 2, 2, 0, 2, 2, 2)).isFalse()
+    }
+
+    @Test
     fun cellSize_isZeroBeforeTheCardHasBeenMeasured() {
         assertThat(
             CaddyHomeCardLayout.cellSizePx(0, 0, 2, 2, 36, 44),
