@@ -92,6 +92,12 @@ class CaddyHomeCardView @JvmOverloads constructor(
     private var targetSpanX = MIN_SPAN
     private var targetSpanY = MIN_SPAN
 
+    init {
+        // The parent intercepts touches on the card surface for move/resize gestures.
+        // It must remain an accessible click target when the gesture ends as a tap.
+        isClickable = true
+    }
+
     private val pickUp = Runnable {
         dragging = true
         animate().scaleX(1.05f).scaleY(1.05f)
@@ -197,6 +203,10 @@ class CaddyHomeCardView @JvmOverloads constructor(
             startRawX = ev.rawX
             startRawY = ev.rawY
             dragging = false
+            // A resize-handle tap without movement must preserve the current span;
+            // never reuse MIN_SPAN or a stale target from a previous drag.
+            targetSpanX = boundCard?.spanX ?: MIN_SPAN
+            targetSpanY = boundCard?.spanY ?: MIN_SPAN
             val region = regionFor(ev.x, ev.y)
             mode = when {
                 region != MODE_MOVE -> region
@@ -213,6 +223,8 @@ class CaddyHomeCardView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> return mode != MODE_NONE || super.onTouchEvent(event)
+
             MotionEvent.ACTION_MOVE -> {
                 when (mode) {
                     MODE_MOVE -> {
@@ -270,6 +282,12 @@ class CaddyHomeCardView @JvmOverloads constructor(
             }
         }
         return super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean {
+        val superHandled = super.performClick()
+        onCardClick?.invoke()
+        return superHandled || onCardClick != null
     }
 
     private fun regionFor(x: Float, y: Float): Int {
