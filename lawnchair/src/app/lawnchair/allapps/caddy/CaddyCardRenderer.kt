@@ -30,6 +30,7 @@ import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import app.lawnchair.homecards.CaddyHomeCardLayout
 import app.lawnchair.util.resolveFolderPreviewColor
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.R
@@ -63,6 +64,7 @@ object CaddyCardRenderer {
         columns: Int = 2,
         maxIcons: Int = MAX_PREVIEW_ICONS,
         cellSizePx: Int = 0,
+        showTitle: Boolean = true,
     ) {
         val context = host.context
         host.removeAllViews()
@@ -123,20 +125,22 @@ object CaddyCardRenderer {
             ),
         )
 
-        val titleView = TextView(context)
-        titleView.text = if (isAddCategory) "+  Add category" else title
-        titleView.setTextColor(foreground)
-        titleView.textSize = 14f
-        titleView.typeface = Typeface.DEFAULT_BOLD
-        titleView.maxLines = 1
-        titleView.ellipsize = TextUtils.TruncateAt.END
-        card.addView(
-            titleView,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ),
-        )
+        if (showTitle || isAddCategory) {
+            val titleView = TextView(context)
+            titleView.text = if (isAddCategory) "+  Add category" else title
+            titleView.setTextColor(foreground)
+            titleView.textSize = 14f
+            titleView.typeface = Typeface.DEFAULT_BOLD
+            titleView.maxLines = 1
+            titleView.ellipsize = TextUtils.TruncateAt.END
+            card.addView(
+                titleView,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+        }
 
         if (isAddCategory) {
             val addHint = TextView(context)
@@ -259,8 +263,8 @@ object CaddyCardRenderer {
         // its own native size and scale the whole view down to the slot we want; with clipping
         // disabled on the cell this never crops the icon.
         val nativeSize = icon.iconSize.takeIf { it > 0 } ?: iconSize
-        val scale = if (fitGridToHost && iconSize > 0) {
-            (iconSize.toFloat() / nativeSize).coerceAtMost(1f)
+        val scale = if (fitGridToHost) {
+            CaddyHomeCardLayout.iconScale(iconSize, nativeSize)
         } else {
             1f
         }

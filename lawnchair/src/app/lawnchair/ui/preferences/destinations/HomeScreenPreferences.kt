@@ -109,6 +109,23 @@ fun HomeScreenPreferences(
                 label = stringResource(R.string.hide_workspace_smartspace_label),
                 description = stringResource(R.string.hide_workspace_smartspace_description),
             )
+        }
+        PreferenceGroup(heading = stringResource(id = R.string.caddy)) {
+            SwitchPreference(
+                adapter = prefs2.caddyHomeEnabled.getAdapter(),
+                label = stringResource(R.string.caddy_home_enabled_label),
+                description = stringResource(R.string.caddy_home_enabled_description),
+            )
+            SwitchPreference(
+                adapter = prefs2.caddyHomeShowTitles.getAdapter(),
+                label = stringResource(R.string.caddy_home_show_titles_label),
+            )
+            SliderPreference(
+                adapter = prefs2.caddyHomeColumns.getAdapter(),
+                label = stringResource(R.string.caddy_home_columns_label),
+                step = 1,
+                valueRange = 1..5,
+            )
             ListPreference(
                 adapter = prefs2.caddyMergeMode.getAdapter(),
                 entries = caddyMergeModeEntries(),

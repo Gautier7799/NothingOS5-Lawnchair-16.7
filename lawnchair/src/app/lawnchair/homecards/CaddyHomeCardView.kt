@@ -24,8 +24,10 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
+import com.android.launcher3.BubbleTextView
 import com.android.launcher3.Utilities
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
@@ -41,12 +43,13 @@ import kotlin.math.roundToInt
  * pop-up (App info / Uninstall / Personalise / Open in store) via
  * [CaddyCardIconLongClick].
  *
- * All gestures are handled by one listener on the card so they survive the card being
- * re-rendered (which happens whenever the launcher rebinds the workspace):
- *  - touch in the bottom-right corner -> resize to the dragged whole-cell span;
- *  - touch in the top-right corner -> remove the card;
- *  - long-press anywhere else -> pick the card up and drag it to another cell;
- *  - plain tap -> click the card (or advance a stack).
+ * Gestures are split by where the touch starts, and the card claims the ones the icons
+ * must not swallow:
+ *  - bottom-right corner -> resize to the dragged whole-cell span;
+ *  - top-right corner -> remove the card;
+ *  - a long-press on the card's own surface (not on an icon) -> pick the card up and drag it;
+ *  - a tap on the card's own surface -> open the category;
+ *  - a touch on an icon -> left entirely to the icon, so its click and App Info long-press work.
  */
 class CaddyHomeCardView @JvmOverloads constructor(
     context: Context,
@@ -62,6 +65,12 @@ class CaddyHomeCardView @JvmOverloads constructor(
     /** Called on a plain tap of a stacked card; returns true when it advanced the stack. */
     var onGroupTap: (() -> Boolean)? = null
 
+    /** Whether the card draws its title. */
+    var showTitle: Boolean = true
+
+    /** Icons per row; the card's height decides how many rows fit. */
+    var iconColumns: Int = 2
+
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val longPressTimeout = ViewConfiguration.getLongPressTimeout().toLong()
 
@@ -75,10 +84,24 @@ class CaddyHomeCardView @JvmOverloads constructor(
         strokeWidth = Utilities.dpToPx(2f, context).toFloat()
     }
 
+    // Gesture state, shared by the intercept and the touch handler.
+    private var mode = MODE_NONE
+    private var startRawX = 0f
+    private var startRawY = 0f
+    private var dragging = false
+    private var targetSpanX = MIN_SPAN
+    private var targetSpanY = MIN_SPAN
+
+    private val pickUp = Runnable {
+        dragging = true
+        animate().scaleX(1.05f).scaleY(1.05f)
+            .translationZ(dp(8f).toFloat()).setDuration(120).start()
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+    }
+
     fun bind(card: CaddyHomeCardInfo, resolveApp: (String) -> AppInfo?) {
         boundCard = card
         appResolver = resolveApp
-        setOnTouchListener(GestureListener(card))
         render()
     }
 
@@ -89,16 +112,18 @@ class CaddyHomeCardView @JvmOverloads constructor(
     private fun render() {
         val card = boundCard ?: return
         val resolveApp = appResolver ?: return
-        val columns = card.spanX.coerceAtLeast(MIN_SPAN)
+        val columns = iconColumns.coerceAtLeast(1)
         val rows = card.spanY.coerceAtLeast(MIN_SPAN)
         val maxIcons = columns * rows
-        val cellPx = if (width > 0 && height > 0) {
-            val horizontal = (width - dp(GRID_SIDE_INSET_DP)) / columns
-            val vertical = (height - dp(TITLE_RESERVE_DP)) / rows
-            maxOf(dp(MIN_CELL_DP), minOf(horizontal, vertical))
-        } else {
-            0
-        }
+        val cellPx = CaddyHomeCardLayout.cellSizePx(
+            width = width,
+            height = height,
+            columns = columns,
+            rows = rows,
+            sideInsetPx = dp(GRID_SIDE_INSET_DP),
+            titleReservePx = dp(TITLE_RESERVE_DP),
+            minCellPx = dp(MIN_CELL_DP),
+        )
         lastCellPx = cellPx
         CaddyCardRenderer.renderCategoryCard(
             host = this,
@@ -113,6 +138,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
             columns = columns,
             maxIcons = maxIcons,
             cellSizePx = cellPx,
+            showTitle = showTitle,
         )
     }
 
@@ -120,11 +146,17 @@ class CaddyHomeCardView @JvmOverloads constructor(
         super.onSizeChanged(w, h, oldw, oldh)
         if (w > 0 && h > 0) {
             val card = boundCard ?: return
-            val columns = card.spanX.coerceAtLeast(MIN_SPAN)
+            val columns = iconColumns.coerceAtLeast(1)
             val rows = card.spanY.coerceAtLeast(MIN_SPAN)
-            val horizontal = (w - dp(GRID_SIDE_INSET_DP)) / columns
-            val vertical = (h - dp(TITLE_RESERVE_DP)) / rows
-            val cell = maxOf(dp(MIN_CELL_DP), minOf(horizontal, vertical))
+            val cell = CaddyHomeCardLayout.cellSizePx(
+                width = w,
+                height = h,
+                columns = columns,
+                rows = rows,
+                sideInsetPx = dp(GRID_SIDE_INSET_DP),
+                titleReservePx = dp(TITLE_RESERVE_DP),
+                minCellPx = dp(MIN_CELL_DP),
+            )
             if (cell != lastCellPx) render()
         }
     }
@@ -135,23 +167,21 @@ class CaddyHomeCardView @JvmOverloads constructor(
         val inset = dp(CORNER_INSET_DP)
         val radius = dp(CORNER_ARC_DP)
         val right = width - inset
-        val bottom = height - inset
         canvas.drawArc(
             (right - radius).toFloat(),
-            (bottom - radius).toFloat(),
+            (height - inset - radius).toFloat(),
             right.toFloat(),
-            bottom.toFloat(),
+            (height - inset).toFloat(),
             0f,
             90f,
             false,
             cornerPaint,
         )
-        val top = inset
         canvas.drawArc(
             (right - radius).toFloat(),
-            top.toFloat(),
+            inset.toFloat(),
             right.toFloat(),
-            (top + radius).toFloat(),
+            (inset + radius).toFloat(),
             270f,
             90f,
             false,
@@ -159,130 +189,144 @@ class CaddyHomeCardView @JvmOverloads constructor(
         )
     }
 
-    /** One listener for every gesture, so a re-render mid-gesture cannot break it. */
-    private inner class GestureListener(private val card: CaddyHomeCardInfo) : OnTouchListener {
-
-        private var startRawX = 0f
-        private var startRawY = 0f
-        private var dragging = false
-        private var mode = MODE_NONE
-
-        private val pickUp = Runnable {
-            dragging = true
-            lift()
-            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-        }
-
-        override fun onTouch(view: View, event: MotionEvent): Boolean {
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    startRawX = event.rawX
-                    startRawY = event.rawY
-                    dragging = false
-                    mode = regionFor(event.x, event.y)
-                    if (mode == MODE_MOVE) {
-                        postDelayed(pickUp, longPressTimeout)
-                    }
-                    return true
-                }
-
-                MotionEvent.ACTION_MOVE -> {
-                    when (mode) {
-                        MODE_MOVE -> {
-                            val dx = event.rawX - startRawX
-                            val dy = event.rawY - startRawY
-                            if (!dragging) {
-                                if (abs(dx) > touchSlop || abs(dy) > touchSlop) removeCallbacks(pickUp)
-                                return true
-                            }
-                            translationX = dx
-                            translationY = dy
-                        }
-
-                        MODE_RESIZE -> previewResize(event.rawX, event.rawY)
-
-                        else -> Unit
-                    }
-                    return true
-                }
-
-                MotionEvent.ACTION_UP -> {
-                    removeCallbacks(pickUp)
-                    when (mode) {
-                        MODE_MOVE -> {
-                            if (dragging) {
-                                val delta = cellsFor(translationX, translationY)
-                                resetLift()
-                                onMove?.invoke(delta.first, delta.second)
-                            } else if (onGroupTap?.invoke() != true) {
-                                performClick()
-                            }
-                        }
-
-                        MODE_RESIZE -> onResize?.invoke(targetSpanX, targetSpanY)
-
-                        MODE_DELETE -> onDelete?.invoke()
-
-                        else -> Unit
-                    }
-                    mode = MODE_NONE
-                    return true
-                }
-
-                MotionEvent.ACTION_CANCEL -> {
-                    removeCallbacks(pickUp)
-                    if (dragging) resetLift()
-                    dragging = false
-                    mode = MODE_NONE
-                    return true
-                }
-            }
-            return false
-        }
-
-        private fun regionFor(x: Float, y: Float): Int {
-            val hit = dp(CORNER_HIT_DP).toFloat()
-            val nearRight = x > width - hit
-            val nearBottom = y > height - hit
-            val nearTop = y < hit
-            return when {
-                nearRight && nearBottom -> MODE_RESIZE
-                nearRight && nearTop -> MODE_DELETE
+    /**
+     * Claims corner touches (which may land on an icon) and long-presses on the card's own
+     * surface (which must not become an icon long-click). Everything else, in particular any
+     * touch on an icon, is left to the children so normal clicks and App Info keep working.
+     */
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            startRawX = ev.rawX
+            startRawY = ev.rawY
+            dragging = false
+            val region = regionFor(ev.x, ev.y)
+            mode = when {
+                region != MODE_MOVE -> region
+                hitTest(this, ev.x, ev.y) is BubbleTextView -> MODE_NONE
                 else -> MODE_MOVE
             }
+            if (mode != MODE_NONE) {
+                if (mode == MODE_MOVE) postDelayed(pickUp, longPressTimeout)
+                return true
+            }
         }
+        return false
+    }
 
-        private var targetSpanX = card.spanX
-        private var targetSpanY = card.spanY
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_MOVE -> {
+                when (mode) {
+                    MODE_MOVE -> {
+                        val dx = event.rawX - startRawX
+                        val dy = event.rawY - startRawY
+                        if (!dragging) {
+                            if (abs(dx) > touchSlop || abs(dy) > touchSlop) removeCallbacks(pickUp)
+                            return true
+                        }
+                        translationX = dx
+                        translationY = dy
+                    }
 
-        private fun previewResize(rawX: Float, rawY: Float) {
-            val cellWidth = (width / card.spanX.toFloat()).coerceAtLeast(1f)
-            val cellHeight = (height / card.spanY.toFloat()).coerceAtLeast(1f)
-            val deltaColumns = ((rawX - startRawX) / cellWidth).roundToInt()
-            val deltaRows = ((rawY - startRawY) / cellHeight).roundToInt()
-            targetSpanX = (card.spanX + deltaColumns).coerceAtLeast(MIN_SPAN)
-            targetSpanY = (card.spanY + deltaRows).coerceAtLeast(MIN_SPAN)
-            scaleX = (targetSpanX.toFloat() / card.spanX).coerceAtLeast(0.5f)
-            scaleY = (targetSpanY.toFloat() / card.spanY).coerceAtLeast(0.5f)
+                    MODE_RESIZE -> previewResize(event.rawX, event.rawY)
+
+                    else -> Unit
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_UP -> {
+                removeCallbacks(pickUp)
+                when (mode) {
+                    MODE_MOVE -> {
+                        if (dragging) {
+                            val card = boundCard
+                            val delta = if (card != null) cellsFor(card, translationX, translationY) else 0 to 0
+                            resetLift()
+                            onMove?.invoke(delta.first, delta.second)
+                        } else if (onGroupTap?.invoke() != true) {
+                            performClick()
+                        }
+                    }
+
+                    MODE_RESIZE -> {
+                        resetScale()
+                        onResize?.invoke(targetSpanX, targetSpanY)
+                    }
+
+                    MODE_DELETE -> onDelete?.invoke()
+
+                    else -> Unit
+                }
+                mode = MODE_NONE
+                return true
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(pickUp)
+                if (dragging) resetLift()
+                if (mode == MODE_RESIZE) resetScale()
+                dragging = false
+                mode = MODE_NONE
+                return true
+            }
         }
+        return super.onTouchEvent(event)
+    }
 
-        private fun cellsFor(tx: Float, ty: Float): Pair<Int, Int> {
-            val cellW = (width / card.spanX.toFloat()).coerceAtLeast(1f)
-            val cellH = (height / card.spanY.toFloat()).coerceAtLeast(1f)
-            return (tx / cellW).roundToInt() to (ty / cellH).roundToInt()
+    private fun regionFor(x: Float, y: Float): Int {
+        val hit = dp(CORNER_HIT_DP).toFloat()
+        val nearRight = x > width - hit
+        val nearBottom = y > height - hit
+        val nearTop = y < hit
+        return when {
+            nearRight && nearBottom -> MODE_RESIZE
+            nearRight && nearTop -> MODE_DELETE
+            else -> MODE_MOVE
         }
+    }
 
-        private fun lift() {
-            animate().scaleX(1.05f).scaleY(1.05f)
-                .translationZ(dp(8f).toFloat()).setDuration(120).start()
-        }
+    private fun previewResize(rawX: Float, rawY: Float) {
+        val card = boundCard ?: return
+        val cellWidth = (width / card.spanX.toFloat()).coerceAtLeast(1f)
+        val cellHeight = (height / card.spanY.toFloat()).coerceAtLeast(1f)
+        val deltaColumns = ((rawX - startRawX) / cellWidth).roundToInt()
+        val deltaRows = ((rawY - startRawY) / cellHeight).roundToInt()
+        targetSpanX = (card.spanX + deltaColumns).coerceAtLeast(MIN_SPAN)
+        targetSpanY = (card.spanY + deltaRows).coerceAtLeast(MIN_SPAN)
+        scaleX = (targetSpanX.toFloat() / card.spanX).coerceAtLeast(0.5f)
+        scaleY = (targetSpanY.toFloat() / card.spanY).coerceAtLeast(0.5f)
+    }
 
-        private fun resetLift() {
-            animate().scaleX(1f).scaleY(1f).translationZ(0f).setDuration(120).start()
-            translationX = 0f
-            translationY = 0f
-            dragging = false
+    private fun cellsFor(card: CaddyHomeCardInfo, tx: Float, ty: Float): Pair<Int, Int> {
+        val cellW = (width / card.spanX.toFloat()).coerceAtLeast(1f)
+        val cellH = (height / card.spanY.toFloat()).coerceAtLeast(1f)
+        return (tx / cellW).roundToInt() to (ty / cellH).roundToInt()
+    }
+
+    private fun resetLift() {
+        animate().scaleX(1f).scaleY(1f).translationZ(0f).setDuration(120).start()
+        translationX = 0f
+        translationY = 0f
+        dragging = false
+    }
+
+    private fun resetScale() {
+        animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+    }
+
+    /** The deepest visible descendant at ([x], [y]), in this view's coordinates. */
+    private fun hitTest(view: View, x: Float, y: Float): View? {
+        if (view.visibility != View.VISIBLE) return null
+        val left = view.left - view.scrollX
+        val top = view.top - view.scrollY
+        if (x < left || x > left + view.width || y < top || y > top + view.height) return null
+        if (view is ViewGroup) {
+            for (index in view.childCount - 1 downTo 0) {
+                hitTest(view.getChildAt(index), x - left, y - top)?.let { return it }
+            }
         }
+        return view
     }
 
     private fun dp(value: Float): Int = Utilities.dpToPx(value, context)

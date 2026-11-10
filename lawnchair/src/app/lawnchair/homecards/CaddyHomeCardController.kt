@@ -49,6 +49,12 @@ class CaddyHomeCardController(
     /** How two cards merge when one is dropped on another: [CaddyHomeCardGrouping.MODE_STACK] or MODE_COMBINE. */
     var mergeMode: String = CaddyHomeCardGrouping.MODE_STACK
 
+    /** Whether workspace cards draw their title. */
+    var showTitles: Boolean = true
+
+    /** Icons per row on a workspace card. */
+    var columns: Int = 2
+
     private fun resolveApp(key: String): AppInfo? {
         val componentKey = ComponentKey.fromString(key) ?: return null
         return launcher.appsView?.appsStore?.getApp(componentKey)
@@ -266,6 +272,8 @@ class CaddyHomeCardController(
         }
         val cellLayout = cellLayoutFor(card) ?: return false
         val view = attached.getOrPut(card.id) { CaddyHomeCardView(context) }
+        view.showTitle = showTitles
+        view.iconColumns = columns
         view.bind(card, ::resolveApp)
         view.onMove = { dx, dy -> move(card.id, dx, dy) }
         view.onResize = { spanX, spanY -> resize(card.id, spanX, spanY) }

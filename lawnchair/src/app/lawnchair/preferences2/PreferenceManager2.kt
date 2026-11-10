@@ -476,6 +476,27 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = CaddyHomeCardGrouping.MODE_STACK,
     )
 
+    /** Master switch for the Caddy category cards on the workspace. */
+    val caddyHomeEnabled = preference(
+        key = booleanPreferencesKey(name = "caddy_home_enabled"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_caddy_home_enabled),
+        onSet = { reloadHelper.restart() },
+    )
+
+    /** Shows the card title on workspace cards. */
+    val caddyHomeShowTitles = preference(
+        key = booleanPreferencesKey(name = "caddy_home_show_titles"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_caddy_home_show_titles),
+        onSet = { reloadHelper.restart() },
+    )
+
+    /** Icons per row on a workspace card; the card's height decides how many rows fit. */
+    val caddyHomeColumns = preference(
+        key = intPreferencesKey(name = "caddy_home_columns"),
+        defaultValue = context.resources.getInteger(R.integer.config_default_caddy_home_columns),
+        onSet = { reloadHelper.restart() },
+    )
+
     val appDrawerHapticFeedback = preference(
         key = booleanPreferencesKey(name = "app_drawer_haptic_feedback"),
         defaultValue = context.resources.getBoolean(R.bool.config_default_app_drawer_haptic_feedback),

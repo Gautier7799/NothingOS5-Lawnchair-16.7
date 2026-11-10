@@ -63,9 +63,16 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
     }
 
     private fun syncFromApps() {
+        val prefs = PreferenceManager2.getInstance(launcher)
+        if (!prefs.caddyHomeEnabled.firstCached()) {
+            controller.detachAll()
+            return
+        }
+        controller.mergeMode = prefs.caddyMergeMode.firstCached()
+        controller.showTitles = prefs.caddyHomeShowTitles.firstCached()
+        controller.columns = prefs.caddyHomeColumns.firstCached().coerceIn(1, 5)
         val apps = launcher.appsView?.appsStore?.apps?.toList() ?: return
         if (apps.isEmpty()) return
-        controller.mergeMode = PreferenceManager2.getInstance(launcher).caddyMergeMode.firstCached()
         controller.sync(apps)
     }
 }
