@@ -47,11 +47,12 @@ class CaddyHomeCardView @JvmOverloads constructor(
             title = card.title,
             apps = card.appKeys.mapNotNull(resolveApp),
             cardClick = { onCardClick?.invoke() },
+            iconBinder = { icon, _ ->
+                icon.setOnClickListener(ItemClickHandler.INSTANCE)
+                icon.setOnLongClickListener(ItemLongClickListener.INSTANCE_ALL_APPS)
+            },
             fitGridToHost = true,
-        ) { icon, _ ->
-            icon.setOnClickListener(ItemClickHandler.INSTANCE)
-            icon.setOnLongClickListener(ItemLongClickListener.INSTANCE_ALL_APPS)
-        }
+        )
         setOnLongClickListener { onCardLongClick?.invoke() ?: false }
     }
 }
