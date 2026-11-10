@@ -59,7 +59,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 import app.lawnchair.hotseat.DisabledHotseat;
-import app.lawnchair.hotseat.GoogleSearchHotseat;
 import app.lawnchair.hotseat.HotseatMode;
 import app.lawnchair.hotseat.HotseatPagedView;
 import app.lawnchair.hotseat.LawnchairHotseat;
@@ -182,12 +181,6 @@ public class Hotseat extends FrameLayout implements Insettable {
         }
 
         addView(mQsb);
-
-        // Keep the Google Search hotseat setting intact, but hide its view by default.
-        // The user can restore it at any time by changing the existing hotseat setting.
-        if (hotseatMode == GoogleSearchHotseat.INSTANCE) {
-            mQsb.setVisibility(GONE);
-        }
 
         // Create an initial page so alpha/translation channels have a target during construction.
         mPagedView.resetPages(false, null, mActivity.getDeviceProfile());
