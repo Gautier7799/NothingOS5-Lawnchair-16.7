@@ -263,17 +263,23 @@ public class Hotseat extends FrameLayout implements Insettable {
             }
             if (!foundIcon || iconBounds.isEmpty()) return;
 
-            // Match the iOS reference proportions on the Pixel 8 home screen.
-            // The capsule is sized from the available dock width, not from the
-            // icon view's measured padding, so the result is deterministic.
-            int capsuleWidth = containerWidth;
-            int capsuleHeight = Math.round(containerWidth * 0.264f);
+            // Keep the capsule inside the measured icon container. A full-width inset
+            // drawable can meet the container edge exactly, exposing a straight seam;
+            // unconstrained vertical insets can also become negative on compact layouts.
+            int horizontalInset = Math.min(
+                    Math.round(8f * getResources().getDisplayMetrics().density),
+                    containerWidth / 4);
+            int capsuleWidth = Math.max(1, containerWidth - horizontalInset * 2);
+            int capsuleHeight = Math.max(1, Math.min(
+                    containerHeight, Math.round(containerWidth * 0.264f)));
             int left = (containerWidth - capsuleWidth) / 2;
             int right = containerWidth - capsuleWidth - left;
-            int top = iconBounds.centerY() - capsuleHeight / 2;
+            int top = Math.max(0, Math.min(
+                    containerHeight - capsuleHeight,
+                    iconBounds.centerY() - capsuleHeight / 2));
             int bottom = containerHeight - top - capsuleHeight;
 
-            // Keep the existing rounded appearance while matching the reference height.
+            // Preserve the pill silhouette while ensuring every inset is within bounds.
             background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
