@@ -121,8 +121,8 @@ private class WidgetLoftBoardView(
         cards.forEach { card ->
             val view = cardView(card)
             val params = GridLayout.LayoutParams(
-                GridLayout.spec(GridLayout.UNDEFINED, card.columnSpan),
-                GridLayout.spec(GridLayout.UNDEFINED, 1f),
+                GridLayout.spec(GridLayout.UNDEFINED, 1),
+                GridLayout.spec(GridLayout.UNDEFINED, card.columnSpan, 1f),
             ).apply {
                 width = 0
                 height = dp(card.heightDp)
