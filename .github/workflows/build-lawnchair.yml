@@ -50,6 +50,8 @@ jobs:
           git -C /tmp/lawnicons checkout "$(cat scripts/lawnicons-revision.txt)"
           /tmp/lawnicons/gradlew -p /tmp/lawnicons :svg-processor:run
           python3 scripts/merge_lawnicons.py /tmp/lawnicons
+      - name: Run Lawnchair unit tests
+        run: ./gradlew testLawnWithQuickstepGithubDebugUnitTest --stacktrace
       - name: Build Lawnchair GitHub Debug APK
         run: ./gradlew assembleLawnWithQuickstepGithubDebug --stacktrace
       - name: Upload APK artifact
