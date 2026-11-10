@@ -154,48 +154,54 @@ object CaddyCardRenderer {
             return
         }
 
-        // Keep the card header fixed and put the app grid in its own vertical
-        // viewport. A fixed 2x2 workspace span cannot physically show an
-        // arbitrary number of rows at once; shrinking every row to fit caused
-        // icons to overlap and be clipped on real device profiles. Scroll the
-        // contents instead, while keeping every app assigned to this card.
+        // The drawer keeps its original compact 2x2 preview. Home cards can
+        // contain any number of apps, so their content scrolls inside the
+        // measured card viewport rather than compressing rows and clipping icons.
+        val visibleApps = if (fitGridToHost) apps else apps.take(MAX_PREVIEW_ICONS)
         val grid = GridLayout(context).apply {
             columnCount = 2
-            rowCount = (apps.size + 1) / 2
+            rowCount = if (fitGridToHost) (visibleApps.size + 1) / 2 else 2
             useDefaultMargins = false
             alignmentMode = GridLayout.ALIGN_BOUNDS
             clipChildren = false
             clipToPadding = false
         }
-        val scrollView = ScrollView(context).apply {
-            isFillViewport = false
-            isVerticalScrollBarEnabled = false
-            overScrollMode = android.view.View.OVER_SCROLL_NEVER
-            clipChildren = false
-            clipToPadding = false
-            setPadding(0, 0, 0, 0)
-            addView(
-                grid,
-                ScrollView.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ),
-            )
-        }
-        val gridLp = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            0,
-            1f,
-        )
-        gridLp.topMargin = dp(context, 6f)
-        card.addView(scrollView, gridLp)
 
-        // Each row has a stable touch target and icon viewport. Additional apps
-        // are reachable by scrolling instead of being compressed into a few
-        // pixels or drawn outside the card's measured bounds.
+        if (fitGridToHost) {
+            val scrollView = ScrollView(context).apply {
+                isFillViewport = false
+                isVerticalScrollBarEnabled = false
+                overScrollMode = android.view.View.OVER_SCROLL_NEVER
+                clipChildren = false
+                clipToPadding = false
+                setPadding(0, 0, 0, 0)
+                addView(
+                    grid,
+                    ScrollView.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
+            }
+            val gridLp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                1f,
+            )
+            gridLp.topMargin = dp(context, 6f)
+            card.addView(scrollView, gridLp)
+        } else {
+            val gridLp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(context, 128f),
+            )
+            gridLp.topMargin = dp(context, 8f)
+            card.addView(grid, gridLp)
+        }
+
         val rowHeight = dp(context, 64f)
-        val iconSize = dp(context, 48f)
-        apps.forEachIndexed { index, app ->
+        val homeIconSize = dp(context, 48f)
+        visibleApps.forEachIndexed { index, app ->
             val cell = FrameLayout(context)
             val cellLp = GridLayout.LayoutParams().apply {
                 width = 0
@@ -208,7 +214,7 @@ object CaddyCardRenderer {
                 context,
                 cell,
                 app,
-                iconSize,
+                if (fitGridToHost) homeIconSize else dp(context, 56f),
                 iconBinder,
                 fitGridToHost,
             )
