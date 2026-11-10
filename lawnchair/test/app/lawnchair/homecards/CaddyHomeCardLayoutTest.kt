@@ -31,7 +31,6 @@ class CaddyHomeCardLayoutTest {
             rows = 2,
             sideInsetPx = 0,
             titleReservePx = 0,
-            minCellPx = 10,
         )
         assertThat(cell).isEqualTo(100)
     }
@@ -45,13 +44,12 @@ class CaddyHomeCardLayoutTest {
             rows = 2,
             sideInsetPx = 0,
             titleReservePx = 44,
-            minCellPx = 10,
         )
         assertThat(cell).isEqualTo(100)
     }
 
     @Test
-    fun cellSize_neverGoesBelowTheMinimumEvenOnADenseGrid() {
+    fun cellSize_neverExceedsAvailableSlotOnADenseGrid() {
         val cell = CaddyHomeCardLayout.cellSizePx(
             width = 120,
             height = 120,
@@ -59,9 +57,21 @@ class CaddyHomeCardLayoutTest {
             rows = 4,
             sideInsetPx = 36,
             titleReservePx = 44,
-            minCellPx = 40,
         )
-        assertThat(cell).isEqualTo(40)
+        assertThat(cell).isEqualTo(16)
+    }
+
+    @Test
+    fun cellSize_neverExceedsEitherAvailableAxis() {
+        val cell = CaddyHomeCardLayout.cellSizePx(
+            width = 90,
+            height = 100,
+            columns = 3,
+            rows = 2,
+            sideInsetPx = 30,
+            titleReservePx = 20,
+        )
+        assertThat(cell).isEqualTo(20)
     }
 
     @Test
@@ -80,7 +90,6 @@ class CaddyHomeCardLayoutTest {
             rows = 0,
             sideInsetPx = 0,
             titleReservePx = 0,
-            minCellPx = 1,
         )
         assertThat(cell).isEqualTo(200)
     }
