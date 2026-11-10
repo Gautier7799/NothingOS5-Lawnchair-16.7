@@ -169,7 +169,6 @@ object CaddyCardRenderer {
         }
 
         val rowHeight = dp(context, 56f)
-        val homeIconSize = dp(context, 44f)
         val needsScroll = fitGridToHost && visibleApps.size > MAX_HOME_VISIBLE_ICONS
 
         if (fitGridToHost && needsScroll) {
@@ -229,7 +228,6 @@ object CaddyCardRenderer {
                 context,
                 cell,
                 app,
-                if (fitGridToHost) homeIconSize else dp(context, 56f),
                 iconBinder,
                 fitGridToHost,
             )
@@ -241,7 +239,6 @@ object CaddyCardRenderer {
         context: Context,
         cell: FrameLayout,
         app: AppInfo,
-        iconSize: Int,
         iconBinder: (BubbleTextView, AppInfo) -> Unit,
         fitGridToHost: Boolean,
     ) {
