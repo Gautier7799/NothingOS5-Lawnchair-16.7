@@ -154,26 +154,31 @@ object CaddyCardRenderer {
             return
         }
 
-        // The drawer keeps its original compact 2x2 preview. Home cards can
-        // contain any number of apps, so their content scrolls inside the
-        // measured card viewport rather than compressing rows and clipping icons.
+        // Drawer cards remain compact 2x2 previews. Home cards use the actual
+        // measured viewport: up to four apps share the available height equally,
+        // while larger collections scroll without shrinking the visible rows.
         val visibleApps = if (fitGridToHost) apps else apps.take(MAX_PREVIEW_ICONS)
+        val rows = (visibleApps.size + 1) / 2
         val grid = GridLayout(context).apply {
             columnCount = 2
-            rowCount = if (fitGridToHost) (visibleApps.size + 1) / 2 else 2
+            rowCount = if (fitGridToHost) rows else 2
             useDefaultMargins = false
             alignmentMode = GridLayout.ALIGN_BOUNDS
             clipChildren = false
             clipToPadding = false
         }
 
-        if (fitGridToHost) {
+        val rowHeight = dp(context, 56f)
+        val homeIconSize = dp(context, 44f)
+        val needsScroll = fitGridToHost && visibleApps.size > MAX_HOME_VISIBLE_ICONS
+
+        if (fitGridToHost && needsScroll) {
             val scrollView = ScrollView(context).apply {
                 isFillViewport = false
                 isVerticalScrollBarEnabled = false
                 overScrollMode = android.view.View.OVER_SCROLL_NEVER
-                clipChildren = false
-                clipToPadding = false
+                clipChildren = true
+                clipToPadding = true
                 setPadding(0, 0, 0, 0)
                 addView(
                     grid,
@@ -191,23 +196,33 @@ object CaddyCardRenderer {
             gridLp.topMargin = dp(context, 6f)
             card.addView(scrollView, gridLp)
         } else {
+            // A weighted grid lets the two rows divide the real card viewport.
+            // Fixed 56dp rows were taller than some 2x2 workspace cells and
+            // caused the bottom halves of adaptive icons to be clipped.
             val gridLp = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(context, 128f),
+                0,
+                1f,
             )
-            gridLp.topMargin = dp(context, 8f)
+            gridLp.topMargin = dp(context, if (fitGridToHost) 4f else 8f)
             card.addView(grid, gridLp)
         }
 
-        val rowHeight = dp(context, 56f)
-        val homeIconSize = dp(context, 44f)
         visibleApps.forEachIndexed { index, app ->
-            val cell = FrameLayout(context)
+            val cell = FrameLayout(context).apply {
+                clipChildren = false
+                clipToPadding = false
+            }
+            val row = index / 2
             val cellLp = GridLayout.LayoutParams().apply {
                 width = 0
-                height = rowHeight
+                height = if (fitGridToHost && !needsScroll) 0 else rowHeight
                 columnSpec = GridLayout.spec(index % 2, 1f)
-                rowSpec = GridLayout.spec(index / 2)
+                rowSpec = if (fitGridToHost && !needsScroll) {
+                    GridLayout.spec(row, 1f)
+                } else {
+                    GridLayout.spec(row)
+                }
             }
             grid.addView(cell, cellLp)
             addCaddyAppIcon(
@@ -266,6 +281,21 @@ object CaddyCardRenderer {
         cell.clipToPadding = false
         icon.clipToOutline = false
         cell.addView(icon, iconParams)
+        if (fitGridToHost) {
+            // Re-measure the square icon against its actual cell after GridLayout
+            // has assigned weighted row/column sizes. Keep a small inner gutter.
+            cell.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                val available = (minOf(view.width, view.height) - dp(context, 8f))
+                    .coerceAtLeast(dp(context, 24f))
+                val size = minOf(iconSize, available)
+                val params = icon.layoutParams as FrameLayout.LayoutParams
+                if (params.width != size || params.height != size) {
+                    params.width = size
+                    params.height = size
+                    icon.layoutParams = params
+                }
+            }
+        }
     }
 
     /**
@@ -315,4 +345,5 @@ object CaddyCardRenderer {
     private fun dp(context: Context, value: Float): Int = Utilities.dpToPx(value, context)
 
     private const val MAX_PREVIEW_ICONS = 4
+    private const val MAX_HOME_VISIBLE_ICONS = 4
 }
