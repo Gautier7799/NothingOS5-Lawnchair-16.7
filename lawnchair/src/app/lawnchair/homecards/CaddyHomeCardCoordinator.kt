@@ -16,6 +16,8 @@
 
 package app.lawnchair.homecards
 
+import app.lawnchair.preferences2.PreferenceManager2
+import app.lawnchair.preferences2.firstCached
 import com.android.launcher3.Launcher
 import com.android.launcher3.allapps.AllAppsStore
 
@@ -63,6 +65,7 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
     private fun syncFromApps() {
         val apps = launcher.appsView?.appsStore?.apps?.toList() ?: return
         if (apps.isEmpty()) return
+        controller.mergeMode = PreferenceManager2.getInstance(launcher).caddyMergeMode.firstCached()
         controller.sync(apps)
     }
 }

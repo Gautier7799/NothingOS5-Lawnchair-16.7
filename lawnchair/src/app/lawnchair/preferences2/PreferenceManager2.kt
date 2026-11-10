@@ -33,6 +33,7 @@ import app.lawnchair.font.FontCache
 import app.lawnchair.gestures.config.GestureHandlerConfig
 import app.lawnchair.gestures.handlers.SleepMode
 import app.lawnchair.gestures.type.GestureType
+import app.lawnchair.homecards.CaddyHomeCardGrouping
 import app.lawnchair.hotseat.HotseatMode
 import app.lawnchair.icons.CustomAdaptiveIconDrawable
 import app.lawnchair.icons.shape.IconShape
@@ -464,6 +465,15 @@ class PreferenceManager2 @Inject constructor(
         key = booleanPreferencesKey(name = "hide_workspace_smartspace"),
         defaultValue = context.resources.getBoolean(R.bool.config_default_hide_workspace_smartspace),
         onSet = { reloadHelper.restart() },
+    )
+
+    /**
+     * How two Caddy Home cards merge when one is dropped on another. [CaddyHomeCardGrouping.MODE_STACK]
+     * keeps both cards' apps and lets the user cycle them (iOS-style); MODE_COMBINE folds them into one.
+     */
+    val caddyMergeMode = preference(
+        key = stringPreferencesKey(name = "caddy_merge_mode"),
+        defaultValue = CaddyHomeCardGrouping.MODE_STACK,
     )
 
     val appDrawerHapticFeedback = preference(

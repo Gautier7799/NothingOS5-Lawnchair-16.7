@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.lawnchair.LawnchairApp
 import app.lawnchair.data.iconoverride.IconOverrideRepository
+import app.lawnchair.homecards.CaddyHomeCardGrouping
 import app.lawnchair.nexuslauncher.OverlayCallbackImpl
 import app.lawnchair.preferences.getAdapter
 import app.lawnchair.preferences.preferenceManager
@@ -40,6 +41,7 @@ import app.lawnchair.ui.preferences.components.NavigationActionPreference
 import app.lawnchair.ui.preferences.components.OverlayHandlerPreference
 import app.lawnchair.ui.preferences.components.controls.ClickablePreference
 import app.lawnchair.ui.preferences.components.controls.ListPreference
+import app.lawnchair.ui.preferences.components.controls.ListPreferenceEntry
 import app.lawnchair.ui.preferences.components.controls.SliderPreference
 import app.lawnchair.ui.preferences.components.controls.SwitchPreference
 import app.lawnchair.ui.preferences.components.layout.ExpandAndShrink
@@ -106,6 +108,11 @@ fun HomeScreenPreferences(
                 adapter = prefs2.hideWorkspaceSmartspace.getAdapter(),
                 label = stringResource(R.string.hide_workspace_smartspace_label),
                 description = stringResource(R.string.hide_workspace_smartspace_description),
+            )
+            ListPreference(
+                adapter = prefs2.caddyMergeMode.getAdapter(),
+                entries = caddyMergeModeEntries(),
+                label = stringResource(R.string.caddy_merge_mode_label),
             )
             ClickablePreference(
                 label = stringResource(id = R.string.remove_all_views_from_home_screen),
@@ -298,3 +305,13 @@ fun HomeScreenTextColorPreference(
         modifier = modifier,
     )
 }
+
+@Composable
+private fun caddyMergeModeEntries(): List<ListPreferenceEntry<String>> = listOf(
+    ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_STACK) {
+        stringResource(R.string.caddy_merge_mode_stack)
+    },
+    ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_COMBINE) {
+        stringResource(R.string.caddy_merge_mode_combine)
+    },
+)

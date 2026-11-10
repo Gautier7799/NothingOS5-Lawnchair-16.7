@@ -139,6 +139,9 @@
     <string name="wallpapers">Wallpapers</string>
 
     <string name="caddy_beta">Caddy (beta)</string>
+    <string name="caddy_merge_mode_label">Merge cards by</string>
+    <string name="caddy_merge_mode_stack">Stack (cycle between cards)</string>
+    <string name="caddy_merge_mode_combine">Combine into one card</string>
     <string name="caddy">Caddy</string>
 
     <string name="app_drawer_folder">App drawer folders</string>
