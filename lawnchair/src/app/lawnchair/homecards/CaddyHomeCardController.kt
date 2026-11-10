@@ -106,9 +106,13 @@ class CaddyHomeCardController(
                     spanY = existing.spanY,
                 )
             } else {
-                placeAtFreeCells(card) ?: return@forEach
+                // Keep an unplaced card in the repository if the current Workspace has
+                // no free region yet; a later sync can retry placement without losing it.
+                placeAtFreeCells(card) ?: card
             }
-            if (attach(placed)) persisted.add(placed)
+            if (placed.screenId >= 0) attach(placed)
+            // Persist card content even if the current page cannot attach its view.
+            persisted.add(placed)
         }
 
         // Hidden cards remain persisted as Home-owned cards; only their Workspace
