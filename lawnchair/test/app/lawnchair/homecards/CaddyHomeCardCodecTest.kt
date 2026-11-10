@@ -28,6 +28,8 @@ class CaddyHomeCardCodecTest {
         screenId = 1,
         cellX = 2,
         cellY = 3,
+        spanX = 3,
+        spanY = 4,
     )
 
     @Test
@@ -44,6 +46,24 @@ class CaddyHomeCardCodecTest {
             CaddyHomeCardCodec.encode(listOf(sample, second)),
         )
         assertThat(decoded.map { it.id }).containsExactly(42, 7).inOrder()
+    }
+
+    @Test
+    fun decode_legacySixFieldFormat_usesDefaultSpan() {
+        val legacy = "42\\tGames\\tcom.a#0,com.b#0\\t1\\t2\\t3"
+        val decoded = CaddyHomeCardCodec.decode(legacy)
+        assertThat(decoded).hasSize(1)
+        assertThat(decoded[0].spanX).isEqualTo(2)
+        assertThat(decoded[0].spanY).isEqualTo(2)
+    }
+
+    @Test
+    fun decode_clampsInvalidSpans() {
+        val invalid = "42\\tGames\\tcom.a#0\\t1\\t2\\t3\\t99\\t0"
+        val decoded = CaddyHomeCardCodec.decode(invalid)
+        assertThat(decoded).hasSize(1)
+        assertThat(decoded[0].spanX).isEqualTo(8)
+        assertThat(decoded[0].spanY).isEqualTo(1)
     }
 
     @Test
