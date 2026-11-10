@@ -223,13 +223,13 @@ private class WidgetLoftBoardView(
 
     private fun paletteColor(name: String, fallback: Int): Int {
         val id = resources.getIdentifier(name, "color", "android")
-        return if (id != 0) resources.getColor(id, theme) else resources.getColor(fallback, theme)
+        return if (id != 0) resources.getColor(id, activity.theme) else resources.getColor(fallback, activity.theme)
     }
 
     private fun themeColor(attribute: Int): Int {
         val value = android.util.TypedValue()
-        return if (theme.resolveAttribute(attribute, value, true)) {
-            if (value.resourceId != 0) resources.getColor(value.resourceId, theme) else value.data
+        return if (activity.theme.resolveAttribute(attribute, value, true)) {
+            if (value.resourceId != 0) resources.getColor(value.resourceId, activity.theme) else value.data
         } else 0xff222222.toInt()
     }
 
