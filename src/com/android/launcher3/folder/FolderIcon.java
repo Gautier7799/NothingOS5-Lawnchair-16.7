@@ -581,6 +581,12 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     /** Selects the Home Screen 2x2 Caddy preview without changing native folder behavior. */
     public void setHomeCaddyPreview(boolean enabled) {
         mPreviewLayoutRule.setUseHomeCaddyGrid(enabled);
+        if (enabled) {
+            // Swap in the Caddy card surface so a Home Screen Caddy folder looks like the
+            // drawer category card. The native PreviewBackground is preserved for other folders.
+            mBackground = new CaddyCardBackground(getContext());
+            mBackground.setInvalidateDelegate(this);
+        }
         mPreviewItemManager.updatePreviewItems(false);
         invalidate();
     }

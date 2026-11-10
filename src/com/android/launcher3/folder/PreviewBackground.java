@@ -275,6 +275,10 @@ public class PreviewBackground extends DelegatedCellDrawing {
         invalidate();
     }
 
+    View getInvalidateDelegate() {
+        return mInvalidateDelegate;
+    }
+
     /** Refreshes the closed-folder color and opacity for drawer-hosted Caddy cards. */
     public void refreshFolderPreviewColor() {
         mBgColor = LawnchairUtilsKt.resolveFolderPreviewColor(mContext);
