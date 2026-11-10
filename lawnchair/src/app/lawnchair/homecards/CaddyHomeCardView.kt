@@ -55,6 +55,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
     var onCardClick: (() -> Unit)? = null
     var onMove: ((deltaCellsX: Int, deltaCellsY: Int) -> Boolean)? = null
     var onResize: ((spanX: Int, spanY: Int) -> Boolean)? = null
+    var onDelete: (() -> Boolean)? = null
 
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val longPressTimeout = ViewConfiguration.getLongPressTimeout().toLong()
@@ -75,6 +76,27 @@ class CaddyHomeCardView @JvmOverloads constructor(
         )
         setOnTouchListener(DragTouchListener(card))
         attachResizeHandle(card)
+        attachDeleteButton()
+    }
+
+    private fun attachDeleteButton() {
+        val size = Utilities.dpToPx(BUTTON_SIZE_DP, context)
+        val button = View(context).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0x66FF0000.toInt())
+                setStroke(Utilities.dpToPx(1f, context), 0xAAFFFFFF.toInt())
+            }
+            contentDescription = "Remove card"
+        }
+        addView(
+            button,
+            LayoutParams(size, size, Gravity.TOP or Gravity.END).apply {
+                val margin = Utilities.dpToPx(4f, context)
+                setMargins(margin, margin, margin, margin)
+            },
+        )
+        button.setOnClickListener { onDelete?.invoke() }
     }
 
     private fun attachResizeHandle(card: CaddyHomeCardInfo) {
@@ -211,5 +233,6 @@ class CaddyHomeCardView @JvmOverloads constructor(
     private companion object {
         const val MIN_SPAN = 2
         const val HANDLE_SIZE_DP = 22f
+        const val BUTTON_SIZE_DP = 18f
     }
 }

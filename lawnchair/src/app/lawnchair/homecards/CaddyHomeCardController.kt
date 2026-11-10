@@ -34,6 +34,7 @@ import com.android.launcher3.util.ComponentKey
 class CaddyHomeCardController(
     private val launcher: Launcher,
     private val repository: CaddyHomeCardRepository,
+    private val hiddenStore: CaddyHomeCardHiddenStore,
 ) {
 
     private val context: Context get() = launcher
@@ -52,7 +53,8 @@ class CaddyHomeCardController(
 
     /** Rebuilds the workspace cards from the current app list and category sources. */
     fun sync(apps: List<AppInfo>) {
-        val desired = CaddyHomeCardSource.build(context, apps)
+        val hidden = hiddenStore.load()
+        val desired = CaddyHomeCardSource.build(context, apps).filterNot { it.id in hidden }
         if (desired.isEmpty()) {
             detachAll()
             repository.save(emptyList())
@@ -163,6 +165,23 @@ class CaddyHomeCardController(
 
     private fun maxSpanY(): Int = (launcher.deviceProfile?.inv?.numRows ?: MIN_SPAN).coerceAtLeast(MIN_SPAN)
 
+    /**
+     * Removes one card from the home screen and remembers it, so it is not re-added on the next
+     * sync. Only the card is deleted: its apps, and the drawer category it mirrors, are untouched.
+     */
+    fun removeCard(id: Int): Boolean {
+        val existing = repository.load().firstOrNull { it.id == id } ?: return false
+        hiddenStore.hide(id)
+        detach(id)
+        repository.remove(existing.id)
+        return true
+    }
+
+    /** Brings a previously removed card back on the next sync. */
+    fun restoreCard(id: Int) {
+        hiddenStore.unhide(id)
+    }
+
     fun detachAll() {
         attached.keys.toList().forEach(::removeView)
         viewIds.clear()
@@ -190,6 +209,7 @@ class CaddyHomeCardController(
         view.bind(card, ::resolveApp)
         view.onMove = { dx, dy -> move(card.id, dx, dy) }
         view.onResize = { spanX, spanY -> resize(card.id, spanX, spanY) }
+        view.onDelete = { removeCard(card.id) }
         if (view.parent == null) {
             val params = CellLayoutLayoutParams(card.cellX, card.cellY, card.spanX, card.spanY)
             val viewId = viewIds.getOrPut(card.id) { nextViewId++ }
