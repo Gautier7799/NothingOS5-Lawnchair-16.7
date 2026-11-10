@@ -195,7 +195,8 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
 
     private boolean mLayoutHorizontal;
     private final boolean mIsRtl;
-    private final int mIconSize;
+    // Mutable only through setIconSizeOverride; default launcher sizing remains unchanged.
+    private int mIconSize;
 
     @ViewDebug.ExportedProperty(category = "launcher")
     private boolean mHideBadge = false;
@@ -1556,6 +1557,23 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
 
     public int getIconSize() {
         return mIconSize;
+    }
+
+    /**
+     * Overrides the drawable bounds for compact launcher surfaces such as Caddy cards.
+     * Unlike scaling the whole View, this changes the actual drawable bounds so the
+     * icon is measured and drawn completely inside its available viewport.
+     */
+    public void setIconSizeOverride(int iconSize) {
+        if (iconSize <= 0 || mIconSize == iconSize) {
+            return;
+        }
+        mIconSize = iconSize;
+        if (mIcon != null) {
+            applyCompoundDrawables(getIconOrTransparentColor());
+        }
+        requestLayout();
+        invalidate();
     }
 
     public boolean isDisplaySearchResult() {
