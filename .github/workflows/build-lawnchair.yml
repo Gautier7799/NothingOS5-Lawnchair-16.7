@@ -24,6 +24,7 @@ on:
       - openhands/stabilize-drawer-suggestions
       - openhands/caddy-cards-on-home-screen
       - openhands/caddy-home
+      - fix/caddy-home-render-and-dock-clipping
 
 permissions:
   contents: read
