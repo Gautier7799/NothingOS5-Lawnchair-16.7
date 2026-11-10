@@ -57,6 +57,9 @@ class CaddyHomeCardView @JvmOverloads constructor(
     var onResize: ((spanX: Int, spanY: Int) -> Boolean)? = null
     var onDelete: (() -> Boolean)? = null
 
+    /** Called on a plain tap of a stacked card; returns true when it advanced the stack. */
+    var onGroupTap: (() -> Boolean)? = null
+
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val longPressTimeout = ViewConfiguration.getLongPressTimeout().toLong()
 
@@ -165,7 +168,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
                         val deltaY = (translationY / cellH).roundToInt()
                         resetLift()
                         onMove?.invoke(deltaX, deltaY)
-                    } else {
+                    } else if (onGroupTap?.invoke() != true) {
                         performClick()
                     }
                     return true

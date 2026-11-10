@@ -46,6 +46,9 @@ class CaddyHomeCardController(
     private val viewIds = mutableMapOf<Int, Int>()
     private var nextViewId = 0
 
+    /** How two cards merge when one is dropped on another: [CaddyHomeCardGrouping.MODE_STACK] or MODE_COMBINE. */
+    var mergeMode: String = CaddyHomeCardGrouping.MODE_STACK
+
     private fun resolveApp(key: String): AppInfo? {
         val componentKey = ComponentKey.fromString(key) ?: return null
         return launcher.appsView?.appsStore?.getApp(componentKey)
@@ -132,6 +135,11 @@ class CaddyHomeCardController(
         // Free the card's own cells first, otherwise a small move would collide with itself.
         detach(id)
         if (!isRegionFree(cellLayout, targetX, targetY, current.spanX, current.spanY)) {
+            // The drop landed on another card: merge the two instead of rejecting the move.
+            val target = cardAt(cellLayout, current.screenId, targetX, targetY, id)
+            if (target != null) {
+                return mergeOnto(id, target.id)
+            }
             attach(current)
             return false
         }
@@ -142,6 +150,49 @@ class CaddyHomeCardController(
         }
         repository.update(moved)
         return true
+    }
+
+    /** The other card whose grid region contains the cell ([x], [y]) on [screenId], if any. */
+    private fun cardAt(cellLayout: CellLayout, screenId: Int, x: Int, y: Int, exceptId: Int): CaddyHomeCardInfo? {
+        val cards = repository.load()
+        val inRangeX = x in 0 until cellLayout.countX
+        val inRangeY = y in 0 until cellLayout.countY
+        if (!inRangeX || !inRangeY) return null
+        return cards.firstOrNull { card ->
+            card.id != exceptId && card.screenId == screenId &&
+                x >= card.cellX && x < card.cellX + card.spanX &&
+                y >= card.cellY && y < card.cellY + card.spanY
+        }
+    }
+
+    /**
+     * Merges the card [draggedId] onto [targetId] using [mergeMode] and repaints the affected cards.
+     * STACK keeps both cards' apps and puts them in one place; COMBINE folds them into one card.
+     */
+    fun mergeOnto(draggedId: Int, targetId: Int): Boolean {
+        val before = repository.load()
+        val after = CaddyHomeCardGrouping.merge(before, draggedId, targetId, mergeMode)
+        if (after == before) return false
+        repository.save(after)
+        repaint(after)
+        return true
+    }
+
+    /** Advances the visible card of a stack group, iOS style. Called when a stacked card is tapped. */
+    fun cycleGroup(groupId: String): Boolean {
+        val before = repository.load()
+        val after = CaddyHomeCardGrouping.cycle(before, groupId)
+        if (after == before) return false
+        repository.save(after)
+        repaint(after)
+        return true
+    }
+
+    /** Detaches every card and re-attaches the given set, used after a merge or cycle. */
+    private fun repaint(cards: List<CaddyHomeCardInfo>) {
+        val ids = cards.mapTo(mutableSetOf()) { it.id }
+        attached.keys.toList().forEach { id -> if (id !in ids) removeView(id) }
+        cards.forEach { attach(it) }
     }
 
     /** True when the [spanX] x [spanY] region at ([x], [y]) is inside the page and unoccupied. */
@@ -204,12 +255,22 @@ class CaddyHomeCardController(
     }
 
     private fun attach(card: CaddyHomeCardInfo): Boolean {
+        // A stack shows one card at a time, so only the visible member is attached; the
+        // others stay persisted and appear when the user cycles the stack.
+        if (card.group.isNotEmpty()) {
+            val visible = CaddyHomeCardGrouping.visible(repository.load(), card.group)
+            if (visible != null && visible.id != card.id) {
+                removeView(card.id)
+                return true
+            }
+        }
         val cellLayout = cellLayoutFor(card) ?: return false
         val view = attached.getOrPut(card.id) { CaddyHomeCardView(context) }
         view.bind(card, ::resolveApp)
         view.onMove = { dx, dy -> move(card.id, dx, dy) }
         view.onResize = { spanX, spanY -> resize(card.id, spanX, spanY) }
         view.onDelete = { removeCard(card.id) }
+        view.onGroupTap = { card.group.takeIf { it.isNotEmpty() }?.let { cycleGroup(it) } ?: false }
         if (view.parent == null) {
             val params = CellLayoutLayoutParams(card.cellX, card.cellY, card.spanX, card.spanY)
             val viewId = viewIds.getOrPut(card.id) { nextViewId++ }

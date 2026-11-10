@@ -49,19 +49,24 @@ object CaddyHomeCardCodec {
         card.cellY.toString(),
         card.spanX.toString(),
         card.spanY.toString(),
+        escape(card.group),
+        card.groupIndex.toString(),
     ).joinToString(FIELD_SEP.toString())
 
     private fun decodeCard(line: String): CaddyHomeCardInfo? {
         val fields = line.split(FIELD_SEP)
-        // Older records were written before spans existed; accept both lengths.
-        if (fields.size != FIELD_COUNT && fields.size != LEGACY_FIELD_COUNT) return null
+        // Accept records written before spans (6 fields) and before grouping (8 fields).
+        if (fields.size != FIELD_COUNT && fields.size != SPAN_FIELD_COUNT && fields.size != LEGACY_FIELD_COUNT) {
+            return null
+        }
         val id = fields[0].toIntOrNull() ?: return null
         val title = unescape(fields[1])
         val appKeys = fields[2].takeIf { it.isNotEmpty() }
             ?.split(KEY_SEP)
             ?.filter { it.isNotEmpty() }
             ?: emptyList()
-        val hasSpan = fields.size == FIELD_COUNT
+        val hasSpan = fields.size >= SPAN_FIELD_COUNT
+        val hasGroup = fields.size == FIELD_COUNT
         return CaddyHomeCardInfo(
             id = id,
             title = title,
@@ -79,6 +84,8 @@ object CaddyHomeCardCodec {
             } else {
                 CaddyHomeCardInfo.DEFAULT_SPAN
             },
+            group = if (hasGroup) unescape(fields[8]) else "",
+            groupIndex = if (hasGroup) fields[9].toIntOrNull() ?: 0 else 0,
         )
     }
 
@@ -116,6 +123,7 @@ object CaddyHomeCardCodec {
         return builder.toString()
     }
 
-    private const val FIELD_COUNT = 8
+    private const val FIELD_COUNT = 10
+    private const val SPAN_FIELD_COUNT = 8
     private const val LEGACY_FIELD_COUNT = 6
 }

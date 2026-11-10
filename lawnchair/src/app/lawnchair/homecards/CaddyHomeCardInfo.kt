@@ -36,6 +36,10 @@ data class CaddyHomeCardInfo(
     val cellY: Int = 0,
     val spanX: Int = DEFAULT_SPAN,
     val spanY: Int = DEFAULT_SPAN,
+    /** Group id this card belongs to, or "" when the card stands alone. See [CaddyHomeCardGrouping]. */
+    val group: String = "",
+    /** Position of this card inside its group, 0-based. */
+    val groupIndex: Int = 0,
 ) {
     /** Number of apps assigned to the card. */
     val appCount: Int get() = appKeys.size
