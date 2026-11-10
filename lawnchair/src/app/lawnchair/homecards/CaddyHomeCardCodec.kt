@@ -47,11 +47,14 @@ object CaddyHomeCardCodec {
         card.screenId.toString(),
         card.cellX.toString(),
         card.cellY.toString(),
+        card.spanX.toString(),
+        card.spanY.toString(),
     ).joinToString(FIELD_SEP.toString())
 
     private fun decodeCard(line: String): CaddyHomeCardInfo? {
         val fields = line.split(FIELD_SEP)
-        if (fields.size != FIELD_COUNT) return null
+        // Accept the original six-field format and migrate it to the default 2x2 span.
+        if (fields.size != LEGACY_FIELD_COUNT && fields.size != FIELD_COUNT) return null
         val id = fields[0].toIntOrNull() ?: return null
         val title = unescape(fields[1])
         val appKeys = fields[2].takeIf { it.isNotEmpty() }
@@ -65,6 +68,8 @@ object CaddyHomeCardCodec {
             screenId = fields[3].toIntOrNull() ?: -1,
             cellX = fields[4].toIntOrNull() ?: 0,
             cellY = fields[5].toIntOrNull() ?: 0,
+            spanX = fields.getOrNull(6)?.toIntOrNull()?.coerceIn(MIN_SPAN, MAX_SPAN) ?: DEFAULT_SPAN,
+            spanY = fields.getOrNull(7)?.toIntOrNull()?.coerceIn(MIN_SPAN, MAX_SPAN) ?: DEFAULT_SPAN,
         )
     }
 
@@ -102,5 +107,9 @@ object CaddyHomeCardCodec {
         return builder.toString()
     }
 
-    private const val FIELD_COUNT = 6
+    private const val LEGACY_FIELD_COUNT = 6
+    private const val FIELD_COUNT = 8
+    private const val DEFAULT_SPAN = 2
+    private const val MIN_SPAN = 1
+    private const val MAX_SPAN = 8
 }
