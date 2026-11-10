@@ -52,26 +52,33 @@ class CaddyHomeCardController(
 
     /** Rebuilds the workspace cards from the current app list and category sources. */
     fun sync(apps: List<AppInfo>) {
-        val desired = CaddyHomeCardSource.build(context, apps)
+        if (apps.isEmpty()) return
+
+        // Seed Home from drawer categories only for a fresh installation.
+        // Once saved, Home owns its cards independently of drawer categories.
+        val storedCards = repository.load()
+        val desired = if (storedCards.isEmpty()) {
+            CaddyHomeCardSource.build(context, apps).also(repository::save)
+        } else {
+            storedCards
+        }
         if (desired.isEmpty()) {
             detachAll()
-            repository.save(emptyList())
             return
         }
 
-        val placementById = repository.load().associateBy { it.id }
         val desiredIds = desired.mapTo(mutableSetOf()) { it.id }
-
-        // Drop views whose category no longer exists.
         attached.keys.toList().forEach { id ->
             if (id !in desiredIds) removeView(id)
         }
 
         val persisted = mutableListOf<CaddyHomeCardInfo>()
         desired.forEach { card ->
-            val existing = placementById[card.id]
-            val placed = if (existing != null) {
-                card.copy(screenId = existing.screenId, cellX = existing.cellX, cellY = existing.cellY)
+            val placed = if (card.screenId >= 0) {
+                card.copy(
+                    spanX = card.spanX.coerceIn(MIN_SPAN, MAX_SPAN),
+                    spanY = card.spanY.coerceIn(MIN_SPAN, MAX_SPAN),
+                )
             } else {
                 placeAtFreeCells(card) ?: return@forEach
             }
@@ -94,7 +101,7 @@ class CaddyHomeCardController(
     }
 
     private fun placeAtFreeCells(card: CaddyHomeCardInfo): CaddyHomeCardInfo? {
-        val placement = findPlacement() ?: return null
+        val placement = findPlacement(card.spanX, card.spanY) ?: return null
         return card.copy(
             screenId = placement.first,
             cellX = placement.second[0],
@@ -112,8 +119,9 @@ class CaddyHomeCardController(
             }
         }
         view.bind(card, ::resolveApp)
-        if (view.parent == null) {
-            val params = CellLayoutLayoutParams(card.cellX, card.cellY, SPAN_X, SPAN_Y)
+        if (view.parent !== cellLayout) {
+            (view.parent as? CellLayout)?.removeView(view)
+            val params = CellLayoutLayoutParams(card.cellX, card.cellY, card.spanX, card.spanY)
             val viewId = viewIds.getOrPut(card.id) { nextViewId++ }
             if (!cellLayout.addViewToCellLayout(view, -1, viewId, params, true)) {
                 attached.remove(card.id)
@@ -131,14 +139,14 @@ class CaddyHomeCardController(
     }
 
     /** Finds a free 2x2 region, adding a new page when every existing page is full. */
-    private fun findPlacement(): Pair<Int, IntArray>? {
+    private fun findPlacement(spanX: Int, spanY: Int): Pair<Int, IntArray>? {
         val workspace = launcher.workspace ?: return null
         val screenOrder = workspace.screenOrder
         for (index in 0 until screenOrder.size()) {
             val screenId = screenOrder.get(index)
             val cellLayout = workspace.getScreenWithId(screenId) ?: continue
             val cellXY = IntArray(2)
-            if (cellLayout.findCellForSpan(cellXY, SPAN_X, SPAN_Y)) {
+            if (cellLayout.findCellForSpan(cellXY, spanX, spanY)) {
                 return screenId to cellXY
             }
         }
@@ -150,7 +158,7 @@ class CaddyHomeCardController(
         workspace.insertNewWorkspaceScreen(newScreenId)
         val cellLayout = workspace.getScreenWithId(newScreenId) ?: return null
         val cellXY = IntArray(2)
-        return if (cellLayout.findCellForSpan(cellXY, SPAN_X, SPAN_Y)) {
+        return if (cellLayout.findCellForSpan(cellXY, spanX, spanY)) {
             newScreenId to cellXY
         } else {
             null
@@ -158,7 +166,7 @@ class CaddyHomeCardController(
     }
 
     private companion object {
-        const val SPAN_X = 2
-        const val SPAN_Y = 2
+        const val MIN_SPAN = 1
+        const val MAX_SPAN = 8
     }
 }
