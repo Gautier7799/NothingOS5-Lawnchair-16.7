@@ -17,9 +17,9 @@
 package app.lawnchair.homecards
 
 import android.content.Context
-import android.graphics.drawable.GradientDrawable
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.util.AttributeSet
-import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
@@ -41,10 +41,12 @@ import kotlin.math.roundToInt
  * pop-up (App info / Uninstall / Personalise / Open in store) via
  * [CaddyCardIconLongClick].
  *
- * The card is both movable and resizable, using the same gesture grammar as the
- * launcher itself: long-press the card to pick it up and drag it to a new cell
- * ([onMove]); drag the handle in the bottom-right corner to change its grid size
- * ([onResize]). Both are reported as whole cells and the controller persists them.
+ * All gestures are handled by one listener on the card so they survive the card being
+ * re-rendered (which happens whenever the launcher rebinds the workspace):
+ *  - touch in the bottom-right corner -> resize to the dragged whole-cell span;
+ *  - touch in the top-right corner -> remove the card;
+ *  - long-press anywhere else -> pick the card up and drag it to another cell;
+ *  - plain tap -> click the card (or advance a stack).
  */
 class CaddyHomeCardView @JvmOverloads constructor(
     context: Context,
@@ -63,7 +65,41 @@ class CaddyHomeCardView @JvmOverloads constructor(
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val longPressTimeout = ViewConfiguration.getLongPressTimeout().toLong()
 
+    private var boundCard: CaddyHomeCardInfo? = null
+    private var appResolver: ((String) -> AppInfo?)? = null
+    private var lastCellPx = 0
+
+    private val cornerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0x59FFFFFF
+        style = Paint.Style.STROKE
+        strokeWidth = Utilities.dpToPx(2f, context).toFloat()
+    }
+
     fun bind(card: CaddyHomeCardInfo, resolveApp: (String) -> AppInfo?) {
+        boundCard = card
+        appResolver = resolveApp
+        setOnTouchListener(GestureListener(card))
+        render()
+    }
+
+    /**
+     * Renders the card. The icon size is derived from the card's real measured span, so the
+     * icons stay inside their rows on any grid instead of overflowing and overlapping.
+     */
+    private fun render() {
+        val card = boundCard ?: return
+        val resolveApp = appResolver ?: return
+        val columns = card.spanX.coerceAtLeast(MIN_SPAN)
+        val rows = card.spanY.coerceAtLeast(MIN_SPAN)
+        val maxIcons = columns * rows
+        val cellPx = if (width > 0 && height > 0) {
+            val horizontal = (width - dp(GRID_SIDE_INSET_DP)) / columns
+            val vertical = (height - dp(TITLE_RESERVE_DP)) / rows
+            maxOf(dp(MIN_CELL_DP), minOf(horizontal, vertical))
+        } else {
+            0
+        }
+        lastCellPx = cellPx
         CaddyCardRenderer.renderCategoryCard(
             host = this,
             title = card.title,
@@ -74,64 +110,66 @@ class CaddyHomeCardView @JvmOverloads constructor(
                 icon.setOnLongClickListener(CaddyCardIconLongClick.LISTENER)
             },
             fitGridToHost = true,
-            columns = card.spanX.coerceAtLeast(MIN_SPAN),
-            maxIcons = card.spanX.coerceAtLeast(MIN_SPAN) * card.spanY.coerceAtLeast(MIN_SPAN),
+            columns = columns,
+            maxIcons = maxIcons,
+            cellSizePx = cellPx,
         )
-        setOnTouchListener(DragTouchListener(card))
-        attachResizeHandle(card)
-        attachDeleteButton()
     }
 
-    private fun attachDeleteButton() {
-        val size = Utilities.dpToPx(BUTTON_SIZE_DP, context)
-        val button = View(context).apply {
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0x66FF0000.toInt())
-                setStroke(Utilities.dpToPx(1f, context), 0xAAFFFFFF.toInt())
-            }
-            contentDescription = "Remove card"
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w > 0 && h > 0) {
+            val card = boundCard ?: return
+            val columns = card.spanX.coerceAtLeast(MIN_SPAN)
+            val rows = card.spanY.coerceAtLeast(MIN_SPAN)
+            val horizontal = (w - dp(GRID_SIDE_INSET_DP)) / columns
+            val vertical = (h - dp(TITLE_RESERVE_DP)) / rows
+            val cell = maxOf(dp(MIN_CELL_DP), minOf(horizontal, vertical))
+            if (cell != lastCellPx) render()
         }
-        addView(
-            button,
-            LayoutParams(size, size, Gravity.TOP or Gravity.END).apply {
-                val margin = Utilities.dpToPx(4f, context)
-                setMargins(margin, margin, margin, margin)
-            },
-        )
-        button.setOnClickListener { onDelete?.invoke() }
     }
 
-    private fun attachResizeHandle(card: CaddyHomeCardInfo) {
-        val handleSize = Utilities.dpToPx(HANDLE_SIZE_DP, context)
-        val handle = View(context).apply {
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0x66FFFFFF)
-                setStroke(Utilities.dpToPx(1f, context), 0xAAFFFFFF.toInt())
-            }
-            contentDescription = "Resize card"
-        }
-        addView(
-            handle,
-            LayoutParams(handleSize, handleSize, Gravity.BOTTOM or Gravity.END).apply {
-                val margin = Utilities.dpToPx(4f, context)
-                setMargins(margin, margin, margin, margin)
-            },
+    /** Draws the two corner affordances: resize (bottom-right) and remove (top-right). */
+    override fun dispatchDraw(canvas: Canvas) {
+        super.dispatchDraw(canvas)
+        val inset = dp(CORNER_INSET_DP)
+        val radius = dp(CORNER_ARC_DP)
+        val right = width - inset
+        val bottom = height - inset
+        canvas.drawArc(
+            (right - radius).toFloat(),
+            (bottom - radius).toFloat(),
+            right.toFloat(),
+            bottom.toFloat(),
+            0f,
+            90f,
+            false,
+            cornerPaint,
         )
-        handle.setOnTouchListener(ResizeTouchListener(card))
+        val top = inset
+        canvas.drawArc(
+            (right - radius).toFloat(),
+            top.toFloat(),
+            right.toFloat(),
+            (top + radius).toFloat(),
+            270f,
+            90f,
+            false,
+            cornerPaint,
+        )
     }
 
-    /** Long-press to pick the card up, drag to move it, release to drop it on a new cell. */
-    private inner class DragTouchListener(private val card: CaddyHomeCardInfo) : OnTouchListener {
+    /** One listener for every gesture, so a re-render mid-gesture cannot break it. */
+    private inner class GestureListener(private val card: CaddyHomeCardInfo) : OnTouchListener {
 
         private var startRawX = 0f
         private var startRawY = 0f
         private var dragging = false
+        private var mode = MODE_NONE
 
         private val pickUp = Runnable {
             dragging = true
-            animate().scaleX(1.05f).scaleY(1.05f).translationZ(Utilities.dpToPx(8f, context).toFloat()).setDuration(120).start()
+            lift()
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         }
 
@@ -141,36 +179,53 @@ class CaddyHomeCardView @JvmOverloads constructor(
                     startRawX = event.rawX
                     startRawY = event.rawY
                     dragging = false
-                    postDelayed(pickUp, longPressTimeout)
+                    mode = regionFor(event.x, event.y)
+                    if (mode == MODE_MOVE) {
+                        postDelayed(pickUp, longPressTimeout)
+                    }
                     return true
                 }
 
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - startRawX
-                    val dy = event.rawY - startRawY
-                    if (!dragging) {
-                        if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
-                            removeCallbacks(pickUp)
+                    when (mode) {
+                        MODE_MOVE -> {
+                            val dx = event.rawX - startRawX
+                            val dy = event.rawY - startRawY
+                            if (!dragging) {
+                                if (abs(dx) > touchSlop || abs(dy) > touchSlop) removeCallbacks(pickUp)
+                                return true
+                            }
+                            translationX = dx
+                            translationY = dy
                         }
-                        return true
+
+                        MODE_RESIZE -> previewResize(event.rawX, event.rawY)
+
+                        else -> Unit
                     }
-                    translationX = dx
-                    translationY = dy
                     return true
                 }
 
                 MotionEvent.ACTION_UP -> {
                     removeCallbacks(pickUp)
-                    if (dragging) {
-                        val cellW = (width / card.spanX.toFloat()).coerceAtLeast(1f)
-                        val cellH = (height / card.spanY.toFloat()).coerceAtLeast(1f)
-                        val deltaX = (translationX / cellW).roundToInt()
-                        val deltaY = (translationY / cellH).roundToInt()
-                        resetLift()
-                        onMove?.invoke(deltaX, deltaY)
-                    } else if (onGroupTap?.invoke() != true) {
-                        performClick()
+                    when (mode) {
+                        MODE_MOVE -> {
+                            if (dragging) {
+                                val delta = cellsFor(translationX, translationY)
+                                resetLift()
+                                onMove?.invoke(delta.first, delta.second)
+                            } else if (onGroupTap?.invoke() != true) {
+                                performClick()
+                            }
+                        }
+
+                        MODE_RESIZE -> onResize?.invoke(targetSpanX, targetSpanY)
+
+                        MODE_DELETE -> onDelete?.invoke()
+
+                        else -> Unit
                     }
+                    mode = MODE_NONE
                     return true
                 }
 
@@ -178,10 +233,48 @@ class CaddyHomeCardView @JvmOverloads constructor(
                     removeCallbacks(pickUp)
                     if (dragging) resetLift()
                     dragging = false
+                    mode = MODE_NONE
                     return true
                 }
             }
             return false
+        }
+
+        private fun regionFor(x: Float, y: Float): Int {
+            val hit = dp(CORNER_HIT_DP).toFloat()
+            val nearRight = x > width - hit
+            val nearBottom = y > height - hit
+            val nearTop = y < hit
+            return when {
+                nearRight && nearBottom -> MODE_RESIZE
+                nearRight && nearTop -> MODE_DELETE
+                else -> MODE_MOVE
+            }
+        }
+
+        private var targetSpanX = card.spanX
+        private var targetSpanY = card.spanY
+
+        private fun previewResize(rawX: Float, rawY: Float) {
+            val cellWidth = (width / card.spanX.toFloat()).coerceAtLeast(1f)
+            val cellHeight = (height / card.spanY.toFloat()).coerceAtLeast(1f)
+            val deltaColumns = ((rawX - startRawX) / cellWidth).roundToInt()
+            val deltaRows = ((rawY - startRawY) / cellHeight).roundToInt()
+            targetSpanX = (card.spanX + deltaColumns).coerceAtLeast(MIN_SPAN)
+            targetSpanY = (card.spanY + deltaRows).coerceAtLeast(MIN_SPAN)
+            scaleX = (targetSpanX.toFloat() / card.spanX).coerceAtLeast(0.5f)
+            scaleY = (targetSpanY.toFloat() / card.spanY).coerceAtLeast(0.5f)
+        }
+
+        private fun cellsFor(tx: Float, ty: Float): Pair<Int, Int> {
+            val cellW = (width / card.spanX.toFloat()).coerceAtLeast(1f)
+            val cellH = (height / card.spanY.toFloat()).coerceAtLeast(1f)
+            return (tx / cellW).roundToInt() to (ty / cellH).roundToInt()
+        }
+
+        private fun lift() {
+            animate().scaleX(1.05f).scaleY(1.05f)
+                .translationZ(dp(8f).toFloat()).setDuration(120).start()
         }
 
         private fun resetLift() {
@@ -192,50 +285,28 @@ class CaddyHomeCardView @JvmOverloads constructor(
         }
     }
 
-    /** Turns a drag on the handle into a whole-cell span change, applied on release. */
-    private inner class ResizeTouchListener(private val card: CaddyHomeCardInfo) : OnTouchListener {
-
-        private var startRawX = 0f
-        private var startRawY = 0f
-        private var targetSpanX = card.spanX
-        private var targetSpanY = card.spanY
-
-        override fun onTouch(view: View, event: MotionEvent): Boolean {
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    startRawX = event.rawX
-                    startRawY = event.rawY
-                    targetSpanX = card.spanX.coerceAtLeast(MIN_SPAN)
-                    targetSpanY = card.spanY.coerceAtLeast(MIN_SPAN)
-                    parent?.requestDisallowInterceptTouchEvent(true)
-                    return true
-                }
-
-                MotionEvent.ACTION_MOVE -> {
-                    val cellWidth = (width / targetSpanX.toFloat()).coerceAtLeast(1f)
-                    val cellHeight = (height / targetSpanY.toFloat()).coerceAtLeast(1f)
-                    val deltaColumns = ((event.rawX - startRawX) / cellWidth).roundToInt()
-                    val deltaRows = ((event.rawY - startRawY) / cellHeight).roundToInt()
-                    targetSpanX = (card.spanX + deltaColumns).coerceAtLeast(MIN_SPAN)
-                    targetSpanY = (card.spanY + deltaRows).coerceAtLeast(MIN_SPAN)
-                    return true
-                }
-
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    parent?.requestDisallowInterceptTouchEvent(false)
-                    if (event.actionMasked == MotionEvent.ACTION_UP) {
-                        onResize?.invoke(targetSpanX, targetSpanY)
-                    }
-                    return true
-                }
-            }
-            return false
-        }
-    }
+    private fun dp(value: Float): Int = Utilities.dpToPx(value, context)
 
     private companion object {
         const val MIN_SPAN = 2
-        const val HANDLE_SIZE_DP = 22f
-        const val BUTTON_SIZE_DP = 18f
+        const val MODE_NONE = 0
+        const val MODE_MOVE = 1
+        const val MODE_RESIZE = 2
+        const val MODE_DELETE = 3
+
+        /** Space taken by the card's own horizontal padding when the grid is sized. */
+        const val GRID_SIDE_INSET_DP = 36f
+
+        /** Height reserved for the title row and paddings above the icon grid. */
+        const val TITLE_RESERVE_DP = 44f
+
+        /** Never shrink an icon slot below this, even on a dense grid. */
+        const val MIN_CELL_DP = 40f
+
+        /** How close to a corner a touch must start to hit that corner action. */
+        const val CORNER_HIT_DP = 56f
+
+        const val CORNER_INSET_DP = 8f
+        const val CORNER_ARC_DP = 22f
     }
 }

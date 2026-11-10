@@ -62,6 +62,7 @@ object CaddyCardRenderer {
         fitGridToHost: Boolean = false,
         columns: Int = 2,
         maxIcons: Int = MAX_PREVIEW_ICONS,
+        cellSizePx: Int = 0,
     ) {
         val context = host.context
         host.removeAllViews()
@@ -159,14 +160,29 @@ object CaddyCardRenderer {
         grid.columnCount = columns
         grid.rowCount = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
         grid.useDefaultMargins = false
+        // Icons are laid out at their native size and scaled down, so their view bounds may
+        // exceed the cell; never let the grid or the card crop them.
+        grid.clipChildren = false
+        grid.clipToPadding = false
         // Drawer cards have a known preview height. Workspace cards are measured
         // from a 2x2 CellLayout span, which varies with the active grid/device profile.
         // Let the workspace grid consume the remaining measured height instead of
         // forcing 128dp and clipping the second icon row on compact home-screen cells.
+        // A workspace card is measured from a CellLayout span whose cell height varies with
+        // the active grid. Size the rows from the real cell size the host reports so icons
+        // never overflow their row (which made them overlap and look distorted), and let the
+        // grid wrap its content instead of being stretched by a layout weight.
+        val rows = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
+        val explicitCell = fitGridToHost && cellSizePx > 0
+        val gridHeight = when {
+            explicitCell -> cellSizePx * rows
+            fitGridToHost -> 0
+            else -> dp(context, 128f)
+        }
         val gridLp = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            if (fitGridToHost) 0 else dp(context, 128f),
-            if (fitGridToHost) 1f else 0f,
+            gridHeight,
+            if (fitGridToHost && !explicitCell) 1f else 0f,
         )
         gridLp.topMargin = dp(context, if (fitGridToHost) 4f else 8f)
         card.addView(grid, gridLp)
@@ -178,22 +194,26 @@ object CaddyCardRenderer {
             val cell = FrameLayout(context)
             val cellLp = GridLayout.LayoutParams()
             cellLp.width = 0
-            cellLp.height = if (fitGridToHost) 0 else dp(context, 64f)
+            cellLp.height = when {
+                explicitCell -> cellSizePx
+                fitGridToHost -> 0
+                else -> dp(context, 64f)
+            }
             cellLp.columnSpec = GridLayout.spec(index % columns, 1f)
-            cellLp.rowSpec = if (fitGridToHost) {
+            cellLp.rowSpec = if (fitGridToHost && !explicitCell) {
                 GridLayout.spec(index / columns, 1f)
             } else {
                 GridLayout.spec(index / columns)
             }
             grid.addView(cell, cellLp)
-            addCaddyAppIcon(
-                context,
-                cell,
-                app,
-                dp(context, if (fitGridToHost) 54f else 56f),
-                iconBinder,
-                fitGridToHost,
-            )
+            // Keep the icon strictly inside its cell so it can never spill into the
+            // neighbouring row.
+            val iconSize = if (explicitCell) {
+                (cellSizePx * ICON_FILL_RATIO).toInt()
+            } else {
+                dp(context, if (fitGridToHost) 54f else 56f)
+            }
+            addCaddyAppIcon(context, cell, app, iconSize, iconBinder, fitGridToHost)
         }
         host.contentDescription = title
     }
@@ -233,14 +253,29 @@ object CaddyCardRenderer {
             icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
         }
         icon.gravity = Gravity.CENTER
+        // BubbleTextView's icon size is final, set from the device profile at inflation and
+        // never changeable at runtime. Laying it out at a smaller size therefore clips the
+        // drawable (which is what distorted the workspace cards). Instead lay the icon out at
+        // its own native size and scale the whole view down to the slot we want; with clipping
+        // disabled on the cell this never crops the icon.
+        val nativeSize = icon.iconSize.takeIf { it > 0 } ?: iconSize
+        val scale = if (fitGridToHost && iconSize > 0) {
+            (iconSize.toFloat() / nativeSize).coerceAtMost(1f)
+        } else {
+            1f
+        }
         val iconParams = FrameLayout.LayoutParams(
-            if (fitGridToHost) iconSize else ViewGroup.LayoutParams.MATCH_PARENT,
-            if (fitGridToHost) iconSize else ViewGroup.LayoutParams.MATCH_PARENT,
+            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
+            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
             Gravity.CENTER,
         )
         cell.clipChildren = false
         cell.clipToPadding = false
         icon.clipToOutline = false
+        if (scale < 1f) {
+            icon.scaleX = scale
+            icon.scaleY = scale
+        }
         cell.addView(icon, iconParams)
     }
 
@@ -291,4 +326,5 @@ object CaddyCardRenderer {
     private fun dp(context: Context, value: Float): Int = Utilities.dpToPx(value, context)
 
     private const val MAX_PREVIEW_ICONS = 4
+    private const val ICON_FILL_RATIO = 0.82f
 }
