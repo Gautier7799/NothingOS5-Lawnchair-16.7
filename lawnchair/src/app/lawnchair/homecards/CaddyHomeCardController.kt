@@ -119,7 +119,13 @@ class CaddyHomeCardController(
             }
         }
         view.bind(card, ::resolveApp)
-        if (view.parent !== cellLayout) {
+        val currentParams = view.layoutParams as? CellLayoutLayoutParams
+        val placementChanged = view.parent !== cellLayout ||
+            currentParams?.cellX != card.cellX ||
+            currentParams?.cellY != card.cellY ||
+            currentParams?.cellHSpan != card.spanX ||
+            currentParams?.cellVSpan != card.spanY
+        if (placementChanged) {
             (view.parent as? CellLayout)?.removeView(view)
             val params = CellLayoutLayoutParams(card.cellX, card.cellY, card.spanX, card.spanY)
             val viewId = viewIds.getOrPut(card.id) { nextViewId++ }
