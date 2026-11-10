@@ -30,6 +30,7 @@ import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.ScrollView
 import app.lawnchair.util.resolveFolderPreviewColor
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.R
@@ -153,49 +154,61 @@ object CaddyCardRenderer {
             return
         }
 
-        val grid = GridLayout(context)
-        grid.columnCount = 2
-        // Home cards are user-sized workspace items. Use as many rows as needed
-        // to show every assigned app instead of silently truncating at four.
-        // Drawer previews retain their compact, fixed 2x2 presentation.
-        val visibleAppCount = if (fitGridToHost) apps.size else minOf(apps.size, MAX_PREVIEW_ICONS)
-        val rowCount = if (fitGridToHost) maxOf(1, (visibleAppCount + 1) / 2) else 2
-        grid.rowCount = rowCount
-        grid.useDefaultMargins = false
-        // Drawer cards have a known preview height. Workspace cards are measured
-        // from a 2x2 CellLayout span, which varies with the active grid/device profile.
-        // Let the workspace grid consume the remaining measured height instead of
-        // forcing 128dp and clipping the second icon row on compact home-screen cells.
+        // Keep the card header fixed and put the app grid in its own vertical
+        // viewport. A fixed 2x2 workspace span cannot physically show an
+        // arbitrary number of rows at once; shrinking every row to fit caused
+        // icons to overlap and be clipped on real device profiles. Scroll the
+        // contents instead, while keeping every app assigned to this card.
+        val grid = GridLayout(context).apply {
+            columnCount = 2
+            rowCount = (apps.size + 1) / 2
+            useDefaultMargins = false
+            alignmentMode = GridLayout.ALIGN_BOUNDS
+            clipChildren = false
+            clipToPadding = false
+        }
+        val scrollView = ScrollView(context).apply {
+            isFillViewport = false
+            isVerticalScrollBarEnabled = false
+            overScrollMode = android.view.View.OVER_SCROLL_NEVER
+            clipChildren = false
+            clipToPadding = false
+            setPadding(0, 0, 0, 0)
+            addView(
+                grid,
+                ScrollView.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+        }
         val gridLp = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            if (fitGridToHost) 0 else dp(context, 128f),
-            if (fitGridToHost) 1f else 0f,
+            0,
+            1f,
         )
-        gridLp.topMargin = dp(context, if (fitGridToHost) 4f else 8f)
-        card.addView(grid, gridLp)
+        gridLp.topMargin = dp(context, 6f)
+        card.addView(scrollView, gridLp)
 
-        // The drawer remains a 2x2 preview. Home cards render the full list in
-        // two adaptive columns; additional rows shrink their icons to fit the
-        // current 2x2 workspace span without clipping the bottom row.
-        val homeIconSize = maxOf(28f, 54f - maxOf(0, rowCount - 2) * 8f)
-        for (index in 0 until visibleAppCount) {
-            val app = apps[index]
+        // Each row has a stable touch target and icon viewport. Additional apps
+        // are reachable by scrolling instead of being compressed into a few
+        // pixels or drawn outside the card's measured bounds.
+        val rowHeight = dp(context, 64f)
+        val iconSize = dp(context, 48f)
+        apps.forEachIndexed { index, app ->
             val cell = FrameLayout(context)
-            val cellLp = GridLayout.LayoutParams()
-            cellLp.width = 0
-            cellLp.height = if (fitGridToHost) 0 else dp(context, 64f)
-            cellLp.columnSpec = GridLayout.spec(index % 2, 1f)
-            cellLp.rowSpec = if (fitGridToHost) {
-                GridLayout.spec(index / 2, 1f)
-            } else {
-                GridLayout.spec(index / 2)
+            val cellLp = GridLayout.LayoutParams().apply {
+                width = 0
+                height = rowHeight
+                columnSpec = GridLayout.spec(index % 2, 1f)
+                rowSpec = GridLayout.spec(index / 2)
             }
             grid.addView(cell, cellLp)
             addCaddyAppIcon(
                 context,
                 cell,
                 app,
-                dp(context, if (fitGridToHost) homeIconSize else 56f),
+                iconSize,
                 iconBinder,
                 fitGridToHost,
             )
