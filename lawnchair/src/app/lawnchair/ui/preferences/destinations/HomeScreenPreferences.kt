@@ -27,7 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.lawnchair.LawnchairApp
 import app.lawnchair.data.iconoverride.IconOverrideRepository
-import app.lawnchair.homecards.CaddyHomeCardGrouping
 import app.lawnchair.nexuslauncher.OverlayCallbackImpl
 import app.lawnchair.preferences.getAdapter
 import app.lawnchair.preferences.preferenceManager
@@ -108,37 +107,6 @@ fun HomeScreenPreferences(
                 adapter = prefs2.hideWorkspaceSmartspace.getAdapter(),
                 label = stringResource(R.string.hide_workspace_smartspace_label),
                 description = stringResource(R.string.hide_workspace_smartspace_description),
-            )
-        }
-        PreferenceGroup(heading = stringResource(id = R.string.caddy)) {
-            SwitchPreference(
-                adapter = prefs2.caddyHomeEnabled.getAdapter(),
-                label = stringResource(R.string.caddy_home_enabled_label),
-                description = stringResource(R.string.caddy_home_enabled_description),
-            )
-            SwitchPreference(
-                adapter = prefs2.caddyHomeShowTitles.getAdapter(),
-                label = stringResource(R.string.caddy_home_show_titles_label),
-            )
-            SliderPreference(
-                adapter = prefs2.caddyHomeColumns.getAdapter(),
-                label = stringResource(R.string.caddy_home_columns_label),
-                step = 1,
-                valueRange = 1..5,
-            )
-            ListPreference(
-                adapter = prefs2.caddyMergeMode.getAdapter(),
-                entries = caddyMergeModeEntries(),
-                label = stringResource(R.string.caddy_merge_mode_label),
-            )
-            ClickablePreference(
-                label = stringResource(id = R.string.remove_all_views_from_home_screen),
-                confirmationText = stringResource(id = R.string.remove_all_views_from_home_screen_desc),
-                onClick = {
-                    scope.launch {
-                        clearAllViewsFromHomeScreen(context, LauncherSettings.Favorites.CONTAINER_DESKTOP)
-                    }
-                },
             )
         }
         val feedAvailable = OverlayCallbackImpl.minusOneAvailable(LocalContext.current)
@@ -323,12 +291,3 @@ fun HomeScreenTextColorPreference(
     )
 }
 
-@Composable
-private fun caddyMergeModeEntries(): List<ListPreferenceEntry<String>> = listOf(
-    ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_STACK) {
-        stringResource(R.string.caddy_merge_mode_stack)
-    },
-    ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_COMBINE) {
-        stringResource(R.string.caddy_merge_mode_combine)
-    },
-)
