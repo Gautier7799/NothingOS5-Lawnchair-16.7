@@ -199,8 +199,8 @@ object CaddyCardRenderer {
             card.addView(grid, gridLp)
         }
 
-        val rowHeight = dp(context, 64f)
-        val homeIconSize = dp(context, 48f)
+        val rowHeight = dp(context, 56f)
+        val homeIconSize = dp(context, 44f)
         visibleApps.forEachIndexed { index, app ->
             val cell = FrameLayout(context)
             val cellLp = GridLayout.LayoutParams().apply {
