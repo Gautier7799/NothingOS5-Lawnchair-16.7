@@ -177,7 +177,7 @@ object CaddyCardRenderer {
                 setPadding(0, 0, 0, 0)
                 addView(
                     grid,
-                    ScrollView.LayoutParams(
+                    ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
                     ),
