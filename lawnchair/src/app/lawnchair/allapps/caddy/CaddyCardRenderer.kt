@@ -50,7 +50,7 @@ import com.android.launcher3.model.data.AppInfo
  */
 object CaddyCardRenderer {
 
-    /** Fills [host] with the card surface, title and up to four app icons. */
+    /** Fills [host] with the card surface, title and app icons. Home cards show every assigned app; drawer previews remain capped at four. */
     @JvmOverloads
     fun renderCategoryCard(
         host: FrameLayout,
@@ -155,7 +155,12 @@ object CaddyCardRenderer {
 
         val grid = GridLayout(context)
         grid.columnCount = 2
-        grid.rowCount = 2
+        // Home cards are user-sized workspace items. Use as many rows as needed
+        // to show every assigned app instead of silently truncating at four.
+        // Drawer previews retain their compact, fixed 2x2 presentation.
+        val visibleAppCount = if (fitGridToHost) apps.size else minOf(apps.size, MAX_PREVIEW_ICONS)
+        val rowCount = if (fitGridToHost) maxOf(1, (visibleAppCount + 1) / 2) else 2
+        grid.rowCount = rowCount
         grid.useDefaultMargins = false
         // Drawer cards have a known preview height. Workspace cards are measured
         // from a 2x2 CellLayout span, which varies with the active grid/device profile.
@@ -169,9 +174,11 @@ object CaddyCardRenderer {
         gridLp.topMargin = dp(context, if (fitGridToHost) 4f else 8f)
         card.addView(grid, gridLp)
 
-        // Keep the category preview visually balanced: four equal icon slots
-        // in a consistent 2x2 grid. Remaining apps are available after opening.
-        for (index in 0 until minOf(apps.size, MAX_PREVIEW_ICONS)) {
+        // The drawer remains a 2x2 preview. Home cards render the full list in
+        // two adaptive columns; additional rows shrink their icons to fit the
+        // current 2x2 workspace span without clipping the bottom row.
+        val homeIconSize = maxOf(28f, 54f - maxOf(0, rowCount - 2) * 8f)
+        for (index in 0 until visibleAppCount) {
             val app = apps[index]
             val cell = FrameLayout(context)
             val cellLp = GridLayout.LayoutParams()
@@ -188,7 +195,7 @@ object CaddyCardRenderer {
                 context,
                 cell,
                 app,
-                dp(context, if (fitGridToHost) 54f else 56f),
+                dp(context, if (fitGridToHost) homeIconSize else 56f),
                 iconBinder,
                 fitGridToHost,
             )
