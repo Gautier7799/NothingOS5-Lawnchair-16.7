@@ -360,7 +360,6 @@ class CaddyHomeCardView @JvmOverloads constructor(
         /** Height reserved for the title row and paddings above the icon grid. */
         const val TITLE_RESERVE_DP = 44f
 
-        /** Never shrink an icon slot below this, even on a dense grid. */
         /** How close to a corner a touch must start to hit that corner action. */
         const val CORNER_HIT_DP = 56f
 
