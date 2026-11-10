@@ -77,7 +77,7 @@ class CaddyHomeCardLayoutTest {
     @Test
     fun cellSize_isZeroBeforeTheCardHasBeenMeasured() {
         assertThat(
-            CaddyHomeCardLayout.cellSizePx(0, 0, 2, 2, 36, 44, 40),
+            CaddyHomeCardLayout.cellSizePx(0, 0, 2, 2, 36, 44),
         ).isEqualTo(0)
     }
 
