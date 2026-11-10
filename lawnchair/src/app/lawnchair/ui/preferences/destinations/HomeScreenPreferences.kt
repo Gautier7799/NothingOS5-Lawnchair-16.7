@@ -16,12 +16,9 @@
 
 package app.lawnchair.ui.preferences.destinations
 
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -38,9 +35,7 @@ import app.lawnchair.ui.preferences.components.GestureHandlerPreference
 import app.lawnchair.ui.preferences.components.HomeLayoutSettings
 import app.lawnchair.ui.preferences.components.NavigationActionPreference
 import app.lawnchair.ui.preferences.components.OverlayHandlerPreference
-import app.lawnchair.ui.preferences.components.controls.ClickablePreference
 import app.lawnchair.ui.preferences.components.controls.ListPreference
-import app.lawnchair.ui.preferences.components.controls.ListPreferenceEntry
 import app.lawnchair.ui.preferences.components.controls.SliderPreference
 import app.lawnchair.ui.preferences.components.controls.SwitchPreference
 import app.lawnchair.ui.preferences.components.layout.ExpandAndShrink
@@ -48,12 +43,8 @@ import app.lawnchair.ui.preferences.components.layout.PreferenceGroup
 import app.lawnchair.ui.preferences.components.layout.PreferenceLayout
 import app.lawnchair.ui.preferences.navigation.HomeScreenGrid
 import app.lawnchair.util.collectAsStateBlocking
-import com.android.launcher3.LauncherAppState
-import com.android.launcher3.LauncherSettings
 import com.android.launcher3.R
 import com.android.launcher3.Utilities
-import com.android.launcher3.celllayout.CellPosMapper
-import kotlinx.coroutines.launch
 
 object HomeScreenRoutes {
     const val GRID = "grid"
@@ -66,8 +57,6 @@ fun HomeScreenPreferences(
 ) {
     val prefs = preferenceManager()
     val prefs2 = preferenceManager2()
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     PreferenceLayout(
         label = stringResource(id = R.string.home_screen_label),
         backArrowVisible = !LocalIsExpandedScreen.current,
@@ -261,23 +250,6 @@ fun HomeScreenPreferences(
     }
 }
 
-private fun clearAllViewsFromHomeScreen(context: Context, type: Int) {
-    val launcherModel = LauncherAppState.getInstance(context).model
-    val modelWriter = launcherModel.getWriter(
-        verifyChanges = false,
-        cellPosMapper = CellPosMapper.DEFAULT,
-        owner = null,
-    )
-    val isViewsRemoved = modelWriter.clearAllHomeScreenViewsByType(type)
-    if (isViewsRemoved) {
-        launcherModel.forceReload()
-        Toast.makeText(
-            context,
-            R.string.home_screen_all_views_removed_msg,
-            Toast.LENGTH_SHORT,
-        ).show()
-    }
-}
 
 @Composable
 fun HomeScreenTextColorPreference(
