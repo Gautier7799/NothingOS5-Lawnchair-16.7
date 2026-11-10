@@ -142,6 +142,14 @@ object CaddyCardRenderer {
             )
         }
 
+        if (fitGridToHost && cellSizePx <= 0) {
+            // The workspace card has not been measured yet, or its current viewport
+            // has no usable icon area. Do not fall back to the drawer's fixed 54dp
+            // icon size: that would overflow the card and recreate the clipping bug.
+            host.contentDescription = title
+            return
+        }
+
         if (isAddCategory) {
             val addHint = TextView(context)
             addHint.text = "＋"
