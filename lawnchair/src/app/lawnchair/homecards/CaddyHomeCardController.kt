@@ -63,17 +63,33 @@ class CaddyHomeCardController(
     /** Rebuilds the workspace cards from the current app list and category sources. */
     fun sync(apps: List<AppInfo>) {
         val hidden = hiddenStore.load()
-        val desired = CaddyHomeCardSource.build(context, apps).filterNot { it.id in hidden }
+        val savedCards = repository.load()
+
+        // Drawer categories are only an initial seed. After the first Home sync,
+        // the Home repository owns titles, app membership, ordering and placement.
+        // Rebuilding from the drawer on every app update silently overwrote Home edits.
+        val drawerSeed = if (savedCards.isEmpty()) {
+            CaddyHomeCardSource.build(context, apps)
+        } else {
+            emptyList()
+        }
+        val allCards = CaddyHomeCardSyncPolicy.select(savedCards, drawerSeed)
+        val desired = CaddyHomeCardSyncPolicy.visible(allCards, hidden)
+
         if (desired.isEmpty()) {
             detachAll()
-            repository.save(emptyList())
+            // Keep seeded/hidden cards in storage so restoreCard() can bring them back
+            // and an empty visible Home does not get reseeded on every app-store update.
+            if (savedCards.isEmpty() && drawerSeed.isNotEmpty()) {
+                repository.save(drawerSeed)
+            }
             return
         }
 
-        val placementById = repository.load().associateBy { it.id }
+        val placementById = savedCards.associateBy { it.id }
         val desiredIds = desired.mapTo(mutableSetOf()) { it.id }
 
-        // Drop views whose category no longer exists.
+        // Drop views whose Home card was removed from the repository.
         attached.keys.toList().forEach { id ->
             if (id !in desiredIds) removeView(id)
         }
@@ -81,7 +97,7 @@ class CaddyHomeCardController(
         val persisted = mutableListOf<CaddyHomeCardInfo>()
         desired.forEach { card ->
             val existing = placementById[card.id]
-            val placed = if (existing != null) {
+            val placed = if (existing != null && existing.screenId >= 0) {
                 card.copy(
                     screenId = existing.screenId,
                     cellX = existing.cellX,
@@ -92,9 +108,12 @@ class CaddyHomeCardController(
             } else {
                 placeAtFreeCells(card) ?: return@forEach
             }
-            attach(placed)
-            persisted.add(placed)
+            if (attach(placed)) persisted.add(placed)
         }
+
+        // Hidden cards remain persisted as Home-owned cards; only their Workspace
+        // views are detached. This makes remove/restore independent from Drawer data.
+        persisted.addAll(allCards.filter { it.id in hidden })
         repository.save(persisted)
     }
 
@@ -230,7 +249,8 @@ class CaddyHomeCardController(
         val existing = repository.load().firstOrNull { it.id == id } ?: return false
         hiddenStore.hide(id)
         detach(id)
-        repository.remove(existing.id)
+        // Keep the Home card record so restoreCard() can restore it without
+        // rebuilding or importing its content from the Drawer.
         return true
     }
 
