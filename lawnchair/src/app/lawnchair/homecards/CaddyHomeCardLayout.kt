@@ -33,15 +33,29 @@ object CaddyHomeCardLayout {
         rows: Int,
         sideInsetPx: Int,
         titleReservePx: Int,
-        minCellPx: Int,
     ): Int {
         if (width <= 0 || height <= 0) return 0
         val safeColumns = columns.coerceAtLeast(1)
         val safeRows = rows.coerceAtLeast(1)
         val horizontal = (width - sideInsetPx) / safeColumns
         val vertical = (height - titleReservePx) / safeRows
-        return maxOf(minCellPx, minOf(horizontal, vertical))
+        return minOf(horizontal, vertical).coerceAtLeast(0)
     }
+
+    /** True when two workspace card rectangles share at least one grid cell. */
+    fun overlaps(
+        firstX: Int,
+        firstY: Int,
+        firstSpanX: Int,
+        firstSpanY: Int,
+        secondX: Int,
+        secondY: Int,
+        secondSpanX: Int,
+        secondSpanY: Int,
+    ): Boolean = firstX < secondX + secondSpanX &&
+        firstX + firstSpanX > secondX &&
+        firstY < secondY + secondSpanY &&
+        firstY + firstSpanY > secondY
 
     /** The scale to apply to an icon laid out at [nativePx] so it fits a [slotPx] slot. */
     fun iconScale(slotPx: Int, nativePx: Int): Float {
