@@ -98,23 +98,65 @@ class CaddyHomeCardController(
         val clampedX = spanX.coerceIn(MIN_SPAN, maxSpanX())
         val clampedY = spanY.coerceIn(MIN_SPAN, maxSpanY())
         if (clampedX == current.spanX && clampedY == current.spanY) return true
+        val cellLayout = cellLayoutFor(current) ?: return false
         val updated = current.copy(spanX = clampedX, spanY = clampedY)
-        if (!reattach(updated)) {
-            // The requested size does not fit next to its neighbours. Put the card
-            // back at its previous size instead of letting it disappear.
-            reattach(current)
+        // Free the card's own cells first, then check the requested region. The grid does not
+        // reject overlaps itself, so without this a bigger card could grow over its neighbours.
+        detach(id)
+        if (!isRegionFree(cellLayout, updated.cellX, updated.cellY, clampedX, clampedY)) {
+            attach(current)
+            return false
+        }
+        if (!attach(updated)) {
+            attach(current)
             return false
         }
         repository.update(updated)
         return true
     }
 
-    private fun reattach(card: CaddyHomeCardInfo): Boolean {
-        val view = attached[card.id] ?: return false
-        (view.parent as? CellLayout)?.removeView(view)
-        attached.remove(card.id)
-        viewIds.remove(card.id)
-        return attach(card)
+    /**
+     * Moves one card by a whole number of cells, keeping its size, and persists the new cell.
+     *
+     * Called after a drag. The target cell is clamped to the page and the move is rejected if
+     * another card (or launcher item) already occupies it, so cards never overlap.
+     */
+    fun move(id: Int, deltaCellsX: Int, deltaCellsY: Int): Boolean {
+        if (deltaCellsX == 0 && deltaCellsY == 0) return true
+        val current = repository.load().firstOrNull { it.id == id } ?: return false
+        val cellLayout = cellLayoutFor(current) ?: return false
+        val targetX = current.cellX + deltaCellsX
+        val targetY = current.cellY + deltaCellsY
+        // Free the card's own cells first, otherwise a small move would collide with itself.
+        detach(id)
+        if (!isRegionFree(cellLayout, targetX, targetY, current.spanX, current.spanY)) {
+            attach(current)
+            return false
+        }
+        val moved = current.copy(cellX = targetX, cellY = targetY)
+        if (!attach(moved)) {
+            attach(current)
+            return false
+        }
+        repository.update(moved)
+        return true
+    }
+
+    /** True when the [spanX] x [spanY] region at ([x], [y]) is inside the page and unoccupied. */
+    private fun isRegionFree(cellLayout: CellLayout, x: Int, y: Int, spanX: Int, spanY: Int): Boolean {
+        if (x < 0 || y < 0) return false
+        if (x + spanX > cellLayout.countX || y + spanY > cellLayout.countY) return false
+        for (cx in x until x + spanX) {
+            for (cy in y until y + spanY) {
+                if (cellLayout.isOccupied(cx, cy)) return false
+            }
+        }
+        return true
+    }
+
+    private fun detach(id: Int) {
+        attached.remove(id)?.let { view -> (view.parent as? CellLayout)?.removeView(view) }
+        viewIds.remove(id)
     }
 
     private fun maxSpanX(): Int = (launcher.deviceProfile?.inv?.numColumns ?: MIN_SPAN).coerceAtLeast(MIN_SPAN)
@@ -144,14 +186,9 @@ class CaddyHomeCardController(
 
     private fun attach(card: CaddyHomeCardInfo): Boolean {
         val cellLayout = cellLayoutFor(card) ?: return false
-        val view = attached.getOrPut(card.id) {
-            CaddyHomeCardView(context).apply {
-                // Consume the long press so the workspace never tries to drag a
-                // card that carries no launcher ItemInfo tag.
-                onCardLongClick = { true }
-            }
-        }
+        val view = attached.getOrPut(card.id) { CaddyHomeCardView(context) }
         view.bind(card, ::resolveApp)
+        view.onMove = { dx, dy -> move(card.id, dx, dy) }
         view.onResize = { spanX, spanY -> resize(card.id, spanX, spanY) }
         if (view.parent == null) {
             val params = CellLayoutLayoutParams(card.cellX, card.cellY, card.spanX, card.spanY)

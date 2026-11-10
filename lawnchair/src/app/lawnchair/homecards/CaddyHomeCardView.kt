@@ -20,13 +20,16 @@ import android.content.Context
 import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import com.android.launcher3.Utilities
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -38,9 +41,10 @@ import kotlin.math.roundToInt
  * pop-up (App info / Uninstall / Personalise / Open in store) via
  * [CaddyCardIconLongClick].
  *
- * A card is resizable: dragging the handle in its bottom-right corner reports a new
- * grid size through [onResize], which the controller persists. The card's grid grows
- * with the card, so a taller or wider card reveals more apps at once.
+ * The card is both movable and resizable, using the same gesture grammar as the
+ * launcher itself: long-press the card to pick it up and drag it to a new cell
+ * ([onMove]); drag the handle in the bottom-right corner to change its grid size
+ * ([onResize]). Both are reported as whole cells and the controller persists them.
  */
 class CaddyHomeCardView @JvmOverloads constructor(
     context: Context,
@@ -49,8 +53,11 @@ class CaddyHomeCardView @JvmOverloads constructor(
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
     var onCardClick: (() -> Unit)? = null
-    var onCardLongClick: (() -> Boolean)? = null
+    var onMove: ((deltaCellsX: Int, deltaCellsY: Int) -> Boolean)? = null
     var onResize: ((spanX: Int, spanY: Int) -> Boolean)? = null
+
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private val longPressTimeout = ViewConfiguration.getLongPressTimeout().toLong()
 
     fun bind(card: CaddyHomeCardInfo, resolveApp: (String) -> AppInfo?) {
         CaddyCardRenderer.renderCategoryCard(
@@ -66,7 +73,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
             columns = card.spanX.coerceAtLeast(MIN_SPAN),
             maxIcons = card.spanX.coerceAtLeast(MIN_SPAN) * card.spanY.coerceAtLeast(MIN_SPAN),
         )
-        setOnLongClickListener { onCardLongClick?.invoke() ?: false }
+        setOnTouchListener(DragTouchListener(card))
         attachResizeHandle(card)
     }
 
@@ -88,6 +95,76 @@ class CaddyHomeCardView @JvmOverloads constructor(
             },
         )
         handle.setOnTouchListener(ResizeTouchListener(card))
+    }
+
+    /** Long-press to pick the card up, drag to move it, release to drop it on a new cell. */
+    private inner class DragTouchListener(private val card: CaddyHomeCardInfo) : OnTouchListener {
+
+        private var startRawX = 0f
+        private var startRawY = 0f
+        private var dragging = false
+
+        private val pickUp = Runnable {
+            dragging = true
+            animate().scaleX(1.05f).scaleY(1.05f).translationZ(Utilities.dpToPx(8f, context).toFloat()).setDuration(120).start()
+            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        }
+
+        override fun onTouch(view: View, event: MotionEvent): Boolean {
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    startRawX = event.rawX
+                    startRawY = event.rawY
+                    dragging = false
+                    postDelayed(pickUp, longPressTimeout)
+                    return true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - startRawX
+                    val dy = event.rawY - startRawY
+                    if (!dragging) {
+                        if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
+                            removeCallbacks(pickUp)
+                        }
+                        return true
+                    }
+                    translationX = dx
+                    translationY = dy
+                    return true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    removeCallbacks(pickUp)
+                    if (dragging) {
+                        val cellW = (width / card.spanX.toFloat()).coerceAtLeast(1f)
+                        val cellH = (height / card.spanY.toFloat()).coerceAtLeast(1f)
+                        val deltaX = (translationX / cellW).roundToInt()
+                        val deltaY = (translationY / cellH).roundToInt()
+                        resetLift()
+                        onMove?.invoke(deltaX, deltaY)
+                    } else {
+                        performClick()
+                    }
+                    return true
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    removeCallbacks(pickUp)
+                    if (dragging) resetLift()
+                    dragging = false
+                    return true
+                }
+            }
+            return false
+        }
+
+        private fun resetLift() {
+            animate().scaleX(1f).scaleY(1f).translationZ(0f).setDuration(120).start()
+            translationX = 0f
+            translationY = 0f
+            dragging = false
+        }
     }
 
     /** Turns a drag on the handle into a whole-cell span change, applied on release. */
