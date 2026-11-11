@@ -17,6 +17,7 @@
 package app.lawnchair.allapps.caddy
 
 import android.content.Context
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.Typeface
@@ -76,21 +77,29 @@ object CaddyCardRenderer {
 
         val densityPadding = dp(context, 14f)
         val themeColor = resolveDynamicColor(context)
-        // Translucent Nothing-style glass, tinted by Lawnchair's existing folder /
-        // preview color so the user's selected and dynamic colors remain visible.
-        val glassRed = Math.round(Color.red(themeColor) * 0.30f + 28 * 0.70f)
-        val glassGreen = Math.round(Color.green(themeColor) * 0.30f + 31 * 0.70f)
-        val glassBlue = Math.round(Color.blue(themeColor) * 0.30f + 38 * 0.70f)
-        val topGlass = Color.argb(184, glassRed, glassGreen, glassBlue)
+        val nightMode = context.resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        // A lighter, wallpaper-visible glass surface for workspace cards. The base
+        // surface follows the current system appearance while Monet supplies its tint.
+        // Lower alpha is intentional: the wallpaper must remain visible through Caddy.
+        val baseRed = if (nightMode) 24 else 246
+        val baseGreen = if (nightMode) 29 else 250
+        val baseBlue = if (nightMode) 35 else 252
+        val tintWeight = 0.22f
+        val glassRed = Math.round(baseRed * (1f - tintWeight) + Color.red(themeColor) * tintWeight)
+        val glassGreen = Math.round(baseGreen * (1f - tintWeight) + Color.green(themeColor) * tintWeight)
+        val glassBlue = Math.round(baseBlue * (1f - tintWeight) + Color.blue(themeColor) * tintWeight)
+        val surfaceAlpha = if (nightMode) 142 else 164
+        val topGlass = Color.argb(surfaceAlpha, glassRed, glassGreen, glassBlue)
         val bottomGlass = Color.argb(
-            148,
-            Math.max(12, glassRed - 10),
-            Math.max(14, glassGreen - 10),
-            Math.max(18, glassBlue - 10),
+            if (nightMode) 104 else 126,
+            Math.max(8, glassRed - 12),
+            Math.max(10, glassGreen - 12),
+            Math.max(12, glassBlue - 12),
         )
-        val foreground = Color.WHITE
+        val foreground = if (nightMode) Color.WHITE else Color.rgb(26, 31, 38)
         val accentStroke = Color.argb(
-            116,
+            156,
             Color.red(themeColor),
             Color.green(themeColor),
             Color.blue(themeColor),
@@ -112,15 +121,15 @@ object CaddyCardRenderer {
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(topGlass, bottomGlass),
         )
-        background.cornerRadius = dp(context, 28f).toFloat()
-        background.setStroke(dp(context, 1f), accentStroke)
+        background.cornerRadius = dp(context, if (fitGridToHost) 30f else 28f).toFloat()
+        background.setStroke(dp(context, if (fitGridToHost) 1.25f else 1f), accentStroke)
         card.background = background
         // Drawer previews stay clipped to their rounded outline. Workspace previews use
         // native-size BubbleTextView children scaled into smaller cells; clipping those
         // transformed children to the rounded outline crops adaptive-icon edges. Keep the
         // rounded background, but do not use it as a content clip on workspace cards.
         card.clipToOutline = !fitGridToHost
-        card.elevation = dp(context, 1f).toFloat()
+        card.elevation = dp(context, if (fitGridToHost) 3f else 1f).toFloat()
         host.addView(
             card,
             FrameLayout.LayoutParams(
@@ -133,7 +142,7 @@ object CaddyCardRenderer {
             val titleView = TextView(context)
             titleView.text = if (isAddCategory) "+  Add category" else title
             titleView.setTextColor(foreground)
-            titleView.textSize = 14f
+            titleView.textSize = if (fitGridToHost) 17f else 14f
             titleView.typeface = Typeface.DEFAULT_BOLD
             titleView.maxLines = 1
             titleView.ellipsize = TextUtils.TruncateAt.END
@@ -199,7 +208,7 @@ object CaddyCardRenderer {
             gridHeight,
             if (fitGridToHost && !explicitCell) 1f else 0f,
         )
-        gridLp.topMargin = dp(context, if (fitGridToHost) 4f else 8f)
+        gridLp.topMargin = dp(context, if (fitGridToHost) 6f else 8f)
         card.addView(grid, gridLp)
 
         // Keep the category preview visually balanced: equal icon slots in a
@@ -341,5 +350,5 @@ object CaddyCardRenderer {
     private fun dp(context: Context, value: Float): Int = Utilities.dpToPx(value, context)
 
     private const val MAX_PREVIEW_ICONS = 4
-    private const val ICON_FILL_RATIO = 0.82f
+    private const val ICON_FILL_RATIO = 0.88f
 }
