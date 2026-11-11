@@ -145,7 +145,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
         super.onSizeChanged(w, h, oldw, oldh)
         if (w > 0 && h > 0) {
             val card = boundCard ?: return
-            val columns = iconColumns.coerceAtLeast(1)
+            val columns = iconColumns.coerceIn(1, card.spanX.coerceAtLeast(1))
             val rows = card.spanY.coerceAtLeast(MIN_SPAN)
             val cell = CaddyHomeCardLayout.cellSizePx(
                 width = w,
@@ -340,7 +340,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
         const val GRID_SIDE_INSET_DP = 36f
 
         /** Height reserved for the title row and paddings above the icon grid. */
-        const val TITLE_RESERVE_DP = 44f
+        const val TITLE_RESERVE_DP = 52f
 
         /** Host/card padding and grid gap only; used when the title row is hidden. */
         const val NO_TITLE_RESERVE_DP = 28f
