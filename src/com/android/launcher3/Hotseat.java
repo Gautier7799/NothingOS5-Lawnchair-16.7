@@ -357,13 +357,13 @@ public class Hotseat extends FrameLayout implements Insettable {
         addOnLayoutChangeListener((view, left, top, right, bottom,
                 oldLeft, oldTop, oldRight, oldBottom) -> mUpdateCapsuleBounds.run());
         mIconsContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+                oldLeft, oldTop, oldRight, oldBottom) -> mUpdateCapsuleBounds.run());
         mPagedView.addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+                oldLeft, oldTop, oldRight, oldBottom) -> mUpdateCapsuleBounds.run());
         // Icon add/remove/reorder and page changes can happen without resizing the
         // parent views. Re-evaluate after the view tree has laid out those changes.
         mPagedView.getViewTreeObserver().addOnGlobalLayoutListener(
-                () -> updateCapsuleBounds.run());
+                () -> mUpdateCapsuleBounds.run());
         mIconsContainer.post(mUpdateCapsuleBounds);
         setBackground(null);
     }
