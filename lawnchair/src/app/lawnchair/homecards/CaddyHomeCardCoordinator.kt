@@ -39,19 +39,26 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
 
     /** Called once the launcher's views are ready. */
     fun start() {
-        val store = launcher.appsView?.appsStore ?: return
-        if (!listening) {
-            store.addUpdateListener(appsListener)
-            listening = true
-        }
+        registerAppsListener()
         syncFromApps()
     }
 
     /** Called after the workspace has (re)bound its pages. */
     fun onWorkspaceBound() {
+        // AppsView may not exist yet during Activity.onCreate(). Retry listener
+        // registration only after the workspace has finished binding.
+        registerAppsListener()
         // Rebound pages are new views, so drop the stale references and rebuild.
         controller.detachAll()
         syncFromApps()
+    }
+
+    private fun registerAppsListener() {
+        val store = launcher.appsView?.appsStore ?: return
+        if (!listening) {
+            store.addUpdateListener(appsListener)
+            listening = true
+        }
     }
 
     fun stop() {
@@ -71,6 +78,12 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
         controller.mergeMode = prefs.caddyMergeMode.firstCached()
         controller.showTitles = prefs.caddyHomeShowTitles.firstCached()
         controller.columns = prefs.caddyHomeColumns.firstCached().coerceIn(1, 5)
+        // onCreate() can run before Workspace has created/bound its pages. Never
+        // sync or persist an empty placement result at that point: doing so would
+        // overwrite the user's saved card coordinates with an empty list.
+        val workspace = launcher.workspace ?: return
+        if (workspace.screenOrder.size() == 0) return
+
         val apps = launcher.appsView?.appsStore?.apps?.toList() ?: return
         if (apps.isEmpty()) return
         controller.sync(apps)
