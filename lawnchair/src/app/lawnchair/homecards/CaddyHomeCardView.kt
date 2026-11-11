@@ -344,11 +344,16 @@ class CaddyHomeCardView @JvmOverloads constructor(
         /** Space taken by the card's own horizontal padding when the grid is sized. */
         const val GRID_SIDE_INSET_DP = 36f
 
-        /** Height reserved for the title row and paddings above the icon grid. */
-        const val TITLE_RESERVE_DP = 52f
+        /**
+         * Reserve the complete title/padding/gap area plus a safety allowance for
+         * CellLayout measurement differences. The previous 52dp estimate left the
+         * second preview row flush against the card's bottom edge on compact grids,
+         * where the parent clips the lower half of adaptive icons.
+         */
+        const val TITLE_RESERVE_DP = 72f
 
-        /** Host/card padding and grid gap only; used when the title row is hidden. */
-        const val NO_TITLE_RESERVE_DP = 28f
+        /** Host/card padding, grid gap and the same measurement allowance without a title. */
+        const val NO_TITLE_RESERVE_DP = 48f
 
         /** How close to a corner a touch must start to hit that corner action. */
         const val CORNER_HIT_DP = 56f
