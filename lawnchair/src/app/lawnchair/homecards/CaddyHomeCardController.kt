@@ -67,15 +67,16 @@ class CaddyHomeCardController(
         val hidden = hiddenStore.load()
         val desired = CaddyHomeCardSource.build(context, apps).filterNot { it.id in hidden }
         if (desired.isEmpty()) {
+            // AppStore can briefly publish an incomplete/empty snapshot while loading.
+            // Detach stale views, but never erase the user's saved card placements.
             detachAll()
-            repository.save(emptyList())
             return
         }
 
         val placementById = repository.load().associateBy { it.id }
         val desiredIds = desired.mapTo(mutableSetOf()) { it.id }
 
-        // Drop views whose category no longer exists.
+        // Drop views whose category no longer exists in the current complete source.
         placement.attachedIds().forEach { id ->
             if (id !in desiredIds) removeView(id)
         }
@@ -83,19 +84,47 @@ class CaddyHomeCardController(
         val persisted = mutableListOf<CaddyHomeCardInfo>()
         desired.forEach { card ->
             val existing = placementById[card.id]
-            val placed = if (existing != null) {
+            // Release this card's previous footprint before validating its saved rectangle.
+            // The CellLayout occupancy grid includes normal shortcuts/folders/widgets, so a
+            // persisted Caddy rectangle must be checked against those items on every rebind.
+            if (existing != null) detach(card.id)
+
+            val saved = existing?.let {
                 card.copy(
-                    screenId = existing.screenId,
-                    cellX = existing.cellX,
-                    cellY = existing.cellY,
-                    spanX = existing.spanX,
-                    spanY = existing.spanY,
+                    screenId = it.screenId,
+                    cellX = it.cellX,
+                    cellY = it.cellY,
+                    spanX = it.spanX,
+                    spanY = it.spanY,
                 )
-            } else {
-                placeAtFreeCells(card) ?: return@forEach
             }
-            attach(placed)
-            persisted.add(placed)
+            val savedStillFree = saved?.let { candidate ->
+                val page = cellLayoutFor(candidate)
+                page != null && isRegionFree(
+                    page,
+                    candidate.cellX,
+                    candidate.cellY,
+                    candidate.spanX,
+                    candidate.spanY,
+                    candidate.screenId,
+                )
+            } == true
+
+            val placed = when {
+                savedStillFree -> saved!!
+                else -> placeAtFreeCells(card)
+            }
+            if (placed == null) {
+                // Keep the last known placement so a later workspace update can retry it.
+                existing?.let(persisted::add)
+                return@forEach
+            }
+            if (attach(placed)) {
+                persisted.add(placed)
+            } else {
+                // Do not discard saved placement when the target page is temporarily unavailable.
+                existing?.let(persisted::add)
+            }
         }
         repository.save(persisted)
     }
