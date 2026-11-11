@@ -202,6 +202,14 @@ public class Hotseat extends FrameLayout implements Insettable {
     }
 
     private void setUpBackground() {
+        // Respect the user's existing Dock background switch. The background must
+        // never be forced on when the user has disabled it in Dock settings.
+        if (!preferenceManager.getHotseatBG().get()) {
+            mIconsContainer.setBackground(null);
+            setBackground(null);
+            return;
+        }
+
         var bgColor = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundColor());
         var transparency = preferenceManager.getHotseatBGAlpha().get();
@@ -263,21 +271,52 @@ public class Hotseat extends FrameLayout implements Insettable {
             }
             if (!foundIcon || iconBounds.isEmpty()) return;
 
-            // Restore the iOS reference proportions used by the earlier stable dock:
-            // a centered capsule occupying 95% of the icon container width, with
-            // a height proportional to the device width rather than a fixed 72dp.
-            int capsuleWidth = Math.max(1, Math.round(containerWidth * 0.95f));
-            int capsuleHeight = Math.min(containerHeight,
-                    Math.max(1, Math.round(containerWidth * 0.254f)));
-            int left = (containerWidth - capsuleWidth) / 2;
-            int right = containerWidth - capsuleWidth - left;
-            int top = Math.max(0, Math.min(containerHeight - capsuleHeight,
-                    iconBounds.centerY() - capsuleHeight / 2));
+            // Size the pill from the measured icon row. A width-derived height is
+            // incorrect on phones: it can exceed the hotseat height and get clamped
+            // into a flat full-height rectangle (the regression seen on Pixel 8).
+            float density = getResources().getDisplayMetrics().density;
+            int horizontalPadding = Math.round(16f * density);
+            int verticalPadding = Math.round(8f * density);
+
+            int requestedLeftInset = Math.max(0,
+                    preferenceManager.getHotseatBGHorizontalInsetLeft().get());
+            int requestedRightInset = Math.max(0,
+                    preferenceManager.getHotseatBGHorizontalInsetRight().get());
+            int requestedTopInset = Math.max(0,
+                    preferenceManager.getHotseatBGVerticalInsetTop().get());
+            int requestedBottomInset = Math.max(0,
+                    preferenceManager.getHotseatBGVerticalInsetBottom().get());
+
+            int maxCapsuleWidth = Math.max(1,
+                    containerWidth - requestedLeftInset - requestedRightInset);
+            int capsuleWidth = Math.min(maxCapsuleWidth,
+                    iconBounds.width() + horizontalPadding * 2);
+            int desiredLeft = iconBounds.centerX() - capsuleWidth / 2;
+            int left = Math.max(requestedLeftInset,
+                    Math.min(desiredLeft,
+                            containerWidth - requestedRightInset - capsuleWidth));
+            int right = containerWidth - left - capsuleWidth;
+
+            // Keep a compact iOS-like pill around the icon artwork, not a height
+            // proportional to the entire screen width. Four icons remain vertically
+            // centered with a small, consistent glass-surface breathing space.
+            int minCapsuleHeight = Math.round(64f * density);
+            int capsuleHeight = Math.max(minCapsuleHeight,
+                    iconBounds.height() + verticalPadding * 2);
+            capsuleHeight = Math.min(capsuleHeight, containerHeight);
+            int desiredTop = iconBounds.centerY() - capsuleHeight / 2;
+            int top = Math.max(requestedTopInset,
+                    Math.min(desiredTop, containerHeight - requestedBottomInset - capsuleHeight));
             int bottom = containerHeight - top - capsuleHeight;
 
-            // A half-height radius creates a continuous pill while retaining the
-            // configured minimum corner radius and existing background color/alpha.
-            background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
+            // The user inset controls further shrink/offset the visible capsule.
+            top = Math.min(containerHeight - 1, top + requestedTopInset);
+            bottom = Math.min(containerHeight - top - 1, bottom + requestedBottomInset);
+            left = Math.min(containerWidth - 1, left + requestedLeftInset);
+            right = Math.min(containerWidth - left - 1, right + requestedRightInset);
+
+            int visibleHeight = Math.max(1, containerHeight - top - bottom);
+            background.setCornerRadius(Math.max(cornerRadius, visibleHeight / 2f));
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
 
@@ -287,6 +326,10 @@ public class Hotseat extends FrameLayout implements Insettable {
                 oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
         mPagedView.addOnLayoutChangeListener((view, left, top, right, bottom,
                 oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+        // Icon add/remove/reorder and page changes can happen without resizing the
+        // parent views. Re-evaluate after the view tree has laid out those changes.
+        mPagedView.getViewTreeObserver().addOnGlobalLayoutListener(
+                () -> updateCapsuleBounds.run());
         mIconsContainer.post(updateCapsuleBounds);
         setBackground(null);
     }
