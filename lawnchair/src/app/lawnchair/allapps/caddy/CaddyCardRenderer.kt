@@ -77,8 +77,8 @@ object CaddyCardRenderer {
 
         val densityPadding = dp(context, 14f)
         val themeColor = resolveDynamicColor(context)
-        val nightMode = context.resources.configuration.uiMode and
-            Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        val nightMode = (context.resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         // A lighter, wallpaper-visible glass surface for workspace cards. The base
         // surface follows the current system appearance while Monet supplies its tint.
         // Lower alpha is intentional: the wallpaper must remain visible through Caddy.
