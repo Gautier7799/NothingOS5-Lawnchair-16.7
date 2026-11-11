@@ -98,7 +98,7 @@ object CaddyCardRenderer {
 
         val card = LinearLayout(context)
         card.orientation = LinearLayout.VERTICAL
-        card.gravity = Gravity.CENTER_VERTICAL
+        card.gravity = if (fitGridToHost) Gravity.TOP else Gravity.CENTER_VERTICAL
         card.setPadding(
             densityPadding,
             dp(context, if (fitGridToHost) 8f else 12f),
