@@ -287,15 +287,15 @@ public class Hotseat extends FrameLayout implements Insettable {
             int requestedBottomInset = Math.max(0,
                     preferenceManager.getHotseatBGVerticalInsetBottom().get());
 
-            int maxCapsuleWidth = Math.max(1,
-                    containerWidth - requestedLeftInset - requestedRightInset);
-            int capsuleWidth = Math.min(maxCapsuleWidth,
+            int capsuleWidth = Math.min(containerWidth,
                     iconBounds.width() + horizontalPadding * 2);
             int desiredLeft = iconBounds.centerX() - capsuleWidth / 2;
-            int left = Math.max(requestedLeftInset,
-                    Math.min(desiredLeft,
-                            containerWidth - requestedRightInset - capsuleWidth));
-            int right = containerWidth - left - capsuleWidth;
+            int baseLeft = Math.max(0,
+                    Math.min(desiredLeft, containerWidth - capsuleWidth));
+            int baseRight = containerWidth - baseLeft - capsuleWidth;
+            int left = Math.min(containerWidth - 1, baseLeft + requestedLeftInset);
+            int right = Math.min(containerWidth - left - 1,
+                    baseRight + requestedRightInset);
 
             // Keep a compact iOS-like pill around the icon artwork, not a height
             // proportional to the entire screen width. Four icons remain vertically
@@ -305,15 +305,12 @@ public class Hotseat extends FrameLayout implements Insettable {
                     iconBounds.height() + verticalPadding * 2);
             capsuleHeight = Math.min(capsuleHeight, containerHeight);
             int desiredTop = iconBounds.centerY() - capsuleHeight / 2;
-            int top = Math.max(requestedTopInset,
-                    Math.min(desiredTop, containerHeight - requestedBottomInset - capsuleHeight));
-            int bottom = containerHeight - top - capsuleHeight;
-
-            // The user inset controls further shrink/offset the visible capsule.
-            top = Math.min(containerHeight - 1, top + requestedTopInset);
-            bottom = Math.min(containerHeight - top - 1, bottom + requestedBottomInset);
-            left = Math.min(containerWidth - 1, left + requestedLeftInset);
-            right = Math.min(containerWidth - left - 1, right + requestedRightInset);
+            int baseTop = Math.max(0,
+                    Math.min(desiredTop, containerHeight - capsuleHeight));
+            int baseBottom = containerHeight - baseTop - capsuleHeight;
+            int top = Math.min(containerHeight - 1, baseTop + requestedTopInset);
+            int bottom = Math.min(containerHeight - top - 1,
+                    baseBottom + requestedBottomInset);
 
             int visibleHeight = Math.max(1, containerHeight - top - bottom);
             background.setCornerRadius(Math.max(cornerRadius, visibleHeight / 2f));
