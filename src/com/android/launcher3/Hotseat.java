@@ -221,9 +221,11 @@ public class Hotseat extends FrameLayout implements Insettable {
 
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
+        // Use a rounded-rectangle radius, not a half-height radius. The latter
+        // turns the Dock into a full pill and does not match the iOS reference.
         float cornerRadius = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
-                Math.max(cornerRadiusDp, 32f),
+                Math.max(cornerRadiusDp, 20f),
                 getResources().getDisplayMetrics());
 
         GradientDrawable background = new GradientDrawable();
@@ -316,8 +318,9 @@ public class Hotseat extends FrameLayout implements Insettable {
             int bottom = Math.min(containerHeight - top - 1,
                     baseBottom + requestedBottomInset);
 
-            int visibleHeight = Math.max(1, containerHeight - top - bottom);
-            background.setCornerRadius(Math.max(cornerRadius, visibleHeight / 2f));
+            // Keep the configured rounded-rectangle radius independent of the
+            // capsule height so the Dock does not become semicircular.
+            background.setCornerRadius(cornerRadius);
             if (lastCapsuleInsets.left == left && lastCapsuleInsets.top == top
                     && lastCapsuleInsets.right == right && lastCapsuleInsets.bottom == bottom) {
                 return;
