@@ -229,6 +229,10 @@ public class Hotseat extends FrameLayout implements Insettable {
         GradientDrawable background = new GradientDrawable();
         background.setColor(finalColor);
         background.setCornerRadius(cornerRadius);
+        // Avoid replacing the drawable on every global-layout pass. setBackground()
+        // can request another layout; caching the last insets prevents a layout loop.
+        Rect lastCapsuleInsets = new Rect(Integer.MIN_VALUE, Integer.MIN_VALUE,
+                Integer.MIN_VALUE, Integer.MIN_VALUE);
 
         // Measure the actual dock icon row instead of deriving the capsule from the
         // QSB position. The QSB can be moved/disabled independently and is not a
@@ -314,6 +318,11 @@ public class Hotseat extends FrameLayout implements Insettable {
 
             int visibleHeight = Math.max(1, containerHeight - top - bottom);
             background.setCornerRadius(Math.max(cornerRadius, visibleHeight / 2f));
+            if (lastCapsuleInsets.left == left && lastCapsuleInsets.top == top
+                    && lastCapsuleInsets.right == right && lastCapsuleInsets.bottom == bottom) {
+                return;
+            }
+            lastCapsuleInsets.set(left, top, right, bottom);
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
 
