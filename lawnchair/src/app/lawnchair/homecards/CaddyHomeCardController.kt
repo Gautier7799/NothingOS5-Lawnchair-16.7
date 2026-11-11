@@ -101,30 +101,58 @@ class CaddyHomeCardController(
     }
 
     /**
-     * Persists a new grid size for one card and re-lays out its view in place.
+     * Resizes a card to the largest available region up to the requested span.
      *
-     * Called by the card's resize handle. The card keeps its top-left cell and grows or shrinks
-     * to the right and downwards; the launcher grid clamps the result to the page bounds.
+     * The bottom-right resize handle normally keeps the top-left cell fixed. If that would
+     * cross the workspace edge, the card is shifted just enough to remain on the page. If a
+     * neighbouring item blocks the requested rectangle, smaller free rectangles are tried
+     * before the resize is rejected. No workspace item is displaced or overlapped.
      */
     fun resize(id: Int, spanX: Int, spanY: Int): Boolean {
         val current = repository.load().firstOrNull { it.id == id } ?: return false
-        val clampedX = spanX.coerceIn(MIN_SPAN, maxSpanX())
-        val clampedY = spanY.coerceIn(MIN_SPAN, maxSpanY())
-        if (clampedX == current.spanX && clampedY == current.spanY) return true
         val cellLayout = cellLayoutFor(current) ?: return false
-        val updated = current.copy(spanX = clampedX, spanY = clampedY)
-        // Free the card's own cells first, then check the requested region. The grid does not
-        // reject overlaps itself, so without this a bigger card could grow over its neighbours.
+        val requestedX = spanX.coerceIn(MIN_SPAN, minOf(maxSpanX(), cellLayout.countX))
+        val requestedY = spanY.coerceIn(MIN_SPAN, minOf(maxSpanY(), cellLayout.countY))
+        if (requestedX == current.spanX && requestedY == current.spanY) return true
+
+        // Release the old footprint before looking for a larger one.
         detach(id)
-        if (!isRegionFree(cellLayout, updated.cellX, updated.cellY, clampedX, clampedY, updated.screenId)) {
+
+        val sizes = buildList {
+            for (x in requestedX downTo MIN_SPAN) {
+                for (y in requestedY downTo MIN_SPAN) add(x to y)
+            }
+        }.sortedWith(
+            compareByDescending<Pair<Int, Int>> { it.first * it.second }
+                .thenByDescending { it.first }
+                .thenByDescending { it.second },
+        )
+
+        val placement = sizes.firstNotNullOfOrNull { (width, height) ->
+            val preferredX = current.cellX.coerceAtMost(cellLayout.countX - width).coerceAtLeast(0)
+            val preferredY = current.cellY.coerceAtMost(cellLayout.countY - height).coerceAtLeast(0)
+            val candidates = buildList {
+                for (y in 0..(cellLayout.countY - height)) {
+                    for (x in 0..(cellLayout.countX - width)) add(x to y)
+                }
+            }.sortedBy { (x, y) ->
+                kotlin.math.abs(x - preferredX) + kotlin.math.abs(y - preferredY)
+            }
+
+            candidates.firstNotNullOfOrNull { (x, y) ->
+                if (isRegionFree(cellLayout, x, y, width, height, current.screenId)) {
+                    current.copy(cellX = x, cellY = y, spanX = width, spanY = height)
+                } else {
+                    null
+                }
+            }
+        }
+
+        if (placement == null || !attach(placement)) {
             attach(current)
             return false
         }
-        if (!attach(updated)) {
-            attach(current)
-            return false
-        }
-        repository.update(updated)
+        repository.update(placement)
         return true
     }
 
