@@ -27,6 +27,8 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
+import app.lawnchair.preferences2.PreferenceManager2
+import app.lawnchair.preferences2.firstCached
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.Utilities
 import com.android.launcher3.model.data.AppInfo
@@ -72,6 +74,8 @@ class CaddyHomeCardView @JvmOverloads constructor(
     var iconColumns: Int = 2
 
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private val homeScreenLocked: Boolean
+        get() = PreferenceManager2.getInstance(context).lockHomeScreen.firstCached()
     private val longPressTimeout = ViewConfiguration.getLongPressTimeout().toLong()
 
     private var boundCard: CaddyHomeCardInfo? = null
@@ -162,6 +166,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
     /** Draws the two corner affordances: resize (bottom-right) and remove (top-right). */
     override fun dispatchDraw(canvas: Canvas) {
         super.dispatchDraw(canvas)
+        if (homeScreenLocked) return
         val inset = dp(CORNER_INSET_DP)
         val radius = dp(CORNER_ARC_DP)
         val right = width - inset
@@ -197,14 +202,14 @@ class CaddyHomeCardView @JvmOverloads constructor(
             startRawX = ev.rawX
             startRawY = ev.rawY
             dragging = false
-            val region = regionFor(ev.x, ev.y)
+            val region = if (homeScreenLocked) MODE_MOVE else regionFor(ev.x, ev.y)
             mode = when {
                 region != MODE_MOVE -> region
                 hitTest(this, ev.x, ev.y) is BubbleTextView -> MODE_NONE
                 else -> MODE_MOVE
             }
             if (mode != MODE_NONE) {
-                if (mode == MODE_MOVE) postDelayed(pickUp, longPressTimeout)
+                if (mode == MODE_MOVE && !homeScreenLocked) postDelayed(pickUp, longPressTimeout)
                 return true
             }
         }
