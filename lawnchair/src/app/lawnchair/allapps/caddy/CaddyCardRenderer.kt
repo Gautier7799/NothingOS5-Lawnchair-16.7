@@ -350,5 +350,5 @@ object CaddyCardRenderer {
     private fun dp(context: Context, value: Float): Int = Utilities.dpToPx(value, context)
 
     private const val MAX_PREVIEW_ICONS = 4
-    private const val ICON_FILL_RATIO = 0.88f
+    private const val ICON_FILL_RATIO = 0.84f
 }
