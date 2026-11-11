@@ -114,6 +114,8 @@ public class Hotseat extends FrameLayout implements Insettable {
     private final HotseatPagedView mPagedView;
     private final PageIndicatorDots mPageIndicator;
     private final int mPageIndicatorHeight;
+    @Nullable
+    private Runnable mUpdateCapsuleBounds;
 
     private final ActivityContext mActivity;
 
@@ -197,11 +199,26 @@ public class Hotseat extends FrameLayout implements Insettable {
         mQsbAlphaChannels.setUpdateVisibility(true);
 
         setUpBackground();
+        // A page swipe does not necessarily trigger a layout pass. Refresh the
+        // glass surface after the pager finishes switching to the new Dock page.
+        mPagedView.setOnDockPageChangeListener(page -> {
+            if (mUpdateCapsuleBounds != null) {
+                mIconsContainer.post(mUpdateCapsuleBounds);
+            }
+        });
         setClipChildren(false);
         setClipToPadding(false);
     }
 
     private void setUpBackground() {
+        // Respect the user's existing Dock background switch. The background must
+        // never be forced on when the user has disabled it in Dock settings.
+        if (!preferenceManager.getHotseatBG().get()) {
+            mIconsContainer.setBackground(null);
+            setBackground(null);
+            return;
+        }
+
         var bgColor = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundColor());
         var transparency = preferenceManager.getHotseatBGAlpha().get();
@@ -213,31 +230,48 @@ public class Hotseat extends FrameLayout implements Insettable {
 
         float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
                 preferenceManager2.getHotseatBackgroundCornerRadius());
+        // Use a rounded-rectangle radius, not a half-height radius. The latter
+        // turns the Dock into a full pill and does not match the iOS reference.
         float cornerRadius = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
-                Math.max(cornerRadiusDp, 32f),
+                Math.max(cornerRadiusDp, 20f),
                 getResources().getDisplayMetrics());
 
         GradientDrawable background = new GradientDrawable();
         background.setColor(finalColor);
         background.setCornerRadius(cornerRadius);
+        // Avoid replacing the drawable on every global-layout pass. setBackground()
+        // can request another layout; caching the last insets prevents a layout loop.
+        Rect lastCapsuleInsets = new Rect(Integer.MIN_VALUE, Integer.MIN_VALUE,
+                Integer.MIN_VALUE, Integer.MIN_VALUE);
 
         // Measure the actual dock icon row instead of deriving the capsule from the
         // QSB position. The QSB can be moved/disabled independently and is not a
         // reliable anchor for the dock background.
-        Runnable updateCapsuleBounds = () -> {
+        mUpdateCapsuleBounds = () -> {
             int containerWidth = mIconsContainer.getWidth();
             int containerHeight = mIconsContainer.getHeight();
             CellLayout cellLayout = mPagedView.getCurrentCellLayout();
-            if (containerWidth <= 0 || containerHeight <= 0 || cellLayout == null
-                    || cellLayout.getChildCount() == 0) {
+            if (containerWidth <= 0 || containerHeight <= 0) {
+                return;
+            }
+            if (cellLayout == null || cellLayout.getChildCount() == 0) {
+                // Empty Dock pages must not retain the previous page's capsule.
+                mIconsContainer.setBackground(null);
+                lastCapsuleInsets.set(Integer.MIN_VALUE, Integer.MIN_VALUE,
+                        Integer.MIN_VALUE, Integer.MIN_VALUE);
                 return;
             }
 
             // CellLayout's direct child is the full grid container, not the icons.
             // Measure visible dock items and keep the capsule close to the icon row.
             ShortcutAndWidgetContainer shortcuts = cellLayout.getShortcutsAndWidgets();
-            if (shortcuts == null || shortcuts.getChildCount() == 0) return;
+            if (shortcuts == null || shortcuts.getChildCount() == 0) {
+                mIconsContainer.setBackground(null);
+                lastCapsuleInsets.set(Integer.MIN_VALUE, Integer.MIN_VALUE,
+                        Integer.MIN_VALUE, Integer.MIN_VALUE);
+                return;
+            }
 
             Rect iconBounds = new Rect();
             boolean foundIcon = false;
@@ -261,40 +295,76 @@ public class Hotseat extends FrameLayout implements Insettable {
                     iconBounds.union(childBounds);
                 }
             }
-            if (!foundIcon || iconBounds.isEmpty()) return;
+            if (!foundIcon || iconBounds.isEmpty()) {
+                mIconsContainer.setBackground(null);
+                lastCapsuleInsets.set(Integer.MIN_VALUE, Integer.MIN_VALUE,
+                        Integer.MIN_VALUE, Integer.MIN_VALUE);
+                return;
+            }
 
-            // Build a genuinely floating iOS-style capsule around the icon row.
-            // Its width follows the measured icons and their real spacing, so it
-            // adapts naturally from one to four icons without resizing the icons.
+            // Size the pill from the measured icon row. A width-derived height is
+            // incorrect on phones: it can exceed the hotseat height and get clamped
+            // into a flat full-height rectangle (the regression seen on Pixel 8).
             float density = getResources().getDisplayMetrics().density;
             int horizontalPadding = Math.round(16f * density);
-            int minimumSideInset = Math.min(Math.round(16f * density), containerWidth / 4);
-            int maximumCapsuleWidth = Math.max(1, containerWidth - minimumSideInset * 2);
-            int capsuleWidth = Math.min(maximumCapsuleWidth,
+            int verticalPadding = Math.round(8f * density);
+
+            int requestedLeftInset = Math.max(0,
+                    preferenceManager.getHotseatBGHorizontalInsetLeft().get());
+            int requestedRightInset = Math.max(0,
+                    preferenceManager.getHotseatBGHorizontalInsetRight().get());
+            int requestedTopInset = Math.max(0,
+                    preferenceManager.getHotseatBGVerticalInsetTop().get());
+            int requestedBottomInset = Math.max(0,
+                    preferenceManager.getHotseatBGVerticalInsetBottom().get());
+
+            int capsuleWidth = Math.min(containerWidth,
                     iconBounds.width() + horizontalPadding * 2);
-
-            // Keep a stable dock height independent of the number of icons.
-            int capsuleHeight = Math.min(containerHeight, Math.round(72f * density));
             int desiredLeft = iconBounds.centerX() - capsuleWidth / 2;
-            int left = Math.max(minimumSideInset,
-                    Math.min(desiredLeft, containerWidth - minimumSideInset - capsuleWidth));
-            int right = containerWidth - left - capsuleWidth;
-            int top = Math.max(0, Math.min(containerHeight - capsuleHeight,
-                    iconBounds.centerY() - capsuleHeight / 2));
-            int bottom = containerHeight - top - capsuleHeight;
+            int baseLeft = Math.max(0,
+                    Math.min(desiredLeft, containerWidth - capsuleWidth));
+            int baseRight = containerWidth - baseLeft - capsuleWidth;
+            int left = Math.min(containerWidth - 1, baseLeft + requestedLeftInset);
+            int right = Math.min(containerWidth - left - 1,
+                    baseRight + requestedRightInset);
 
-            // A half-height radius produces the continuous capsule silhouette used by iOS.
-            background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
+            // Keep a compact iOS-like pill around the icon artwork, not a height
+            // proportional to the entire screen width. Four icons remain vertically
+            // centered with a small, consistent glass-surface breathing space.
+            int minCapsuleHeight = Math.round(64f * density);
+            int capsuleHeight = Math.max(minCapsuleHeight,
+                    iconBounds.height() + verticalPadding * 2);
+            capsuleHeight = Math.min(capsuleHeight, containerHeight);
+            int desiredTop = iconBounds.centerY() - capsuleHeight / 2;
+            int baseTop = Math.max(0,
+                    Math.min(desiredTop, containerHeight - capsuleHeight));
+            int baseBottom = containerHeight - baseTop - capsuleHeight;
+            int top = Math.min(containerHeight - 1, baseTop + requestedTopInset);
+            int bottom = Math.min(containerHeight - top - 1,
+                    baseBottom + requestedBottomInset);
+
+            // Keep the configured rounded-rectangle radius independent of the
+            // capsule height so the Dock does not become semicircular.
+            background.setCornerRadius(cornerRadius);
+            if (lastCapsuleInsets.left == left && lastCapsuleInsets.top == top
+                    && lastCapsuleInsets.right == right && lastCapsuleInsets.bottom == bottom) {
+                return;
+            }
+            lastCapsuleInsets.set(left, top, right, bottom);
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
 
         addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+                oldLeft, oldTop, oldRight, oldBottom) -> mUpdateCapsuleBounds.run());
         mIconsContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+                oldLeft, oldTop, oldRight, oldBottom) -> mUpdateCapsuleBounds.run());
         mPagedView.addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
-        mIconsContainer.post(updateCapsuleBounds);
+                oldLeft, oldTop, oldRight, oldBottom) -> mUpdateCapsuleBounds.run());
+        // Icon add/remove/reorder and page changes can happen without resizing the
+        // parent views. Re-evaluate after the view tree has laid out those changes.
+        mPagedView.getViewTreeObserver().addOnGlobalLayoutListener(
+                () -> mUpdateCapsuleBounds.run());
+        mIconsContainer.post(mUpdateCapsuleBounds);
         setBackground(null);
     }
 

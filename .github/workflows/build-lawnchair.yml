@@ -26,6 +26,7 @@ on:
       - openhands/caddy-home
       - fix/caddy-home-render-and-dock-clipping
       - feat/ios-dock-content-sized-capsule
+      - fix/dock-restore-ios-capsule
 
 permissions:
   contents: read
