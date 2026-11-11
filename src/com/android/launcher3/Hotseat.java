@@ -114,6 +114,8 @@ public class Hotseat extends FrameLayout implements Insettable {
     private final HotseatPagedView mPagedView;
     private final PageIndicatorDots mPageIndicator;
     private final int mPageIndicatorHeight;
+    @Nullable
+    private Runnable mUpdateCapsuleBounds;
 
     private final ActivityContext mActivity;
 
@@ -197,6 +199,13 @@ public class Hotseat extends FrameLayout implements Insettable {
         mQsbAlphaChannels.setUpdateVisibility(true);
 
         setUpBackground();
+        // A page swipe does not necessarily trigger a layout pass. Refresh the
+        // glass surface after the pager finishes switching to the new Dock page.
+        mPagedView.setOnDockPageChangeListener(page -> {
+            if (mUpdateCapsuleBounds != null) {
+                mIconsContainer.post(mUpdateCapsuleBounds);
+            }
+        });
         setClipChildren(false);
         setClipToPadding(false);
     }
@@ -239,19 +248,30 @@ public class Hotseat extends FrameLayout implements Insettable {
         // Measure the actual dock icon row instead of deriving the capsule from the
         // QSB position. The QSB can be moved/disabled independently and is not a
         // reliable anchor for the dock background.
-        Runnable updateCapsuleBounds = () -> {
+        mUpdateCapsuleBounds = () -> {
             int containerWidth = mIconsContainer.getWidth();
             int containerHeight = mIconsContainer.getHeight();
             CellLayout cellLayout = mPagedView.getCurrentCellLayout();
-            if (containerWidth <= 0 || containerHeight <= 0 || cellLayout == null
-                    || cellLayout.getChildCount() == 0) {
+            if (containerWidth <= 0 || containerHeight <= 0) {
+                return;
+            }
+            if (cellLayout == null || cellLayout.getChildCount() == 0) {
+                // Empty Dock pages must not retain the previous page's capsule.
+                mIconsContainer.setBackground(null);
+                lastCapsuleInsets.set(Integer.MIN_VALUE, Integer.MIN_VALUE,
+                        Integer.MIN_VALUE, Integer.MIN_VALUE);
                 return;
             }
 
             // CellLayout's direct child is the full grid container, not the icons.
             // Measure visible dock items and keep the capsule close to the icon row.
             ShortcutAndWidgetContainer shortcuts = cellLayout.getShortcutsAndWidgets();
-            if (shortcuts == null || shortcuts.getChildCount() == 0) return;
+            if (shortcuts == null || shortcuts.getChildCount() == 0) {
+                mIconsContainer.setBackground(null);
+                lastCapsuleInsets.set(Integer.MIN_VALUE, Integer.MIN_VALUE,
+                        Integer.MIN_VALUE, Integer.MIN_VALUE);
+                return;
+            }
 
             Rect iconBounds = new Rect();
             boolean foundIcon = false;
@@ -275,7 +295,12 @@ public class Hotseat extends FrameLayout implements Insettable {
                     iconBounds.union(childBounds);
                 }
             }
-            if (!foundIcon || iconBounds.isEmpty()) return;
+            if (!foundIcon || iconBounds.isEmpty()) {
+                mIconsContainer.setBackground(null);
+                lastCapsuleInsets.set(Integer.MIN_VALUE, Integer.MIN_VALUE,
+                        Integer.MIN_VALUE, Integer.MIN_VALUE);
+                return;
+            }
 
             // Size the pill from the measured icon row. A width-derived height is
             // incorrect on phones: it can exceed the hotseat height and get clamped
@@ -330,7 +355,7 @@ public class Hotseat extends FrameLayout implements Insettable {
         };
 
         addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
+                oldLeft, oldTop, oldRight, oldBottom) -> mUpdateCapsuleBounds.run());
         mIconsContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
                 oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
         mPagedView.addOnLayoutChangeListener((view, left, top, right, bottom,
@@ -339,7 +364,7 @@ public class Hotseat extends FrameLayout implements Insettable {
         // parent views. Re-evaluate after the view tree has laid out those changes.
         mPagedView.getViewTreeObserver().addOnGlobalLayoutListener(
                 () -> updateCapsuleBounds.run());
-        mIconsContainer.post(updateCapsuleBounds);
+        mIconsContainer.post(mUpdateCapsuleBounds);
         setBackground(null);
     }
 
