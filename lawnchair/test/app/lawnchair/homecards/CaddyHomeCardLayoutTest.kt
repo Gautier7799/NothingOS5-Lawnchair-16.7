@@ -32,7 +32,7 @@ class CaddyHomeCardLayoutTest {
             sideInsetPx = 0,
             titleReservePx = 0,
         )
-        assertThat(cell).isEqualTo(96)
+        assertThat(cell).isEqualTo(100)
     }
 
     @Test
@@ -45,7 +45,7 @@ class CaddyHomeCardLayoutTest {
             sideInsetPx = 0,
             titleReservePx = 52,
         )
-        assertThat(cell).isEqualTo(100)
+        assertThat(cell).isEqualTo(96)
     }
 
     @Test
