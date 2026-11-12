@@ -35,7 +35,7 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
 
     private val appsListener = AllAppsStore.OnUpdateListener { syncFromApps() }
 
-    private var listening = false
+    private var listenedStore: AllAppsStore? = null
 
     /** Called once the launcher's views are ready. */
     fun start() {
@@ -55,17 +55,17 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
 
     private fun registerAppsListener() {
         val store = launcher.appsView?.appsStore ?: return
-        if (!listening) {
-            store.addUpdateListener(appsListener)
-            listening = true
-        }
+        if (listenedStore === store) return
+        // AppsView/AllAppsStore can be recreated across launcher view lifecycles.
+        // Detach from the previous instance before observing the current one.
+        listenedStore?.removeUpdateListener(appsListener)
+        store.addUpdateListener(appsListener)
+        listenedStore = store
     }
 
     fun stop() {
-        if (listening) {
-            launcher.appsView?.appsStore?.removeUpdateListener(appsListener)
-            listening = false
-        }
+        listenedStore?.removeUpdateListener(appsListener)
+        listenedStore = null
         controller.detachAll()
     }
 
