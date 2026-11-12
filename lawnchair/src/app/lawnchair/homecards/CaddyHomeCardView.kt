@@ -84,6 +84,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
     private var lastCellPx = 0
     private var lastVerticalReservePx = -1
     private var measuredTitleHeightPx = 0
+    private var renderPosted = false
 
     private val cornerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0x59FFFFFF
@@ -198,9 +199,20 @@ class CaddyHomeCardView @JvmOverloads constructor(
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
-        if (width <= 0 || height <= 0 || boundCard == null) return
+        if (width <= 0 || height <= 0 || boundCard == null || renderPosted) return
         val verticalReserve = verticalReservePx()
-        if (verticalReserve != lastVerticalReservePx) render()
+        if (verticalReserve != lastVerticalReservePx) {
+            // Do not replace child views in the middle of FrameLayout's layout pass.
+            renderPosted = true
+            post {
+                renderPosted = false
+                if (width > 0 && height > 0 && boundCard != null &&
+                    verticalReservePx() != lastVerticalReservePx
+                ) {
+                    render()
+                }
+            }
+        }
     }
 
     /** Draws the two corner affordances: resize (bottom-right) and remove (top-right). */
