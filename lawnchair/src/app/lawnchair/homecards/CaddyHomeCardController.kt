@@ -413,7 +413,7 @@ class CaddyHomeCardController(
      * A workspace child is added to the CellLayout's inner `ShortcutAndWidgetContainer`, so the
      * view's direct parent is that container and never the CellLayout. The owning CellLayout is
      * the only object that can remove the view while also releasing its cells, so it is found by
-     * looking it up among the workspace screens.
+     * walking the live ViewParent chain to its CellLayout ancestor.
      */
     private fun cellLayoutOf(view: View): CellLayout? {
         // Launcher3 hierarchy: CellLayout -> ShortcutAndWidgetContainer -> card view.
