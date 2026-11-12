@@ -39,7 +39,6 @@ import app.lawnchair.gestures.GestureController
 import app.lawnchair.gestures.VerticalSwipeTouchController
 import app.lawnchair.gestures.config.GestureHandlerConfig
 import app.lawnchair.gestures.ui.LawnchairShortcutActivity
-import app.lawnchair.homecards.CaddyHomeCardCoordinator
 import app.lawnchair.nexuslauncher.OverlayCallbackImpl
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
@@ -108,7 +107,6 @@ class LawnchairLauncher : QuickstepLauncher() {
     }
     private val themeProvider by unsafeLazy { ThemeProvider.INSTANCE.get(this) }
 
-    private val caddyHomeCards by unsafeLazy { CaddyHomeCardCoordinator(this) }
     private val noStatusBarStateListener = object : StateManager.StateListener<LauncherState> {
         override fun onStateTransitionStart(toState: LauncherState) {
             if (toState is OverviewState) {
@@ -165,7 +163,6 @@ class LawnchairLauncher : QuickstepLauncher() {
         layoutInflater.factory2 = LawnchairLayoutFactory(this)
         super.onCreate(savedInstanceState)
 
-        caddyHomeCards.start()
 
         prefs.launcherTheme.subscribeChanges(this, ::updateTheme)
         prefs.feedProvider.subscribeChanges(this, defaultOverlay::reconnect)
@@ -505,14 +502,12 @@ class LawnchairLauncher : QuickstepLauncher() {
 
     override fun onDestroy() {
         super.onDestroy()
-        caddyHomeCards.stop()
         // Only actually closes if required, safe to call if not enabled
         SmartspacerClient.close()
     }
 
     override fun finishBindingItems(pagesBoundFirst: IntSet?) {
         super.finishBindingItems(pagesBoundFirst)
-        caddyHomeCards.onWorkspaceBound()
     }
 
     override fun getDefaultOverlay(): LauncherOverlayManager = defaultOverlay

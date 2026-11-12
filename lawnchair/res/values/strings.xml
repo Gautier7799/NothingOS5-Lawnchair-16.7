@@ -139,13 +139,6 @@
     <string name="wallpapers">Wallpapers</string>
 
     <string name="caddy_beta">Caddy (beta)</string>
-    <string name="caddy_home_enabled_label">Show Caddy cards on home screen</string>
-    <string name="caddy_home_enabled_description">Place your Caddy category cards on the workspace. Turn off to remove them.</string>
-    <string name="caddy_home_show_titles_label">Show card titles</string>
-    <string name="caddy_home_columns_label">Icons per row</string>
-    <string name="caddy_merge_mode_label">Merge cards by</string>
-    <string name="caddy_merge_mode_stack">Stack (cycle between cards)</string>
-    <string name="caddy_merge_mode_combine">Combine into one card</string>
     <string name="caddy">Caddy</string>
 
     <string name="app_drawer_folder">App drawer folders</string>
