@@ -27,6 +27,8 @@ on:
       - openhands/caddy-home
       - fix/caddy-home-render-and-dock-clipping
       - refactor/remove-caddy-home
+      - openhands/remove-caddy-home-clean
+      - openhands/remove-caddy-home-ios-dock
 
 permissions:
   contents: read
