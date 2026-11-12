@@ -82,6 +82,24 @@ class CaddyHomeCardLayoutTest {
     }
 
     @Test
+    fun verticalReserve_usesMeasuredHostCardTitleAndGridChrome() {
+        // 8px host padding + 16px card padding + 22px measured title + 6px grid gap.
+        assertThat(
+            CaddyHomeCardLayout.verticalReservePx(
+                hostPaddingPx = 8,
+                cardPaddingPx = 16,
+                titleHeightPx = 22,
+                gridTopMarginPx = 6,
+            ),
+        ).isEqualTo(52)
+    }
+
+    @Test
+    fun verticalReserve_ignoresNegativeMeasurementsSafely() {
+        assertThat(CaddyHomeCardLayout.verticalReservePx(-1, 16, -1, 6)).isEqualTo(22)
+    }
+
+    @Test
     fun overlaps_detectsPartialIntersection() {
         assertThat(CaddyHomeCardLayout.overlaps(0, 0, 2, 2, 1, 1, 2, 2)).isTrue()
     }
