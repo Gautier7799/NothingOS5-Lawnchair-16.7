@@ -97,6 +97,7 @@ class WidgetLoftBoardView(
         addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             addView(action("Split") { splitSelected() })
+            addView(action("Delete") { deleteSelected() })
             addView(action("Widget") { addWidgetToSelected() })
             addView(action("Clear") { clearSelection() })
         })
@@ -116,12 +117,13 @@ class WidgetLoftBoardView(
     // ---------------------------------------------------------------- actions
 
     private fun addCard() {
-        val installed = WidgetLoftAppPicker.loadLaunchableApps(activity)
-        val start = ((nextId - 1) * 4) % (installed.size.coerceAtLeast(1))
-        val apps = installed.drop(start).take(4)
-        cards.add(WidgetLoftCard("card-${nextId}", "Collection $nextId", apps))
-        nextId++
-        commit()
+        // Let the user choose the apps for the new card; an empty choice still creates the card so
+        // apps can be added later from the card's own "Apps" button.
+        WidgetLoftAppPicker.show(activity, "New card", emptySet()) { picked ->
+            cards.add(WidgetLoftCard("card-${nextId}", "Collection $nextId", picked))
+            nextId++
+            commit()
+        }
     }
 
     private fun merge(mode: MergeMode) {
@@ -149,6 +151,13 @@ class WidgetLoftBoardView(
     private fun clearSelection() {
         selection.clear()
         renderCards()
+    }
+
+    private fun deleteSelected() {
+        if (selection.isEmpty()) return
+        cards.removeAll { it.id in selection }
+        selection.clear()
+        commit()
     }
 
     private fun addWidgetToSelected() {
@@ -268,6 +277,21 @@ class WidgetLoftBoardView(
         text = "▦  ${child.title} · ${child.apps.size} apps"
         textSize = 12f
         setTextColor(theme.onSurfaceVariant())
+        setOnClickListener {
+            // Promote a nested card out of its container to the top level.
+            val parentIndex = cards.indexOfFirst { parent -> parent.stackedCards.any { it.id == child.id } }
+            if (parentIndex >= 0) {
+                val parent = cards[parentIndex]
+                val remaining = parent.stackedCards.filterNot { it.id == child.id }
+                if (remaining.isEmpty()) {
+                    cards[parentIndex] = child
+                } else {
+                    cards[parentIndex] = parent.copy(stackedCards = remaining)
+                    cards.add(parentIndex + 1, child)
+                }
+                commit()
+            }
+        }
     }
 
     private fun appGrid(card: WidgetLoftCard): View {
@@ -439,6 +463,6 @@ class WidgetLoftBoardView(
 
     private companion object {
         const val COLUMNS = 2
-        const val MAX_CARD_APPS = 4
+        const val MAX_CARD_APPS = 6
     }
 }
