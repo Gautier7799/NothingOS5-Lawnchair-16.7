@@ -42,6 +42,20 @@ object CaddyHomeCardLayout {
         return minOf(horizontal, vertical).coerceAtLeast(0)
     }
 
+    /**
+     * Total vertical space reserved by the host/card chrome around the icon grid.
+     * Inputs are measured pixel values from the rendered hierarchy.
+     */
+    fun verticalReservePx(
+        hostPaddingPx: Int,
+        cardPaddingPx: Int,
+        titleHeightPx: Int,
+        gridTopMarginPx: Int,
+    ): Int = hostPaddingPx.coerceAtLeast(0) +
+        cardPaddingPx.coerceAtLeast(0) +
+        titleHeightPx.coerceAtLeast(0) +
+        gridTopMarginPx.coerceAtLeast(0)
+
     /** True when two workspace card rectangles share at least one grid cell. */
     fun overlaps(
         firstX: Int,
