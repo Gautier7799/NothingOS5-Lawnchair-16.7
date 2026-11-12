@@ -1,0 +1,39 @@
+name: Import Lawnchair 16-dev source
+
+on:
+  push:
+    branches:
+      - foundation/lawnchair-16-dev
+    paths:
+      - IMPORT_UPSTREAM
+      - .github/workflows/import-lawnchair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout destination branch
+        uses: actions/checkout@v4
+        with:
+          ref: foundation/lawnchair-16-dev
+          fetch-depth: 0
+      - name: Clone upstream Lawnchair 16-dev
+        run: git clone --branch 16-dev --recurse-submodules https://github.com/LawnchairLauncher/lawnchair.git /tmp/lawnchair
+      - name: Copy source tree
+        run: |
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.github/workflows/***' \
+            --exclude='IMPORT_UPSTREAM' \
+            /tmp/lawnchair/ ./
+          rm -f IMPORT_UPSTREAM
+      - name: Commit and push imported source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Import upstream Lawnchair 16-dev source [skip ci]"
+          git push origin foundation/lawnchair-16-dev

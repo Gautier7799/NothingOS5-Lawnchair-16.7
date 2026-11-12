@@ -1,0 +1,39 @@
+name: Build standalone WidgetLoft
+
+on:
+  push:
+    branches:
+      - experiment/widgetloft-standalone
+    paths:
+      - "widgetloft-standalone/**"
+      - ".github/workflows/widgetloft-standalone.yml"
+  pull_request:
+    paths:
+      - "widgetloft-standalone/**"
+      - ".github/workflows/widgetloft-standalone.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-widgetloft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run WidgetLoft unit tests
+        run: ./gradlew -p widgetloft-standalone testDebugUnitTest --stacktrace
+      - name: Build standalone WidgetLoft APK
+        run: ./gradlew -p widgetloft-standalone assembleDebug --stacktrace
+      - name: Upload WidgetLoft APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: widgetloft-standalone-debug
+          path: widgetloft-standalone/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
