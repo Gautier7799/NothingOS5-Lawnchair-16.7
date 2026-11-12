@@ -211,16 +211,8 @@ public class Hotseat extends FrameLayout implements Insettable {
         var finalColor = Color.argb(alphaValue, Color.red(baseColor),
                 Color.green(baseColor), Color.blue(baseColor));
 
-        float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
-                preferenceManager2.getHotseatBackgroundCornerRadius());
-        float cornerRadius = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                Math.max(cornerRadiusDp, 32f),
-                getResources().getDisplayMetrics());
-
         GradientDrawable background = new GradientDrawable();
         background.setColor(finalColor);
-        background.setCornerRadius(cornerRadius);
 
         // Measure the actual dock icon row instead of deriving the capsule from the
         // QSB position. The QSB can be moved/disabled independently and is not a
@@ -263,28 +255,24 @@ public class Hotseat extends FrameLayout implements Insettable {
             }
             if (!foundIcon || iconBounds.isEmpty()) return;
 
-            // Build a genuinely floating iOS-style capsule around the icon row.
-            // Its width follows the measured icons and their real spacing, so it
-            // adapts naturally from one to four icons without resizing the icons.
-            float density = getResources().getDisplayMetrics().density;
-            int horizontalPadding = Math.round(18f * density);
-            int minimumSideInset = Math.min(Math.round(18f * density), containerWidth / 4);
-            int maximumCapsuleWidth = Math.max(1, containerWidth - minimumSideInset * 2);
-            int capsuleWidth = Math.min(maximumCapsuleWidth,
-                    iconBounds.width() + horizontalPadding * 2);
+            // Reproduce the iOS Dock: a wide, floating rounded-rectangle panel that
+            // spans almost the whole screen width with equal side margins, rather than
+            // a capsule that hugs the icons. Measured from the iPhone 14 Pro reference
+            // screenshots: the panel is ~89% of the dock width with ~5.5% side margins,
+            // and its height is ~19% of that width. Both are derived from the container
+            // width so the look is stable regardless of how many icons are present.
+            int sideMargin = Math.max(1, Math.round(containerWidth * 0.055f));
+            int capsuleHeight = Math.min(containerHeight, Math.round(containerWidth * 0.19f));
 
-            // Keep a stable dock height independent of the number of icons.
-            int capsuleHeight = Math.min(containerHeight, Math.round(80f * density));
-            int desiredLeft = iconBounds.centerX() - capsuleWidth / 2;
-            int left = Math.max(minimumSideInset,
-                    Math.min(desiredLeft, containerWidth - minimumSideInset - capsuleWidth));
-            int right = containerWidth - left - capsuleWidth;
+            int left = sideMargin;
+            int right = sideMargin;
             int top = Math.max(0, Math.min(containerHeight - capsuleHeight,
                     iconBounds.centerY() - capsuleHeight / 2));
             int bottom = containerHeight - top - capsuleHeight;
 
-            // A half-height radius produces the continuous capsule silhouette used by iOS.
-            background.setCornerRadius(Math.max(cornerRadius, capsuleHeight / 2f));
+            // Rounded rectangle, not a pill: the radius stays clearly under half the
+            // height, which is what gives the iOS panel its softened-corner look.
+            background.setCornerRadius(capsuleHeight * 0.40f);
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
 
