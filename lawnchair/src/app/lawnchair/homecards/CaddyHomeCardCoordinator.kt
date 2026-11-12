@@ -35,7 +35,7 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
 
     private val appsListener = AllAppsStore.OnUpdateListener { syncFromApps() }
 
-    private var listenedStore: AllAppsStore? = null
+    private var listenedStore: AllAppsStore<Launcher>? = null
 
     /** Called once the launcher's views are ready. */
     fun start() {
