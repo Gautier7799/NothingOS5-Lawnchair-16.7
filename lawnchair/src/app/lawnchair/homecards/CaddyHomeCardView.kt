@@ -185,7 +185,12 @@ class CaddyHomeCardView @JvmOverloads constructor(
         val gridIndex = if (showTitle) 1 else 0
         val gridTopMargin = (card?.getChildAt(gridIndex)?.layoutParams as? LinearLayout.LayoutParams)
             ?.topMargin ?: dp(6f)
-        return hostVerticalPadding + cardVerticalPadding + titleHeight + gridTopMargin
+        return CaddyHomeCardLayout.verticalReservePx(
+            hostPaddingPx = hostVerticalPadding,
+            cardPaddingPx = cardVerticalPadding,
+            titleHeightPx = titleHeight,
+            gridTopMarginPx = gridTopMargin,
+        )
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
