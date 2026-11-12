@@ -275,7 +275,13 @@ class CaddyHomeCardController(
      * the CellLayout's inner `ShortcutAndWidgetContainer`, not the CellLayout itself.
      */
     private fun detach(id: Int) {
-        attached[id]?.let { view -> cellLayoutOf(view)?.removeView(view) }
+        val view = attached[id]
+        if (view != null && view.parent != null) {
+            // Never release our bookkeeping until the real CellLayout has removed the child
+            // and updated Launcher3's occupied grid.
+            val owner = cellLayoutOf(view) ?: return
+            owner.removeView(view)
+        }
         placement.releaseCells(id)
     }
 
@@ -301,13 +307,19 @@ class CaddyHomeCardController(
     }
 
     fun detachAll() {
+        // removeView releases each token only after its actual CellLayout has removed it.
+        // Do not clear bookkeeping for a view whose owner cannot yet be resolved.
         placement.attachedIds().forEach(::removeView)
-        placement.clear()
     }
 
     /** Detaches one card's view, freeing its cells. The view token is released as well. */
     private fun removeView(id: Int) {
-        attached.remove(id)?.let { view -> cellLayoutOf(view)?.removeView(view) }
+        val view = attached[id]
+        if (view != null && view.parent != null) {
+            val owner = cellLayoutOf(view) ?: return
+            owner.removeView(view)
+        }
+        attached.remove(id)
         placement.release(id)
     }
 
@@ -352,9 +364,26 @@ class CaddyHomeCardController(
                 return false
             }
         } else {
-            // The view is already hosted. Re-apply its grid position and span so a resize or a
-            // move takes effect on the existing view instead of being silently ignored.
-            relayoutExisting(cellLayout, view, params)
+            // Resolve the actual owner before touching occupancy. A view may still be hosted
+            // by a different page after a rebind or placement change.
+            val owner = cellLayoutOf(view) ?: return false
+            if (owner === cellLayout) {
+                // Same page: update the occupied grid around the new LayoutParams.
+                relayoutExisting(owner, view, params)
+            } else {
+                // Cross-page move: CellLayout.removeView releases the old cells, and
+                // addViewToCellLayout registers the new cells. Keep a rollback copy in case
+                // the target rejects the new position.
+                val oldParams = CellLayoutLayoutParams(view.layoutParams as CellLayoutLayoutParams)
+                owner.removeView(view)
+                if (!cellLayout.addViewToCellLayout(view, -1, view.id, params, true)) {
+                    if (!owner.addViewToCellLayout(view, -1, view.id, oldParams, true)) {
+                        attached.remove(card.id)
+                        placement.release(card.id)
+                    }
+                    return false
+                }
+            }
         }
         placement.occupy(card)
         return true
@@ -387,11 +416,15 @@ class CaddyHomeCardController(
      * looking it up among the workspace screens.
      */
     private fun cellLayoutOf(view: View): CellLayout? {
-        val workspace = launcher.workspace ?: return null
-        val screenOrder = workspace.screenOrder
-        for (index in 0 until screenOrder.size()) {
-            val cellLayout = workspace.getScreenWithId(screenOrder.get(index)) ?: continue
-            if (cellLayout.shortcutsAndWidgets.indexOfChild(view) >= 0) return cellLayout
+        // Launcher3 hierarchy: CellLayout -> ShortcutAndWidgetContainer -> card view.
+        // Walk the live parent chain so this also works during Workspace screen rebinding,
+        // when a page may temporarily be absent from screenOrder.
+        var parent = view.parent
+        while (parent != null) {
+            if (parent is CellLayout) {
+                return parent.takeIf { it.shortcutsAndWidgets.indexOfChild(view) >= 0 }
+            }
+            parent = parent.parent
         }
         return null
     }
