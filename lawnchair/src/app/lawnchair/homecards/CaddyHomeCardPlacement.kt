@@ -50,6 +50,9 @@ class CaddyHomeCardPlacement {
 
     /** Marks [card] as attached and occupying its cells on its screen. */
     fun occupy(card: CaddyHomeCardInfo) {
+        // A card id may move to another screen. Remove its previous rectangle first so
+        // the old page cannot retain a ghost reservation after the new page is occupied.
+        releaseCells(card.id)
         tokens.getOrPut(card.id) { nextToken++ }
         occupancy.getOrPut(card.screenId) { LinkedHashMap() }[card.id] = card
     }
