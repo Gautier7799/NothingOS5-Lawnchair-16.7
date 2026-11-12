@@ -30,7 +30,6 @@ import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import app.lawnchair.homecards.CaddyHomeCardLayout
 import app.lawnchair.util.resolveFolderPreviewColor
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.R
@@ -275,7 +274,7 @@ object CaddyCardRenderer {
         // disabled on the cell this never crops the icon.
         val nativeSize = icon.iconSize.takeIf { it > 0 } ?: iconSize
         val scale = if (fitGridToHost) {
-            CaddyHomeCardLayout.iconScale(iconSize, nativeSize)
+            if (iconSize <= 0 || nativeSize <= 0) 1f else (iconSize.toFloat() / nativeSize).coerceAtMost(1f)
         } else {
             1f
         }
