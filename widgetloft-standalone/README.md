@@ -1,20 +1,21 @@
-# WidgetLoft — standalone prototype
+# WidgetLoft — standalone Android app
 
-WidgetLoft is being developed as an independent Android application. It has no Lawnchair module dependency and is not included in the Lawnchair Gradle settings.
+WidgetLoft is an independent Android application. It has no Lawnchair module dependency and is not included in Lawnchair's Gradle settings.
 
-## Current prototype
+## Implemented functional milestone
 
-- Independent Android application shell (minSdk 26, compile/target SDK 37).
-- Card board with 1–2 column spans and adjustable card height.
-- Drag-to-reorder interaction.
-- Select two cards and create either a stack or a combined card.
-- Split a stack back into its original cards.
-- Uses Android system palette resources where available, with a Day/Night theme.
-- Core layout operations have JVM unit tests.
+- Independent Android application (minSdk 26, compile/target SDK 37).
+- App picker lists launchable applications installed on the device.
+- Create a collection from selected apps, or add selected apps to the selected collection.
+- Tap an app icon to launch it; long-press to remove it from a collection.
+- Persist collections, app membership, order, stack contents, and dimensions in private app storage.
+- Drag cards to reorder them; adjust card height and switch between one- and two-column spans.
+- Select two cards to stack or combine them; split a stack back into its original cards.
+- Delete selected collections and follow system Day/Night resources.
 
-## Deliberate boundaries
+## Remaining acceptance work
 
-This is an early interaction/model prototype, not a finished launcher widget host. It does not yet publish Android home-screen AppWidgets, persist board state, provide a full app picker, or implement production-grade resize handles. Those are later acceptance items; do not integrate it into Lawnchair until those are implemented and tested independently.
+This milestone does not yet host Android home-screen AppWidgets. The resize affordance remains a prototype control rather than a polished edge/corner handle system. Live-wallpaper-backed glass effects and a Compose UI migration remain separate design/performance decisions; do not add them until the functional board is stable and tested.
 
 ## Build
 
