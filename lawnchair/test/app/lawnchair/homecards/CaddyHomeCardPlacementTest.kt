@@ -131,6 +131,18 @@ class CaddyHomeCardPlacementTest {
     }
 
     @Test
+    fun occupy_movingCardBetweenScreensReleasesOldScreenCells() {
+        val placement = CaddyHomeCardPlacement()
+        placement.occupy(card(1, x = 0, y = 0, screenId = 0))
+
+        placement.occupy(card(1, x = 2, y = 0, screenId = 1))
+
+        assertThat(placement.isRegionFree(0, 0, 0, 2, 2, columns = 4, rows = 4)).isTrue()
+        assertThat(placement.isRegionFree(1, 2, 0, 2, 2, columns = 4, rows = 4)).isFalse()
+        assertThat(placement.attachedIds()).containsExactly(1)
+    }
+
+    @Test
     fun isRegionFree_rejectsOverlapWithAnotherCard() {
         val placement = CaddyHomeCardPlacement()
         placement.occupy(card(1, x = 0, y = 0, spanX = 2, spanY = 2))
