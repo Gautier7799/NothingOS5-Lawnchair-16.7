@@ -8,6 +8,7 @@ on:
       - feature/bundled-lawnicons
       - fix/dock-auto-capsule-bounds
       - fix/dock-ios-reference-proportions
+      - fix/ios-dock-capsule-slightly-larger
       - feature/caddy-smart-drawer
       - feature/caddy-smart-drawer-v76
       - feature/caddy-smart-drawer-v78
