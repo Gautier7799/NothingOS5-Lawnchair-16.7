@@ -106,4 +106,101 @@ class CaddyHomeCardLayoutTest {
         assertThat(CaddyHomeCardLayout.iconScale(0, 120)).isEqualTo(1f)
         assertThat(CaddyHomeCardLayout.iconScale(60, 0)).isEqualTo(1f)
     }
+
+    // --- icon area from the real measured title height (the 4-icon clipping defect) ---
+
+    @Test
+    fun iconArea_usesTheMeasuredTitleHeightInsteadOfTheFixedReserve() {
+        // A tall title (large font scale) must reduce the icon area below what the fixed fallback
+        // reserve would allow; otherwise the last row is pushed past the card's bottom edge.
+        val area = CaddyHomeCardLayout.iconAreaHeightPx(
+            cardHeightPx = 400,
+            titleHeightPx = 60,
+            verticalPaddingPx = 24,
+            gridGapPx = 6,
+            fallbackReservePx = 72,
+        )
+        assertThat(area).isEqualTo(310)
+    }
+
+    @Test
+    fun iconArea_fallsBackToTheReserveBeforeTheTitleIsMeasured() {
+        val area = CaddyHomeCardLayout.iconAreaHeightPx(
+            cardHeightPx = 400,
+            titleHeightPx = 0,
+            verticalPaddingPx = 24,
+            gridGapPx = 6,
+            fallbackReservePx = 72,
+        )
+        assertThat(area).isEqualTo(328)
+    }
+
+    @Test
+    fun iconArea_neverGoesNegativeOnATinyCard() {
+        val area = CaddyHomeCardLayout.iconAreaHeightPx(
+            cardHeightPx = 40,
+            titleHeightPx = 60,
+            verticalPaddingPx = 24,
+            gridGapPx = 6,
+            fallbackReservePx = 72,
+        )
+        assertThat(area).isEqualTo(0)
+    }
+
+    @Test
+    fun visibleRows_showsAllRequestedRowsWhenTheyFit() {
+        // 4-icon card: 2 rows of 100px in a 220px area.
+        assertThat(CaddyHomeCardLayout.visibleRows(areaHeightPx = 220, cellPx = 100, requestedRows = 2))
+            .isEqualTo(2)
+    }
+
+    @Test
+    fun visibleRows_clampsToTheRowsThatActuallyFit() {
+        // Only one row fits, so the renderer must not draw the second (the clipped row).
+        assertThat(CaddyHomeCardLayout.visibleRows(areaHeightPx = 150, cellPx = 100, requestedRows = 2))
+            .isEqualTo(1)
+    }
+
+    @Test
+    fun visibleRows_neverExceedsTheRequestedRows() {
+        assertThat(CaddyHomeCardLayout.visibleRows(areaHeightPx = 1000, cellPx = 100, requestedRows = 2))
+            .isEqualTo(2)
+    }
+
+    @Test
+    fun visibleRows_keepsAtLeastOneRowWhileThereIsAnyRoom() {
+        assertThat(CaddyHomeCardLayout.visibleRows(areaHeightPx = 10, cellPx = 100, requestedRows = 2))
+            .isEqualTo(1)
+    }
+
+    @Test
+    fun visibleRows_returnsRequestedWhenTheCellIsUnmeasured() {
+        assertThat(CaddyHomeCardLayout.visibleRows(areaHeightPx = 0, cellPx = 0, requestedRows = 3))
+            .isEqualTo(3)
+    }
+
+    @Test
+    fun fourIconCard_keepsBothRowsOnACompactGrid() {
+        // A 2x2 card on a compact home grid: the measured title + padding must still leave room for
+        // both rows, which is exactly the case that used to clip the bottom row.
+        val cardHeight = 300
+        val area = CaddyHomeCardLayout.iconAreaHeightPx(
+            cardHeightPx = cardHeight,
+            titleHeightPx = 46,
+            verticalPaddingPx = 24,
+            gridGapPx = 6,
+            fallbackReservePx = 72,
+        )
+        val cell = CaddyHomeCardLayout.cellSizePx(
+            width = 300,
+            height = cardHeight,
+            columns = 2,
+            rows = 2,
+            sideInsetPx = 36,
+            titleReservePx = cardHeight - area,
+        )
+        val rows = CaddyHomeCardLayout.visibleRows(area, cell, requestedRows = 2)
+        assertThat(rows).isEqualTo(2)
+        assertThat(cell * rows).isAtMost(area)
+    }
 }

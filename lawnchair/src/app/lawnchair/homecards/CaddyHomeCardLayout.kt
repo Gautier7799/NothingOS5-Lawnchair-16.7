@@ -57,6 +57,37 @@ object CaddyHomeCardLayout {
         firstY < secondY + secondSpanY &&
         firstY + firstSpanY > secondY
 
+    /**
+     * The vertical space the icon grid may use, once the card's real parts are removed.
+     *
+     * [titleHeightPx] is the title's measured height. When it is not known yet (0), [fallbackPx]
+     * is used so a pre-measurement render never computes a negative area.
+     */
+    fun iconAreaHeightPx(
+        cardHeightPx: Int,
+        titleHeightPx: Int,
+        verticalPaddingPx: Int,
+        gridGapPx: Int,
+        fallbackReservePx: Int,
+    ): Int {
+        val reserve = if (titleHeightPx > 0) {
+            titleHeightPx + verticalPaddingPx + gridGapPx
+        } else {
+            fallbackReservePx
+        }
+        return (cardHeightPx - reserve).coerceAtLeast(0)
+    }
+
+    /**
+     * How many icon rows of [cellPx] fit in [areaHeightPx]. Never more than [requestedRows], and
+     * never fewer than one while there is any room, so a card always shows at least its first row.
+     */
+    fun visibleRows(areaHeightPx: Int, cellPx: Int, requestedRows: Int): Int {
+        if (requestedRows <= 0) return 0
+        if (cellPx <= 0) return requestedRows
+        return (areaHeightPx / cellPx).coerceIn(1, requestedRows)
+    }
+
     /** The scale to apply to an icon laid out at [nativePx] so it fits a [slotPx] slot. */
     fun iconScale(slotPx: Int, nativePx: Int): Float {
         if (slotPx <= 0 || nativePx <= 0) return 1f

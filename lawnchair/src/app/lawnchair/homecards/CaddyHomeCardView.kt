@@ -19,6 +19,7 @@ package app.lawnchair.homecards
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
@@ -26,6 +27,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.TextView
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
@@ -116,18 +118,8 @@ class CaddyHomeCardView @JvmOverloads constructor(
     private fun render() {
         val card = boundCard ?: return
         val resolveApp = appResolver ?: return
-        val columns = iconColumns.coerceIn(1, card.spanX.coerceAtLeast(1))
-        val rows = card.spanY.coerceAtLeast(MIN_SPAN)
-        val maxIcons = columns * rows
-        val cellPx = CaddyHomeCardLayout.cellSizePx(
-            width = width,
-            height = height,
-            columns = columns,
-            rows = rows,
-            sideInsetPx = dp(GRID_SIDE_INSET_DP),
-            titleReservePx = dp(if (showTitle) TITLE_RESERVE_DP else NO_TITLE_RESERVE_DP),
-        )
-        lastCellPx = cellPx
+        val geometry = geometryFor(width, height, card)
+        lastCellPx = geometry.cellPx
         CaddyCardRenderer.renderCategoryCard(
             host = this,
             title = card.title,
@@ -138,28 +130,67 @@ class CaddyHomeCardView @JvmOverloads constructor(
                 icon.setOnLongClickListener(CaddyCardIconLongClick.LISTENER)
             },
             fitGridToHost = true,
-            columns = columns,
-            maxIcons = maxIcons,
-            cellSizePx = cellPx,
+            columns = geometry.columns,
+            maxIcons = geometry.maxIcons,
+            cellSizePx = geometry.cellPx,
             showTitle = showTitle,
         )
     }
+
+    /** The icon grid geometry for a card measured at [w] x [h]. */
+    private fun geometryFor(w: Int, h: Int, card: CaddyHomeCardInfo): CardGeometry {
+        val columns = iconColumns.coerceIn(1, card.spanX.coerceAtLeast(1))
+        val requestedRows = card.spanY.coerceAtLeast(MIN_SPAN)
+        // Reserve the title's real measured height instead of a fixed guess: a large font scale or
+        // a wrapped title makes the title area taller than TITLE_RESERVE_DP, which pushed the last
+        // icon row past the card's bottom edge and clipped it.
+        val titleHeight = measuredTitleHeightPx()
+        val iconArea = CaddyHomeCardLayout.iconAreaHeightPx(
+            cardHeightPx = h,
+            titleHeightPx = titleHeight,
+            verticalPaddingPx = dp(HOST_VERTICAL_PADDING_DP + CARD_VERTICAL_PADDING_DP),
+            gridGapPx = dp(GRID_TOP_GAP_DP),
+            fallbackReservePx = dp(if (showTitle) TITLE_RESERVE_DP else NO_TITLE_RESERVE_DP),
+        )
+        val cellPx = CaddyHomeCardLayout.cellSizePx(
+            width = w,
+            height = h,
+            columns = columns,
+            rows = requestedRows,
+            sideInsetPx = dp(GRID_SIDE_INSET_DP),
+            titleReservePx = h - iconArea,
+        )
+        // Never render more rows than actually fit in the measured area, so the bottom row can
+        // never be drawn outside the card's content bounds.
+        val rows = CaddyHomeCardLayout.visibleRows(iconArea, cellPx, requestedRows)
+        return CardGeometry(columns = columns, cellPx = cellPx, maxIcons = columns * rows)
+    }
+
+    /**
+     * The height the title row will occupy at the renderer's title style, measured so the icon area
+     * is derived from the real layout rather than a constant. Returns 0 when no title is shown.
+     */
+    private fun measuredTitleHeightPx(): Int {
+        if (!showTitle) return 0
+        val title = TextView(context).apply {
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = TITLE_TEXT_SIZE_SP
+            maxLines = 1
+            text = TITLE_MEASURE_SAMPLE
+        }
+        val widthSpec = View.MeasureSpec.makeMeasureSpec(width.coerceAtLeast(0), View.MeasureSpec.AT_MOST)
+        val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        title.measure(widthSpec, heightSpec)
+        return title.measuredHeight
+    }
+
+    private data class CardGeometry(val columns: Int, val cellPx: Int, val maxIcons: Int)
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w > 0 && h > 0) {
             val card = boundCard ?: return
-            val columns = iconColumns.coerceIn(1, card.spanX.coerceAtLeast(1))
-            val rows = card.spanY.coerceAtLeast(MIN_SPAN)
-            val cell = CaddyHomeCardLayout.cellSizePx(
-                width = w,
-                height = h,
-                columns = columns,
-                rows = rows,
-                sideInsetPx = dp(GRID_SIDE_INSET_DP),
-                titleReservePx = dp(if (showTitle) TITLE_RESERVE_DP else NO_TITLE_RESERVE_DP),
-            )
-            if (cell != lastCellPx) render()
+            if (geometryFor(w, h, card).cellPx != lastCellPx) render()
         }
     }
 
@@ -345,15 +376,29 @@ class CaddyHomeCardView @JvmOverloads constructor(
         const val GRID_SIDE_INSET_DP = 36f
 
         /**
-         * Reserve the complete title/padding/gap area plus a safety allowance for
-         * CellLayout measurement differences. The previous 52dp estimate left the
-         * second preview row flush against the card's bottom edge on compact grids,
-         * where the parent clips the lower half of adaptive icons.
+         * Fallback reserve used only before the title has been measured. At render time the icon
+         * area is computed from the title's real measured height, so these values are a safety net
+         * for the pre-measurement state, not the layout model.
          */
         const val TITLE_RESERVE_DP = 72f
 
-        /** Host/card padding, grid gap and the same measurement allowance without a title. */
+        /** Fallback reserve without a title (host/card padding and the grid gap only). */
         const val NO_TITLE_RESERVE_DP = 48f
+
+        /** Vertical padding the renderer applies to the host (4dp top and bottom). */
+        const val HOST_VERTICAL_PADDING_DP = 8f
+
+        /** Vertical padding the renderer applies to the card (8dp top and bottom). */
+        const val CARD_VERTICAL_PADDING_DP = 16f
+
+        /** Top margin the renderer puts between the title and the icon grid. */
+        const val GRID_TOP_GAP_DP = 6f
+
+        /** Title text size the renderer uses on a workspace card, so the measured height matches. */
+        const val TITLE_TEXT_SIZE_SP = 17f
+
+        /** Longest realistic category title, so the measured title height is not underestimated. */
+        const val TITLE_MEASURE_SAMPLE = "Communication"
 
         /** How close to a corner a touch must start to hit that corner action. */
         const val CORNER_HIT_DP = 56f

@@ -18,6 +18,7 @@ package app.lawnchair.homecards
 
 import android.content.Context
 import android.view.View
+import android.view.ViewGroup
 import com.android.launcher3.CellLayout
 import com.android.launcher3.Launcher
 import com.android.launcher3.celllayout.CellLayoutLayoutParams
@@ -64,23 +65,33 @@ class CaddyHomeCardController(
 
     /** Rebuilds the workspace cards from the current app list and category sources. */
     fun sync(apps: List<AppInfo>) {
+        // The launcher can publish an empty AllAppsStore snapshot while it is still loading (the
+        // store starts as EMPTY_ARRAY and is filled by the model). Treat that as "not ready": leave
+        // the attached cards and their saved placements exactly as they are, so the home screen does
+        // not blank out and no placement is erased. There is no isAllAppsLoaded flag to consult;
+        // the snapshot itself is the readiness signal.
+        if (apps.isEmpty()) return
+
         val hidden = hiddenStore.load()
+        val stored = repository.load()
         val desired = CaddyHomeCardSource.build(context, apps).filterNot { it.id in hidden }
-        if (desired.isEmpty()) {
-            // AppStore can briefly publish an incomplete/empty snapshot while loading.
-            // Detach stale views, but never erase the user's saved card placements.
-            detachAll()
-            return
-        }
-
-        val placementById = repository.load().associateBy { it.id }
         val desiredIds = desired.mapTo(mutableSetOf()) { it.id }
+        val liveAppKeys = apps.mapNotNullTo(mutableSetOf()) { CaddyHomeCardSource.appKeyOf(it) }
 
-        // Drop views whose category no longer exists in the current complete source.
+        // A card whose category is missing from this snapshot, but whose apps are still installed,
+        // was dropped by an incomplete grouping pass rather than by the user. Keep its saved
+        // placement so it returns to the same cells on the next complete snapshot.
+        val carried = CaddyHomeCardAttachment.carriedOver(stored, desiredIds, liveAppKeys)
+
+        // Drop the view of any card that is neither desired nor carried over: its category is
+        // genuinely gone, so nothing should stay on the workspace. Its persisted placement is not
+        // touched here.
+        val keepIds = desiredIds + carried.mapTo(mutableSetOf()) { it.id }
         placement.attachedIds().forEach { id ->
-            if (id !in desiredIds) removeView(id)
+            if (id !in keepIds) removeView(id)
         }
 
+        val placementById = stored.associateBy { it.id }
         val persisted = mutableListOf<CaddyHomeCardInfo>()
         desired.forEach { card ->
             val existing = placementById[card.id]
@@ -126,6 +137,7 @@ class CaddyHomeCardController(
                 existing?.let(persisted::add)
             }
         }
+        persisted.addAll(carried)
         repository.save(persisted)
     }
 
@@ -330,7 +342,7 @@ class CaddyHomeCardController(
                 return true
             }
         }
-        val cellLayout = cellLayoutFor(card) ?: return false
+        val target = cellLayoutFor(card) ?: return false
         // One stable view per card id: [placement] hands back the same token across re-attach,
         // so a resize or move can never leave a second, orphaned view behind.
         val view = attached.getOrPut(card.id) {
@@ -345,17 +357,47 @@ class CaddyHomeCardController(
         view.onGroupTap = { card.group.takeIf { it.isNotEmpty() }?.let { cycleGroup(it) } ?: false }
 
         val params = CellLayoutLayoutParams(card.cellX, card.cellY, card.spanX, card.spanY)
-        if (view.parent == null) {
-            if (!cellLayout.addViewToCellLayout(view, -1, view.id, params, true)) {
-                attached.remove(card.id)
-                placement.release(card.id)
-                return false
+        // The owner is resolved from the live hierarchy, never from view.parent: a workspace child
+        // is hosted by the CellLayout's inner ShortcutAndWidgetContainer, so view.parent is that
+        // container and never the CellLayout.
+        val owner = cellLayoutOf(view)
+        when (CaddyHomeCardAttachment.attachAction(owner != null, owner === target)) {
+            CaddyHomeCardAttachment.Action.ADD -> {
+                // A previous bind can leave the view inside a container whose page is no longer a
+                // current screen (a workspace rebind recreates the CellLayouts). Remove it from that
+                // stale parent first: ViewGroup.addView throws when the child still has a parent,
+                // and leaving it there would orphan the view on a discarded page.
+                (view.parent as? ViewGroup)?.removeView(view)
+                if (!target.addViewToCellLayout(view, -1, view.id, params, true)) {
+                    attached.remove(card.id)
+                    placement.release(card.id)
+                    return false
+                }
             }
-        } else {
-            // The view is already hosted. Re-apply its grid position and span so a resize or a
-            // move takes effect on the existing view instead of being silently ignored.
-            relayoutExisting(cellLayout, view, params)
+
+            CaddyHomeCardAttachment.Action.RELAYOUT -> {
+                // Already on the target page: re-apply the grid position and span so a resize or a
+                // move takes effect on the existing view instead of being silently ignored.
+                relayoutExisting(target, view, params)
+            }
+
+            CaddyHomeCardAttachment.Action.MOVE -> {
+                // Hosted on a different page (the saved placement moved the card). The view must be
+                // removed from its real owner before being added to the target, otherwise it stays
+                // orphaned on the old page while the target's occupancy grid claims its new cells.
+                // Re-applying the params in place cannot work: markCellsAsOccupiedForView /
+                // markCellsAsUnoccupiedForView ignore a view whose parent is not their own
+                // container, so the old page would keep the cells and the new page would never mark
+                // them. owner is non-null here, so the release is safe.
+                owner!!.removeView(view)
+                if (!target.addViewToCellLayout(view, -1, view.id, params, true)) {
+                    attached.remove(card.id)
+                    placement.release(card.id)
+                    return false
+                }
+            }
         }
+        // Register the target occupancy only after the view was actually attached above.
         placement.occupy(card)
         return true
     }

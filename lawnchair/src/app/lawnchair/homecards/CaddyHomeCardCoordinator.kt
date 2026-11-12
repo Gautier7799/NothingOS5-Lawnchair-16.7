@@ -48,8 +48,11 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
         // AppsView may not exist yet during Activity.onCreate(). Retry listener
         // registration only after the workspace has finished binding.
         registerAppsListener()
-        // Rebound pages are new views, so drop the stale references and rebuild.
-        controller.detachAll()
+        // Do not detachAll() here. A rebind recreates the CellLayouts, but the card views are still
+        // owned by the coordinator; attach() now re-hosts a view whose old page is gone instead of
+        // assuming view.parent is the CellLayout. Keeping the views avoids destroying their identity
+        // and rebuilding them, which is what made the cards flicker (disappear then reappear) on
+        // every rebind. sync() re-hosts the existing views onto the new pages.
         syncFromApps()
     }
 
