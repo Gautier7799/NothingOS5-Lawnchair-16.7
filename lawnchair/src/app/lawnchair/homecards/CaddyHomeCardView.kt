@@ -83,6 +83,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
     private var appResolver: ((String) -> AppInfo?)? = null
     private var lastCellPx = 0
     private var lastVerticalReservePx = -1
+    private var measuredTitleHeightPx = 0
 
     private val cornerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0x59FFFFFF
@@ -177,8 +178,10 @@ class CaddyHomeCardView @JvmOverloads constructor(
         val card = getChildAt(0) as? LinearLayout
         val hostVerticalPadding = paddingTop + paddingBottom
         val cardVerticalPadding = card?.let { it.paddingTop + it.paddingBottom } ?: dp(16f)
+        val measuredTitle = card?.getChildAt(0)?.measuredHeight ?: 0
+        if (measuredTitle > 0) measuredTitleHeightPx = measuredTitle
         val titleHeight = if (showTitle) {
-            card?.getChildAt(0)?.measuredHeight?.takeIf { it > 0 } ?: dp(24f)
+            measuredTitleHeightPx.takeIf { it > 0 } ?: dp(24f)
         } else {
             0
         }
