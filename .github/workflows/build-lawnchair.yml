@@ -28,6 +28,7 @@ on:
       - feat/ios-dock-content-sized-capsule
       - fix/dock-restore-ios-capsule
       - feature/caddy-app-library-home
+      - fix/caddy-home-layout-lifecycle-2026-11-12
 
 permissions:
   contents: read
