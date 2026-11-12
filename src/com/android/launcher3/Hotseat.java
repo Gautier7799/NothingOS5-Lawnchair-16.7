@@ -255,16 +255,16 @@ public class Hotseat extends FrameLayout implements Insettable {
             }
             if (!foundIcon || iconBounds.isEmpty()) return;
 
-            // Reproduce the iOS Dock: a wide, prominent rounded-rectangle panel, not a
+            // Reproduce the iOS Dock: a wide, chunky rounded-rectangle panel, not a
             // capsule that hugs the icons. Measured from the iPhone 14 Pro reference
-            // screenshots (642x1301): the panel spans ~88-92% of the screen width with
-            // ~4-6% side margins, and its height is ~1.56x the icon height (panel 131px
-            // vs icon 84px), i.e. the icons sit inside with generous breathing room.
-            // Sizing the height from the icon keeps that ratio on any device, while
-            // clamping to the container prevents clipping on short dock specs.
+            // screenshots (642x1301): the panel spans ~90-92% of the screen width with
+            // small side margins, and its corners are a rounded rectangle, clearly less
+            // round than a pill. The height is scaled from the icon height so the panel
+            // keeps generous breathing room around the icons on any device, then clamped
+            // to the container so it never clips on short dock specs.
             int sideMargin = Math.max(1, Math.round(containerWidth * 0.04f));
             int capsuleHeight = Math.min(containerHeight,
-                    Math.round(iconBounds.height() * 1.56f));
+                    Math.round(iconBounds.height() * 1.8f));
 
             int left = sideMargin;
             int right = sideMargin;
@@ -272,9 +272,9 @@ public class Hotseat extends FrameLayout implements Insettable {
                     iconBounds.centerY() - capsuleHeight / 2));
             int bottom = containerHeight - top - capsuleHeight;
 
-            // Softened corners, clearly less round than a pill: about a third of the
-            // height, which is the iOS Dock silhouette rather than a stadium shape.
-            background.setCornerRadius(capsuleHeight * 0.30f);
+            // Flattened corners: about a quarter of the height, which reads as the iOS
+            // Dock panel rather than a stadium-shaped capsule.
+            background.setCornerRadius(capsuleHeight * 0.26f);
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
 
