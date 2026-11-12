@@ -26,6 +26,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
@@ -81,6 +82,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
     private var boundCard: CaddyHomeCardInfo? = null
     private var appResolver: ((String) -> AppInfo?)? = null
     private var lastCellPx = 0
+    private var lastVerticalReservePx = -1
 
     private val cornerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0x59FFFFFF
@@ -119,15 +121,17 @@ class CaddyHomeCardView @JvmOverloads constructor(
         val columns = iconColumns.coerceIn(1, card.spanX.coerceAtLeast(1))
         val rows = card.spanY.coerceAtLeast(MIN_SPAN)
         val maxIcons = columns * rows
+        val verticalReserve = verticalReservePx()
         val cellPx = CaddyHomeCardLayout.cellSizePx(
             width = width,
             height = height,
             columns = columns,
             rows = rows,
             sideInsetPx = dp(GRID_SIDE_INSET_DP),
-            titleReservePx = dp(if (showTitle) TITLE_RESERVE_DP else NO_TITLE_RESERVE_DP),
+            titleReservePx = verticalReserve,
         )
         lastCellPx = cellPx
+        lastVerticalReservePx = verticalReserve
         CaddyCardRenderer.renderCategoryCard(
             host = this,
             title = card.title,
@@ -151,16 +155,44 @@ class CaddyHomeCardView @JvmOverloads constructor(
             val card = boundCard ?: return
             val columns = iconColumns.coerceIn(1, card.spanX.coerceAtLeast(1))
             val rows = card.spanY.coerceAtLeast(MIN_SPAN)
+            val verticalReserve = verticalReservePx()
             val cell = CaddyHomeCardLayout.cellSizePx(
                 width = w,
                 height = h,
                 columns = columns,
                 rows = rows,
                 sideInsetPx = dp(GRID_SIDE_INSET_DP),
-                titleReservePx = dp(if (showTitle) TITLE_RESERVE_DP else NO_TITLE_RESERVE_DP),
+                titleReservePx = verticalReserve,
             )
-            if (cell != lastCellPx) render()
+            if (cell != lastCellPx || verticalReserve != lastVerticalReservePx) render()
         }
+    }
+
+    /**
+     * Measures the vertical space consumed by the rendered card chrome. Prefer the title's
+     * real measured height; before its first layout use a conservative single-line estimate.
+     * The remaining height is the only space available to the icon rows.
+     */
+    private fun verticalReservePx(): Int {
+        val card = getChildAt(0) as? LinearLayout
+        val hostVerticalPadding = paddingTop + paddingBottom
+        val cardVerticalPadding = card?.let { it.paddingTop + it.paddingBottom } ?: dp(16f)
+        val titleHeight = if (showTitle) {
+            card?.getChildAt(0)?.measuredHeight?.takeIf { it > 0 } ?: dp(24f)
+        } else {
+            0
+        }
+        val gridIndex = if (showTitle) 1 else 0
+        val gridTopMargin = (card?.getChildAt(gridIndex)?.layoutParams as? LinearLayout.LayoutParams)
+            ?.topMargin ?: dp(6f)
+        return hostVerticalPadding + cardVerticalPadding + titleHeight + gridTopMargin
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        if (width <= 0 || height <= 0 || boundCard == null) return
+        val verticalReserve = verticalReservePx()
+        if (verticalReserve != lastVerticalReservePx) render()
     }
 
     /** Draws the two corner affordances: resize (bottom-right) and remove (top-right). */
@@ -343,17 +375,6 @@ class CaddyHomeCardView @JvmOverloads constructor(
 
         /** Space taken by the card's own horizontal padding when the grid is sized. */
         const val GRID_SIDE_INSET_DP = 36f
-
-        /**
-         * Reserve the complete title/padding/gap area plus a safety allowance for
-         * CellLayout measurement differences. The previous 52dp estimate left the
-         * second preview row flush against the card's bottom edge on compact grids,
-         * where the parent clips the lower half of adaptive icons.
-         */
-        const val TITLE_RESERVE_DP = 72f
-
-        /** Host/card padding, grid gap and the same measurement allowance without a title. */
-        const val NO_TITLE_RESERVE_DP = 48f
 
         /** How close to a corner a touch must start to hit that corner action. */
         const val CORNER_HIT_DP = 56f
