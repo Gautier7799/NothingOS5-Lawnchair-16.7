@@ -29,10 +29,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.InsetDrawable;
 import android.util.AttributeSet;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -96,13 +93,11 @@ public class Hotseat extends FrameLayout implements Insettable {
     public static final float QSB_CENTER_FACTOR = .325f;
     private static final int BUBBLE_BAR_ADJUSTMENT_ANIMATION_DURATION_MS = 250;
     private static final int DOCK_PAGE_INDICATOR_HEIGHT_DP = 8;
-    // iOS Dock geometry on a ~412dp-wide phone (Pixel 8 / iPhone 15): a 388dp-wide panel
-    // (12dp side margins), 96dp tall, 33dp continuous corner radius, icons 60dp sitting
-    // 18dp inside the panel edges.
+    // iOS Dock geometry on a ~412dp-wide phone (Pixel 8 / iPhone 15): 12dp side margins and
+    // 18dp of inner padding so the icons sit inside the panel. The panel height and corner
+    // radius live in DockCapsule, which draws the background.
     private static final int DOCK_SIDE_MARGIN_DP = 12;
     private static final int DOCK_INNER_PADDING_DP = 18;
-    private static final int DOCK_HEIGHT_DP = 96;
-    private static final int DOCK_CORNER_RADIUS_DP = 33;
 
     @ViewDebug.ExportedProperty(category = "launcher")
     private boolean mHasVerticalHotseat;
@@ -217,87 +212,9 @@ public class Hotseat extends FrameLayout implements Insettable {
     }
 
     private void setUpBackground() {
-        var bgColor = PreferenceCacheExtensionsKt.firstCached(
-                preferenceManager2.getHotseatBackgroundColor());
-        var transparency = preferenceManager.getHotseatBGAlpha().get();
-        // Keep opacity fully controlled by the existing Lawnchair preference.
-        int alphaValue = Math.max(0, Math.min(255, (transparency * 255) / 100));
-        var baseColor = bgColor.getColorPreferenceEntry().getLightColor().invoke(getContext());
-        var finalColor = Color.argb(alphaValue, Color.red(baseColor),
-                Color.green(baseColor), Color.blue(baseColor));
-
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(finalColor);
-
-        // Measure the actual dock icon row instead of deriving the capsule from the
-        // QSB position. The QSB can be moved/disabled independently and is not a
-        // reliable anchor for the dock background.
-        Runnable updateCapsuleBounds = () -> {
-            int containerWidth = mIconsContainer.getWidth();
-            int containerHeight = mIconsContainer.getHeight();
-            CellLayout cellLayout = mPagedView.getCurrentCellLayout();
-            if (containerWidth <= 0 || containerHeight <= 0 || cellLayout == null
-                    || cellLayout.getChildCount() == 0) {
-                return;
-            }
-
-            // CellLayout's direct child is the full grid container, not the icons.
-            // Measure visible dock items and keep the capsule close to the icon row.
-            ShortcutAndWidgetContainer shortcuts = cellLayout.getShortcutsAndWidgets();
-            if (shortcuts == null || shortcuts.getChildCount() == 0) return;
-
-            Rect iconBounds = new Rect();
-            boolean foundIcon = false;
-            for (int i = 0; i < shortcuts.getChildCount(); i++) {
-                View child = shortcuts.getChildAt(i);
-                if (child == null || child.getVisibility() != VISIBLE) continue;
-
-                Rect childBounds = new Rect();
-                if (child instanceof BubbleTextView bubbleTextView) {
-                    bubbleTextView.getIconBounds(childBounds);
-                } else {
-                    childBounds.set(0, 0, child.getWidth(), child.getHeight());
-                }
-                if (childBounds.isEmpty()) continue;
-
-                mIconsContainer.offsetDescendantRectToMyCoords(child, childBounds);
-                if (!foundIcon) {
-                    iconBounds.set(childBounds);
-                    foundIcon = true;
-                } else {
-                    iconBounds.union(childBounds);
-                }
-            }
-            if (!foundIcon || iconBounds.isEmpty()) return;
-
-            // Draw the panel inset by the 12dp side margin only, so its 388dp width lines
-            // up with the icon grid (which the container padding already pushed 18dp
-            // further inside). Height and corner radius follow the iOS measurements.
-            float density = getResources().getDisplayMetrics().density;
-            int sideMargin = Math.round(DOCK_SIDE_MARGIN_DP * density);
-            int capsuleHeight = Math.min(containerHeight, Math.round(DOCK_HEIGHT_DP * density));
-
-            int left = sideMargin;
-            int right = sideMargin;
-            int top = Math.max(0, Math.min(containerHeight - capsuleHeight,
-                    iconBounds.centerY() - capsuleHeight / 2));
-            int bottom = containerHeight - top - capsuleHeight;
-
-            // Continuous-corner squircle: 33dp on a 96dp panel, clamped so a short
-            // container can never produce an over-rounded (pill) shape.
-            float cornerRadius = Math.min(capsuleHeight / 2f,
-                    Math.round(DOCK_CORNER_RADIUS_DP * density));
-            background.setCornerRadius(cornerRadius);
-            mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
-        };
-
-        addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
-        mIconsContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
-        mPagedView.addOnLayoutChangeListener((view, left, top, right, bottom,
-                oldLeft, oldTop, oldRight, oldBottom) -> updateCapsuleBounds.run());
-        mIconsContainer.post(updateCapsuleBounds);
+        // The capsule geometry lives in DockCapsule so the same code can render the plain
+        // iPhone dock and the iPad-style split variant.
+        app.lawnchair.ui.dock.DockCapsule.apply(this);
         setBackground(null);
     }
 
@@ -314,6 +231,11 @@ public class Hotseat extends FrameLayout implements Insettable {
 
     public HotseatPagedView getPagedView() {
         return mPagedView;
+    }
+
+    /** Returns the container that holds the dock icons and the capsule background. */
+    public FrameLayout getIconsContainer() {
+        return mIconsContainer;
     }
 
     /** Returns the CellLayout for the given dock page. */
@@ -598,8 +520,14 @@ public class Hotseat extends FrameLayout implements Insettable {
                 makeMeasureSpec(Math.max(0, pagerHeight), MeasureSpec.EXACTLY));
 
         int pageHeight = Math.max(0, pagerHeight - indicatorSpace);
+        // Measure the paged view inside the container padding so the icon grid (and the cell
+        // spacing derived from it) stays within the dock capsule instead of spanning the full
+        // screen width, which pushed the last icon past the capsule edge.
+        int iconsPaddingLeft = mIconsContainer.getPaddingLeft();
+        int iconsPaddingRight = mIconsContainer.getPaddingRight();
+        int pagedWidth = Math.max(0, pagerWidth - iconsPaddingLeft - iconsPaddingRight);
         mPagedView.measure(
-                makeMeasureSpec(Math.max(0, pagerWidth), MeasureSpec.EXACTLY),
+                makeMeasureSpec(pagedWidth, MeasureSpec.EXACTLY),
                 makeMeasureSpec(pageHeight, MeasureSpec.EXACTLY));
 
         if (showIndicator) {
