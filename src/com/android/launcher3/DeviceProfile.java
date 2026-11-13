@@ -228,6 +228,7 @@ public class DeviceProfile {
     private int mHotseatWidthPx; // not used in vertical bar layout
     // In portrait: size = height, in landscape: size = width
     public int hotseatBarSizePx;
+    private boolean mIsQsbEnabled = true;
     public int hotseatBarBottomSpacePx;
     public int hotseatQsbSpace;
     public int hotseatQsbWidth; // only used when isQsbInline
@@ -518,6 +519,7 @@ public class DeviceProfile {
         HotseatMode hotseatMode = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatMode());
         boolean isQsbEnable = app.lawnchair.hotseat.DockSearchBar.isEnabled(hotseatMode,
                 PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()));
+        mIsQsbEnabled = isQsbEnable;
 
         numShownHotseatIcons = displayOptionSpec.numShownHotseatIcons;
         numHotseatRows = Math.max(1, Math.min(2, PreferenceManager.getInstance(context).getHotseatRows().get()));
@@ -902,6 +904,7 @@ public class DeviceProfile {
         HotseatMode hotseatMode = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatMode());
         boolean isQsbEnable = app.lawnchair.hotseat.DockSearchBar.isEnabled(hotseatMode,
                 PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()));
+        mIsQsbEnabled = isQsbEnable;
         // LC-Note: Hidden dock labels need no text space; keep the minimum touch target.
         hotseatCellHeightPx = app.lawnchair.util.DockCellSize.calculate(
                 hotseatIconSizePx, iconTextHeight, isLabelInDock, pxFromDp(48, mMetrics));
@@ -920,6 +923,10 @@ public class DeviceProfile {
             hotseatBarSizePx = hotseatIconSizePx + getHotseatProfile().getBarEdgePaddingPx()
                     + getHotseatProfile().getBarWorkspaceSpacePx()
                     + space;
+        } else if (!isQsbEnable) {
+            // No search bar in the dock: reserve just the icon row plus the bottom margin so the
+            // dock hugs the bottom of the screen instead of leaving the old search bar gap.
+            hotseatBarSizePx = hotseatCellHeightPx * numHotseatRows + hotseatBarBottomSpacePx;
         } else if (isQsbInline) {
             hotseatBarSizePx = Math.max(hotseatIconSizePx, getHotseatProfile().getQsbVisualHeight())
                     + hotseatBarBottomSpacePx
@@ -941,7 +948,7 @@ public class DeviceProfile {
         var isHotseatEnabled = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.isHotseatEnabled());
         if (!isHotseatEnabled) {
             hotseatBarSizePx = 0;
-        } else if (!isVerticalBarLayout()) {
+        } else if (!isVerticalBarLayout() && isQsbEnable) {
             // LC-Note: give the iOS-style dock panel a little more height than the icon row, so
             // the capsule is taller than the icons while the workspace keeps its top alignment.
             hotseatBarSizePx += pxFromDp(
@@ -2057,6 +2064,10 @@ public class DeviceProfile {
      * Returns the number of pixels the hotseat is translated from the bottom of the screen.
      */
     private int getHotseatBarBottomPadding() {
+        if (!mIsQsbEnabled) {
+            // Without a search bar the dock is a single row sitting on the bottom margin.
+            return hotseatBarBottomSpacePx;
+        }
         if (isQsbOnTop() || isQsbInline) { // LC-Note: isQsbOnTop
             return hotseatBarBottomSpacePx - (Math.abs(hotseatCellHeightPx - iconSizePx) / 2);
         } else {
