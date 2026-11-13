@@ -19,9 +19,8 @@ import kotlin.math.roundToInt
  * Draws the iOS-style dock capsule behind a [Hotseat]'s icon row.
  *
  * The capsule is sized from the real dock icons rather than the container, so it hugs the row
- * for any number of icons. Geometry follows the iOS Dock measurements for a ~412dp-wide phone:
- * 12dp side margins, 96dp tall, 33dp continuous corners, with the icons sitting 18dp inside the
- * panel edges.
+ * for any number of icons. Geometry lives in [DockCapsuleGeometry]: side margins, panel height
+ * and a corner radius that is a fixed fraction of the height (straight sides).
  *
  * Usage:
  * ```

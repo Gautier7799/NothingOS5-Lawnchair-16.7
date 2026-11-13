@@ -93,11 +93,8 @@ public class Hotseat extends FrameLayout implements Insettable {
     public static final float QSB_CENTER_FACTOR = .325f;
     private static final int BUBBLE_BAR_ADJUSTMENT_ANIMATION_DURATION_MS = 250;
     private static final int DOCK_PAGE_INDICATOR_HEIGHT_DP = 8;
-    // iOS Dock geometry on a ~412dp-wide phone (Pixel 8 / iPhone 15): 12dp side margins and
-    // 18dp of inner padding so the icons sit inside the panel. The panel height and corner
-    // radius live in DockCapsule, which draws the background.
-    private static final int DOCK_SIDE_MARGIN_DP = 12;
-    private static final int DOCK_INNER_PADDING_DP = 18;
+    // iOS Dock geometry (side margin, inner padding, panel height, corner radius) lives in
+    // app.lawnchair.ui.dock.DockCapsuleGeometry, which also draws the background.
 
     @ViewDebug.ExportedProperty(category = "launcher")
     private boolean mHasVerticalHotseat;
@@ -156,13 +153,10 @@ public class Hotseat extends FrameLayout implements Insettable {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         mIconsContainer.setClipChildren(false);
         mIconsContainer.setClipToPadding(false);
-        // iOS Dock geometry (Pixel 8, 412dp wide): the panel is 388dp wide (12dp side
-        // margins) and the icons sit 18dp inside the panel edges. Padding the container by
-        // the sum keeps the icon grid inside the panel; the panel itself is drawn inset by
-        // the 12dp margin only, so its edges line up with the 388dp spec.
-        int dockSidePadding = Math.round(
-                (DOCK_SIDE_MARGIN_DP + DOCK_INNER_PADDING_DP)
-                        * getResources().getDisplayMetrics().density);
+        // The capsule geometry lives in DockCapsuleGeometry so the same code can render the plain
+        // iPhone dock and the iPad-style split variant.
+        int dockSidePadding = app.lawnchair.ui.dock.DockCapsuleGeometry.INSTANCE
+                .containerPaddingPx(getResources().getDisplayMetrics().density);
         mIconsContainer.setPaddingRelative(dockSidePadding, 0, dockSidePadding, 0);
         addView(mIconsContainer);
 

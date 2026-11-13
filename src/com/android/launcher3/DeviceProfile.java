@@ -939,6 +939,11 @@ public class DeviceProfile {
         var isHotseatEnabled = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.isHotseatEnabled());
         if (!isHotseatEnabled) {
             hotseatBarSizePx = 0;
+        } else if (!isVerticalBarLayout()) {
+            // LC-Note: give the iOS-style dock panel a little more height than the icon row, so
+            // the capsule is taller than the icons while the workspace keeps its top alignment.
+            hotseatBarSizePx += pxFromDp(
+                    app.lawnchair.ui.dock.DockCapsuleGeometry.EXTRA_HEIGHT_DP, mMetrics);
         }
     }
 

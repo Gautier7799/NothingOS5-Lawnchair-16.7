@@ -13,17 +13,26 @@ import kotlin.math.roundToInt
 object DockCapsuleGeometry {
 
     /** Side margin from the screen edge to the panel, in dp. */
-    const val SIDE_MARGIN_DP = 12
+    const val SIDE_MARGIN_DP = 8
 
-    /** Panel height, in dp. The panel is capped to this so it does not fill the whole container. */
-    const val HEIGHT_DP = 96
+    /** Preferred panel height, in dp. Capped to the available container height. */
+    const val HEIGHT_DP = 108
+
+    /** Extra height added to the dock bar so the panel is taller than the icon row, in dp. */
+    const val EXTRA_HEIGHT_DP = 20
+
+    /** Padding between the panel edge and the icon row, in dp. */
+    const val INNER_PADDING_DP = 16
 
     /** Corner radius as a fraction of the panel height (straight sides, rounded corners). */
     const val CORNER_RADIUS_RATIO = 0.24f
 
-    /** Returns the panel height in px: the requested height, capped to the available space. */
+    /** Returns the preferred panel height in px, ignoring the container. */
+    fun preferredHeightPx(density: Float): Int = (HEIGHT_DP * density).roundToInt()
+
+    /** Returns the panel height in px: the preferred height, capped to the available space. */
     fun panelHeightPx(containerHeightPx: Int, density: Float): Int =
-        minOf(containerHeightPx, (HEIGHT_DP * density).roundToInt())
+        minOf(containerHeightPx, preferredHeightPx(density))
 
     /**
      * Returns the corner radius in px for a panel of [panelHeightPx]. Proportional to the height
@@ -33,4 +42,13 @@ object DockCapsuleGeometry {
 
     /** Returns the side margin in px. */
     fun sideMarginPx(density: Float): Int = (SIDE_MARGIN_DP * density).roundToInt()
+
+    /** Returns the icon-row padding inside the panel, in px. */
+    fun innerPaddingPx(density: Float): Int = (INNER_PADDING_DP * density).roundToInt()
+
+    /** Returns the total container padding applied on each side, in px. */
+    fun containerPaddingPx(density: Float): Int = sideMarginPx(density) + innerPaddingPx(density)
+
+    /** Returns the extra dock-bar height, in px. */
+    fun extraHeightPx(density: Float): Int = (EXTRA_HEIGHT_DP * density).roundToInt()
 }

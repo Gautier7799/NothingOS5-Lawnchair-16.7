@@ -24,16 +24,28 @@ class DockCapsuleGeometryTest {
     private val pixel8Density = 2.625f
 
     @Test
-    fun sideMargin_isTwelveDp() {
-        assertThat(DockCapsuleGeometry.sideMarginPx(pixel8Density)).isEqualTo(32)
+    fun sideMargin_isEightDp() {
+        assertThat(DockCapsuleGeometry.sideMarginPx(pixel8Density)).isEqualTo(21)
+    }
+
+    @Test
+    fun containerPadding_isSideMarginPlusInnerPadding() {
+        assertThat(DockCapsuleGeometry.innerPaddingPx(pixel8Density)).isEqualTo(42)
+        assertThat(DockCapsuleGeometry.containerPaddingPx(pixel8Density)).isEqualTo(21 + 42)
     }
 
     @Test
     fun panelHeight_isCappedToAvailableSpace() {
-        // Plenty of room: use the full 96dp (252px on the Pixel 8).
-        assertThat(DockCapsuleGeometry.panelHeightPx(400, pixel8Density)).isEqualTo(252)
+        // Plenty of room: use the full 108dp (284px on the Pixel 8).
+        assertThat(DockCapsuleGeometry.preferredHeightPx(pixel8Density)).isEqualTo(284)
+        assertThat(DockCapsuleGeometry.panelHeightPx(400, pixel8Density)).isEqualTo(284)
         // Tight container: never exceed what is available.
         assertThat(DockCapsuleGeometry.panelHeightPx(120, pixel8Density)).isEqualTo(120)
+    }
+
+    @Test
+    fun extraHeight_isPositive() {
+        assertThat(DockCapsuleGeometry.extraHeightPx(pixel8Density)).isGreaterThan(0)
     }
 
     @Test
