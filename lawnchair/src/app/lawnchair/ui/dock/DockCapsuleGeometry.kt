@@ -12,13 +12,13 @@ import kotlin.math.roundToInt
 object DockCapsuleGeometry {
 
     /** Side margin from the screen edge to the panel, in dp. */
-    const val SIDE_MARGIN_DP = 4
+    const val SIDE_MARGIN_DP = 2
 
     /** Preferred panel height, in dp. Capped to the available container height. */
-    const val HEIGHT_DP = 124
+    const val HEIGHT_DP = 132
 
     /** Extra height added to the dock bar so the panel is taller than the icon row, in dp. */
-    const val EXTRA_HEIGHT_DP = 36
+    const val EXTRA_HEIGHT_DP = 44
 
     /** Padding between the panel edge and the icon row, in dp. */
     const val INNER_PADDING_DP = 12
