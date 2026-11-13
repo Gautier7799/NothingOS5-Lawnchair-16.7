@@ -24,21 +24,21 @@ class DockCapsuleGeometryTest {
     private val pixel8Density = 2.625f
 
     @Test
-    fun sideMargin_isSixDp() {
-        assertThat(DockCapsuleGeometry.sideMarginPx(pixel8Density)).isEqualTo(16)
+    fun sideMargin_isFourDp() {
+        assertThat(DockCapsuleGeometry.sideMarginPx(pixel8Density)).isEqualTo(11)
     }
 
     @Test
     fun containerPadding_isSideMarginPlusInnerPadding() {
         assertThat(DockCapsuleGeometry.innerPaddingPx(pixel8Density)).isEqualTo(32)
-        assertThat(DockCapsuleGeometry.containerPaddingPx(pixel8Density)).isEqualTo(16 + 32)
+        assertThat(DockCapsuleGeometry.containerPaddingPx(pixel8Density)).isEqualTo(11 + 32)
     }
 
     @Test
     fun panelHeight_isCappedToAvailableSpace() {
-        // Plenty of room: use the full 116dp (305px on the Pixel 8).
-        assertThat(DockCapsuleGeometry.preferredHeightPx(pixel8Density)).isEqualTo(305)
-        assertThat(DockCapsuleGeometry.panelHeightPx(400, pixel8Density)).isEqualTo(305)
+        // Plenty of room: use the full 124dp (326px on the Pixel 8).
+        assertThat(DockCapsuleGeometry.preferredHeightPx(pixel8Density)).isEqualTo(326)
+        assertThat(DockCapsuleGeometry.panelHeightPx(400, pixel8Density)).isEqualTo(326)
         // Tight container: never exceed what is available.
         assertThat(DockCapsuleGeometry.panelHeightPx(120, pixel8Density)).isEqualTo(120)
     }
@@ -51,18 +51,16 @@ class DockCapsuleGeometryTest {
     @Test
     fun cornerRadius_keepsStraightSides() {
         val panelHeight = DockCapsuleGeometry.panelHeightPx(400, pixel8Density)
-        val radius = DockCapsuleGeometry.cornerRadiusPx(panelHeight)
-        // Below half the height: the sides stay straight instead of becoming a pill.
+        val radius = DockCapsuleGeometry.cornerRadiusPx(panelHeight, pixel8Density)
+        // 38dp on the Pixel 8, and below half the height: the sides stay straight.
+        assertThat(radius).isEqualTo(38 * pixel8Density)
         assertThat(radius).isLessThan(panelHeight / 2f)
-        assertThat(radius).isEqualTo(panelHeight * 0.24f)
     }
 
     @Test
-    fun cornerRadius_scalesWithHeight() {
-        val tall = DockCapsuleGeometry.cornerRadiusPx(300)
-        val short = DockCapsuleGeometry.cornerRadiusPx(100)
-        assertThat(short).isLessThan(tall)
-        // Still a rectangle with rounded corners, not a capsule, at any height.
-        assertThat(short).isLessThan(50f)
+    fun cornerRadius_isClampedOnShortPanels() {
+        // A very short panel must not turn into a pill: the radius stays below half the height.
+        val short = DockCapsuleGeometry.cornerRadiusPx(60, pixel8Density)
+        assertThat(short).isLessThan(30f)
     }
 }

@@ -58,7 +58,7 @@ class DockCapsule private constructor(
             setColor(resolveColor())
             // Straight sides with a small corner radius, so the panel reads as a rounded
             // rectangle rather than a pill.
-            cornerRadius = DockCapsuleGeometry.cornerRadiusPx(panelHeight)
+            cornerRadius = DockCapsuleGeometry.cornerRadiusPx(panelHeight, density)
         }
         val panel = InsetDrawable(base, sideMargin, top, sideMargin, bottom)
         container.background = splitFraction?.let { fraction ->

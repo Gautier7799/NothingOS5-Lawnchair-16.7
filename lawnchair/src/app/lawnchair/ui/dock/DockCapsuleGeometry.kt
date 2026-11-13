@@ -6,26 +6,28 @@ import kotlin.math.roundToInt
  * Pure geometry for the iOS-style dock capsule. Kept free of Android types so it can be unit
  * tested on the JVM.
  *
- * The dock is a rounded rectangle with straight sides: the corner radius is a fixed fraction of
- * the panel height, so it never grows into a pill (which is what happens when the radius is
- * clamped to half the height on a short container).
+ * The dock is a rounded rectangle with straight sides: the corner radius is a fixed dp value
+ * (iOS style) clamped below half the height, so it never grows into a pill on a short container.
  */
 object DockCapsuleGeometry {
 
     /** Side margin from the screen edge to the panel, in dp. */
-    const val SIDE_MARGIN_DP = 6
+    const val SIDE_MARGIN_DP = 4
 
     /** Preferred panel height, in dp. Capped to the available container height. */
-    const val HEIGHT_DP = 116
+    const val HEIGHT_DP = 124
 
     /** Extra height added to the dock bar so the panel is taller than the icon row, in dp. */
-    const val EXTRA_HEIGHT_DP = 28
+    const val EXTRA_HEIGHT_DP = 36
 
     /** Padding between the panel edge and the icon row, in dp. */
     const val INNER_PADDING_DP = 12
 
-    /** Corner radius as a fraction of the panel height (straight sides, rounded corners). */
-    const val CORNER_RADIUS_RATIO = 0.24f
+    /** Corner radius in dp (iOS-style continuous corners, not a full pill). */
+    const val CORNER_RADIUS_DP = 38
+
+    /** Upper bound on the corner radius as a fraction of the height (keeps the sides straight). */
+    private const val MAX_CORNER_RADIUS_RATIO = 0.45f
 
     /** Returns the preferred panel height in px, ignoring the container. */
     fun preferredHeightPx(density: Float): Int = (HEIGHT_DP * density).roundToInt()
@@ -35,10 +37,11 @@ object DockCapsuleGeometry {
         minOf(containerHeightPx, preferredHeightPx(density))
 
     /**
-     * Returns the corner radius in px for a panel of [panelHeightPx]. Proportional to the height
-     * and always below half the height, so the panel keeps straight sides.
+     * Returns the corner radius in px for a panel of [panelHeightPx]. Uses a fixed iOS-style
+     * radius, clamped below half the height so the panel keeps straight sides.
      */
-    fun cornerRadiusPx(panelHeightPx: Int): Float = panelHeightPx * CORNER_RADIUS_RATIO
+    fun cornerRadiusPx(panelHeightPx: Int, density: Float): Float =
+        minOf(CORNER_RADIUS_DP * density, panelHeightPx * MAX_CORNER_RADIUS_RATIO)
 
     /** Returns the side margin in px. */
     fun sideMarginPx(density: Float): Int = (SIDE_MARGIN_DP * density).roundToInt()
