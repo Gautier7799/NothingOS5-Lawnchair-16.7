@@ -30,8 +30,8 @@ class DockCapsuleGeometryTest {
 
     @Test
     fun containerPadding_isSideMarginPlusInnerPadding() {
-        assertThat(DockCapsuleGeometry.innerPaddingPx(pixel8Density)).isEqualTo(42)
-        assertThat(DockCapsuleGeometry.containerPaddingPx(pixel8Density)).isEqualTo(21 + 42)
+        assertThat(DockCapsuleGeometry.innerPaddingPx(pixel8Density)).isEqualTo(32)
+        assertThat(DockCapsuleGeometry.containerPaddingPx(pixel8Density)).isEqualTo(21 + 32)
     }
 
     @Test

@@ -22,7 +22,7 @@ object DockCapsuleGeometry {
     const val EXTRA_HEIGHT_DP = 20
 
     /** Padding between the panel edge and the icon row, in dp. */
-    const val INNER_PADDING_DP = 16
+    const val INNER_PADDING_DP = 12
 
     /** Corner radius as a fraction of the panel height (straight sides, rounded corners). */
     const val CORNER_RADIUS_RATIO = 0.24f
