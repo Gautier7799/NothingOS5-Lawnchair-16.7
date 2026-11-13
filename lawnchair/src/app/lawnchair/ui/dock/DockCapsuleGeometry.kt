@@ -15,7 +15,7 @@ object DockCapsuleGeometry {
     const val SIDE_MARGIN_DP = 2
 
     /** Preferred panel height, in dp. Capped to the available container height. */
-    const val HEIGHT_DP = 132
+    const val HEIGHT_DP = 160
 
     /** Extra height added to the dock bar so the panel is taller than the icon row, in dp. */
     const val EXTRA_HEIGHT_DP = 44

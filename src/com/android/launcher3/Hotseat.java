@@ -497,6 +497,23 @@ public class Hotseat extends FrameLayout implements Insettable {
         return false;
     }
 
+    /**
+     * Centres the dock icon row vertically inside the panel by padding the icon container. Only
+     * applies to the plain phone dock without a search bar; other layouts keep their own spacing.
+     */
+    private void applyDockVerticalPadding(DeviceProfile dp, int containerHeight) {
+        if (dp.isQsbEnabled() || dp.isVerticalBarLayout()) {
+            return;
+        }
+        int iconRowHeight = dp.hotseatCellHeightPx * dp.numHotseatRows;
+        int verticalPadding = Math.max(0, (containerHeight - iconRowHeight) / 2);
+        if (mIconsContainer.getPaddingTop() != verticalPadding
+                || mIconsContainer.getPaddingBottom() != verticalPadding) {
+            mIconsContainer.setPaddingRelative(mIconsContainer.getPaddingLeft(), verticalPadding,
+                    mIconsContainer.getPaddingRight(), verticalPadding);
+        }
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int widthSize = MeasureSpec.getSize(widthMeasureSpec);
@@ -514,6 +531,7 @@ public class Hotseat extends FrameLayout implements Insettable {
 
         int pagerWidth = widthSize - paddingLeft - paddingRight;
         int pagerHeight = heightSize - paddingTop - paddingBottom;
+        applyDockVerticalPadding(dp, pagerHeight);
         mIconsContainer.measure(
                 makeMeasureSpec(Math.max(0, pagerWidth), MeasureSpec.EXACTLY),
                 makeMeasureSpec(Math.max(0, pagerHeight), MeasureSpec.EXACTLY));
@@ -568,8 +586,10 @@ public class Hotseat extends FrameLayout implements Insettable {
         // rather than spreading across the full screen width.
         int iconsPaddingLeft = mIconsContainer.getPaddingLeft();
         int iconsPaddingRight = mIconsContainer.getPaddingRight();
-        mPagedView.layout(iconsPaddingLeft, 0, containerWidth - iconsPaddingRight,
-                Math.max(0, containerHeight - indicatorSpace));
+        mPagedView.layout(iconsPaddingLeft, mIconsContainer.getPaddingTop(),
+                containerWidth - iconsPaddingRight,
+                Math.max(0, containerHeight - mIconsContainer.getPaddingBottom()
+                        - indicatorSpace));
 
         if (showIndicator) {
             int indicatorTop = containerHeight - mPageIndicatorHeight;

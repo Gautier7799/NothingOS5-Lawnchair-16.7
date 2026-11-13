@@ -924,9 +924,10 @@ public class DeviceProfile {
                     + getHotseatProfile().getBarWorkspaceSpacePx()
                     + space;
         } else if (!isQsbEnable) {
-            // No search bar in the dock: reserve just the icon row plus the bottom margin so the
-            // dock hugs the bottom of the screen instead of leaving the old search bar gap.
-            hotseatBarSizePx = hotseatCellHeightPx * numHotseatRows + hotseatBarBottomSpacePx;
+            // No search bar in the dock: reserve the full iOS panel height plus the bottom margin.
+            // The icon container is then exactly the panel height, so the capsule fills it and the
+            // dock reads taller than the plain icon row.
+            hotseatBarSizePx = dockPanelHeightPx() + hotseatBarBottomSpacePx;
         } else if (isQsbInline) {
             hotseatBarSizePx = Math.max(hotseatIconSizePx, getHotseatProfile().getQsbVisualHeight())
                     + hotseatBarBottomSpacePx
@@ -2060,12 +2061,23 @@ public class DeviceProfile {
         }
     }
 
+    /** Returns the preferred iOS dock panel height, in px. */
+    private int dockPanelHeightPx() {
+        return app.lawnchair.ui.dock.DockCapsuleGeometry.INSTANCE.preferredHeightPx(mMetrics.density);
+    }
+
+    /** Whether the dock shows a search bar. */
+    public boolean isQsbEnabled() {
+        return mIsQsbEnabled;
+    }
+
     /**
      * Returns the number of pixels the hotseat is translated from the bottom of the screen.
      */
     private int getHotseatBarBottomPadding() {
         if (!mIsQsbEnabled) {
-            // Without a search bar the dock is a single row sitting on the bottom margin.
+            // Without a search bar the icon container is the full panel height and rests on the
+            // bottom margin, so the capsule fills the panel with the icons centred inside it.
             return hotseatBarBottomSpacePx;
         }
         if (isQsbOnTop() || isQsbInline) { // LC-Note: isQsbOnTop

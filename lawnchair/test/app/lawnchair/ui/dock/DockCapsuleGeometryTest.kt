@@ -36,9 +36,9 @@ class DockCapsuleGeometryTest {
 
     @Test
     fun panelHeight_isCappedToAvailableSpace() {
-        // Plenty of room: use the full 132dp (347px on the Pixel 8).
-        assertThat(DockCapsuleGeometry.preferredHeightPx(pixel8Density)).isEqualTo(347)
-        assertThat(DockCapsuleGeometry.panelHeightPx(400, pixel8Density)).isEqualTo(347)
+        // Plenty of room: use the full 160dp (420px on the Pixel 8).
+        assertThat(DockCapsuleGeometry.preferredHeightPx(pixel8Density)).isEqualTo(420)
+        assertThat(DockCapsuleGeometry.panelHeightPx(500, pixel8Density)).isEqualTo(420)
         // Tight container: never exceed what is available.
         assertThat(DockCapsuleGeometry.panelHeightPx(120, pixel8Density)).isEqualTo(120)
     }
