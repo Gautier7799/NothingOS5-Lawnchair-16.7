@@ -353,9 +353,6 @@ public class Launcher extends StatefulActivity<LauncherState>
     @Thunk
     Hotseat mHotseat;
 
-    /** iOS-style search pill floating above the dock capsule. */
-    private View mDockSearchPill;
-
     private DropTargetBar mDropTargetBar;
 
     // Main container view for the all apps screen.
@@ -1342,7 +1339,6 @@ public class Launcher extends StatefulActivity<LauncherState>
         mOverviewPanel = findViewById(R.id.overview_panel);
         mHotseat = findViewById(R.id.hotseat);
         mHotseat.setWorkspace(mWorkspace);
-        setupDockSearchPill();
 
         // Setup the drag layer
         mDragLayer.setup(mDragController, mWorkspace);
@@ -1373,40 +1369,6 @@ public class Launcher extends StatefulActivity<LauncherState>
                 this, R.attr.isWorkspaceDarkText) ? Color.BLACK : Color.WHITE);
 
         mDepthBlurTargets = List.of(mWorkspace, mHotseat);
-    }
-
-    /**
-     * Wires the iOS-style search pill that floats above the dock. Hidden when the dock is
-     * disabled or laid out vertically (taskbar/landscape), matching the dock capsule visibility.
-     */
-    private void setupDockSearchPill() {
-        mDockSearchPill = findViewById(R.id.dock_search_pill);
-        if (mDockSearchPill == null) {
-            return;
-        }
-        mDockSearchPill.setOnClickListener(v -> toggleAllApps(true));
-        mHotseat.addOnLayoutChangeListener(
-                (v, l, t, r, b, oldL, oldT, oldR, oldB) -> updateDockSearchPillPosition());
-        addOnDeviceProfileChangeListener(dp -> updateDockSearchPillPosition());
-        mDockSearchPill.post(this::updateDockSearchPillPosition);
-    }
-
-    private void updateDockSearchPillPosition() {
-        if (mDockSearchPill == null) {
-            return;
-        }
-        DeviceProfile dp = getDeviceProfile();
-        boolean visible = mHotseat.getVisibility() == View.VISIBLE
-                && !dp.isVerticalBarLayout()
-                && dp.hotseatBarSizePx > 0;
-        mDockSearchPill.setVisibility(visible ? View.VISIBLE : View.GONE);
-        if (!visible) {
-            return;
-        }
-        ViewGroup.MarginLayoutParams lp =
-                (ViewGroup.MarginLayoutParams) mDockSearchPill.getLayoutParams();
-        lp.bottomMargin = dp.hotseatBarSizePx + Utilities.dpToPx(6, this);
-        mDockSearchPill.setLayoutParams(lp);
     }
 
     /**
