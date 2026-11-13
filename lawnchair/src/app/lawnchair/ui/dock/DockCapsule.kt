@@ -13,7 +13,6 @@ import com.android.launcher3.Hotseat
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
@@ -50,15 +49,17 @@ class DockCapsule private constructor(
 
         val iconBounds = measureIconRow(container) ?: return
 
-        val sideMargin = dp(SIDE_MARGIN_DP)
-        val panelHeight = min(height, dp(HEIGHT_DP))
+        val sideMargin = DockCapsuleGeometry.sideMarginPx(density)
+        val panelHeight = DockCapsuleGeometry.panelHeightPx(height, density)
         val top = (iconBounds.centerY() - panelHeight / 2)
             .coerceIn(0, (height - panelHeight).coerceAtLeast(0))
         val bottom = height - top - panelHeight
 
         val base = background.apply {
             setColor(resolveColor())
-            cornerRadius = min(panelHeight / 2f, dp(CORNER_RADIUS_DP).toFloat())
+            // Straight sides with a small corner radius, so the panel reads as a rounded
+            // rectangle rather than a pill.
+            cornerRadius = DockCapsuleGeometry.cornerRadiusPx(panelHeight)
         }
         val panel = InsetDrawable(base, sideMargin, top, sideMargin, bottom)
         container.background = splitFraction?.let { fraction ->
@@ -122,9 +123,6 @@ class DockCapsule private constructor(
     }
 
     companion object {
-        private const val SIDE_MARGIN_DP = 12
-        private const val HEIGHT_DP = 96
-        private const val CORNER_RADIUS_DP = 33
         private const val DIVIDER_WIDTH_DP = 1
         private const val DIVIDER_VERTICAL_INSET_DP = 24
         private val DIVIDER_COLOR = Color.argb(72, 128, 128, 128)
