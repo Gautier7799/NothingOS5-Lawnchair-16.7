@@ -52,8 +52,8 @@ class DockCapsuleGeometryTest {
     fun cornerRadius_keepsStraightSides() {
         val panelHeight = DockCapsuleGeometry.panelHeightPx(400, pixel8Density)
         val radius = DockCapsuleGeometry.cornerRadiusPx(panelHeight, pixel8Density)
-        // 38dp on the Pixel 8, and below half the height: the sides stay straight.
-        assertThat(radius).isEqualTo(38 * pixel8Density)
+        // 16dp on the Pixel 8, and below half the height: the sides stay straight.
+        assertThat(radius).isEqualTo(16 * pixel8Density)
         assertThat(radius).isLessThan(panelHeight / 2f)
     }
 

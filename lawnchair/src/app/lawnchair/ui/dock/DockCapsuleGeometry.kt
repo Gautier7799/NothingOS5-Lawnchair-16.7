@@ -24,7 +24,7 @@ object DockCapsuleGeometry {
     const val INNER_PADDING_DP = 12
 
     /** Corner radius in dp (iOS-style continuous corners, not a full pill). */
-    const val CORNER_RADIUS_DP = 38
+    const val CORNER_RADIUS_DP = 16
 
     /** Upper bound on the corner radius as a fraction of the height (keeps the sides straight). */
     private const val MAX_CORNER_RADIUS_RATIO = 0.45f
