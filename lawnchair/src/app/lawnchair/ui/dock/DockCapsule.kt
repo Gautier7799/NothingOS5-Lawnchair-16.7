@@ -6,6 +6,7 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.LayerDrawable
 import android.view.View
+import android.view.ViewGroup
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.CellLayout
 import com.android.launcher3.Hotseat
@@ -56,7 +57,7 @@ class DockCapsule private constructor(
         val bottom = height - top - panelHeight
 
         val base = background.apply {
-            color = resolveColor()
+            setColor(resolveColor())
             cornerRadius = min(panelHeight / 2f, dp(CORNER_RADIUS_DP).toFloat())
         }
         val panel = InsetDrawable(base, sideMargin, top, sideMargin, bottom)
@@ -65,8 +66,8 @@ class DockCapsule private constructor(
         } ?: panel
     }
 
-    private fun measureIconRow(container: View): Rect? {
-        val cellLayout: CellLayout = host.pagedView.currentCellLayout ?: return null
+    private fun measureIconRow(container: ViewGroup): Rect? {
+        val cellLayout: CellLayout = host.pagedView.getCurrentCellLayout() ?: return null
         val shortcuts = cellLayout.shortcutsAndWidgets ?: return null
         if (shortcuts.childCount == 0) return null
 
