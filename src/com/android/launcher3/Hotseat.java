@@ -154,6 +154,12 @@ public class Hotseat extends FrameLayout implements Insettable {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         mIconsContainer.setClipChildren(false);
         mIconsContainer.setClipToPadding(false);
+        // iOS Dock geometry: the icons live inside a ~388dp-wide panel with 12dp side
+        // margins on a 412dp-wide screen, so the dock must not span the whole screen
+        // width. Padding the container keeps drag-and-drop targets full-width while the
+        // icon grid (and the panel drawn below) stay inside the 12dp margins.
+        int dockSidePadding = Math.round(12f * getResources().getDisplayMetrics().density);
+        mIconsContainer.setPaddingRelative(dockSidePadding, 0, dockSidePadding, 0);
         addView(mIconsContainer);
 
         mPagedView = new HotseatPagedView(context);
@@ -255,16 +261,14 @@ public class Hotseat extends FrameLayout implements Insettable {
             }
             if (!foundIcon || iconBounds.isEmpty()) return;
 
-            // Reproduce the iOS Dock: a wide, chunky rounded-rectangle panel, not a
-            // capsule that hugs the icons. Measured from the iPhone 14 Pro reference
-            // screenshots (642x1301): the panel spans ~90-92% of the screen width with
-            // small side margins, and its corners are a rounded rectangle, clearly less
-            // round than a pill. The height is scaled from the icon height so the panel
-            // keeps generous breathing room around the icons on any device, then clamped
-            // to the container so it never clips on short dock specs.
-            int sideMargin = Math.max(1, Math.round(containerWidth * 0.04f));
-            int capsuleHeight = Math.min(containerHeight,
-                    Math.round(iconBounds.height() * 1.8f));
+            // iOS Dock geometry for a 412dp-wide phone (Pixel 8), from the Apple HIG
+            // measurements: panel 388dp wide (12dp side margins), 96dp tall, 33dp corner
+            // radius. The container already carries 12dp of horizontal padding so the
+            // icons sit inside those margins; the panel is drawn across the full view and
+            // inset by the same 12dp so its edges line up with the icon grid.
+            float density = getResources().getDisplayMetrics().density;
+            int sideMargin = Math.round(12f * density);
+            int capsuleHeight = Math.min(containerHeight, Math.round(96f * density));
 
             int left = sideMargin;
             int right = sideMargin;
@@ -272,9 +276,10 @@ public class Hotseat extends FrameLayout implements Insettable {
                     iconBounds.centerY() - capsuleHeight / 2));
             int bottom = containerHeight - top - capsuleHeight;
 
-            // Flattened corners: about a quarter of the height, which reads as the iOS
-            // Dock panel rather than a stadium-shaped capsule.
-            background.setCornerRadius(capsuleHeight * 0.26f);
+            // Continuous-corner squircle: 33dp on a 96dp panel, clamped so a short
+            // container can never produce an over-rounded (pill) shape.
+            float cornerRadius = Math.min(capsuleHeight / 2f, Math.round(33f * density));
+            background.setCornerRadius(cornerRadius);
             mIconsContainer.setBackground(new InsetDrawable(background, left, top, right, bottom));
         };
 
