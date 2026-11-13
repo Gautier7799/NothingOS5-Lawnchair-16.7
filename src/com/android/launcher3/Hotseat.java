@@ -55,6 +55,7 @@ import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
+import app.lawnchair.hotseat.DockSearchBar;
 import app.lawnchair.hotseat.DisabledHotseat;
 import app.lawnchair.hotseat.HotseatMode;
 import app.lawnchair.hotseat.HotseatPagedView;
@@ -214,6 +215,12 @@ public class Hotseat extends FrameLayout implements Insettable {
         // The capsule geometry lives in DockCapsule so the same code can render the plain
         // iPhone dock and the iPad-style split variant.
         app.lawnchair.ui.dock.DockCapsule.apply(this);
+        // Without the dock search bar, float a small glass search pill just above the dock.
+        if (!DockSearchBar.isEnabled(PreferenceCacheExtensionsKt.firstCached(
+                        preferenceManager2.getHotseatMode()),
+                PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()))) {
+            app.lawnchair.ui.dock.DockSearchPill.apply(this);
+        }
         setBackground(null);
     }
 

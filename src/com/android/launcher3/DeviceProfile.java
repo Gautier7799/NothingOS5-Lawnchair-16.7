@@ -580,8 +580,13 @@ public class DeviceProfile {
         );
 
         if (!isVerticalBarLayout()) {
-            // Have a little space between the inset and the QSB
-            if (!isQsbEnable && mInsets.bottom + minQsbMargin > hotseatBarBottomSpace) {
+            if (!isQsbEnable) {
+                // iOS dock: keep a fixed gap above the navigation bar.
+                hotseatBarBottomSpacePx = mInsets.bottom
+                        + app.lawnchair.ui.dock.DockCapsuleGeometry.INSTANCE
+                                .bottomMarginPx(mMetrics.density);
+            } else if (mInsets.bottom + minQsbMargin > hotseatBarBottomSpace) {
+                // Have a little space between the inset and the QSB
                 int availableSpace = hotseatQsbSpace - (mInsets.bottom - hotseatBarBottomSpace);
 
                 // Only change the spaces if there is space

@@ -7,12 +7,12 @@ import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.LayerDrawable
 import android.view.View
 import android.view.ViewGroup
-import com.android.launcher3.BubbleTextView
-import com.android.launcher3.CellLayout
-import com.android.launcher3.Hotseat
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
+import com.android.launcher3.BubbleTextView
+import com.android.launcher3.CellLayout
+import com.android.launcher3.Hotseat
 import kotlin.math.roundToInt
 
 /**
@@ -35,7 +35,6 @@ class DockCapsule private constructor(
 ) {
     private val context = host.context
     private val density = context.resources.displayMetrics.density
-    private val background = GradientDrawable()
     private val updateBounds = Runnable { updateBounds() }
 
     private fun dp(value: Int) = (value * density).roundToInt()
@@ -54,16 +53,17 @@ class DockCapsule private constructor(
             .coerceIn(0, (height - panelHeight).coerceAtLeast(0))
         val bottom = height - top - panelHeight
 
-        val base = background.apply {
-            setColor(resolveColor())
-            // Straight sides with a small corner radius, so the panel reads as a rounded
-            // rectangle rather than a pill.
-            cornerRadius = DockCapsuleGeometry.cornerRadiusPx(panelHeight, density)
-        }
-        val panel = InsetDrawable(base, sideMargin, top, sideMargin, bottom)
+        // Liquid Glass: a near-transparent tinted surface plus a specular top/left edge highlight,
+        // so the dock reads as thin glass rather than a solid bar.
+        val panel = LiquidGlassDrawable(
+            fillColor = resolveColor(),
+            cornerRadiusPx = DockCapsuleGeometry.cornerRadiusPx(panelHeight, density),
+            borderWidthPx = dp(DockCapsuleGeometry.GLASS_BORDER_WIDTH_DP).coerceAtLeast(1).toFloat(),
+        )
+        val inset = InsetDrawable(panel, sideMargin, top, sideMargin, bottom)
         container.background = splitFraction?.let { fraction ->
-            LayerDrawable(arrayOf(panel, buildDivider(width, fraction)))
-        } ?: panel
+            LayerDrawable(arrayOf(inset, buildDivider(width, fraction)))
+        } ?: inset
     }
 
     private fun measureIconRow(container: ViewGroup): Rect? {
@@ -101,8 +101,13 @@ class DockCapsule private constructor(
             setColor(DIVIDER_COLOR)
             setSize(lineWidth, 0)
         }
-        return InsetDrawable(line, splitX, dp(DIVIDER_VERTICAL_INSET_DP),
-                (width - splitX - lineWidth).coerceAtLeast(0), dp(DIVIDER_VERTICAL_INSET_DP))
+        return InsetDrawable(
+            line,
+            splitX,
+            dp(DIVIDER_VERTICAL_INSET_DP),
+            (width - splitX - lineWidth).coerceAtLeast(0),
+            dp(DIVIDER_VERTICAL_INSET_DP),
+        )
     }
 
     private fun resolveColor(): Int {
@@ -110,7 +115,10 @@ class DockCapsule private constructor(
         val prefs = PreferenceManager.getInstance(context)
         val option = prefs2.hotseatBackgroundColor.firstCached()
         val base = option.colorPreferenceEntry.lightColor(context)
-        val alpha = ((prefs.hotseatBGAlpha.get() * 255) / 100).coerceIn(0, 255)
+        // Ultra-thin glass: cap the user's alpha so the wallpaper stays visible through the dock.
+        val alpha = ((prefs.hotseatBGAlpha.get() * 255) / 100)
+            .coerceAtMost((DockCapsuleGeometry.GLASS_TINT_PERCENT * 255) / 100)
+            .coerceIn(0, 255)
         return Color.argb(alpha, Color.red(base), Color.green(base), Color.blue(base))
     }
 

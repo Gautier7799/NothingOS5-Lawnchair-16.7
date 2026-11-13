@@ -36,9 +36,9 @@ class DockCapsuleGeometryTest {
 
     @Test
     fun panelHeight_isCappedToAvailableSpace() {
-        // Plenty of room: use the full 160dp (420px on the Pixel 8).
-        assertThat(DockCapsuleGeometry.preferredHeightPx(pixel8Density)).isEqualTo(420)
-        assertThat(DockCapsuleGeometry.panelHeightPx(500, pixel8Density)).isEqualTo(420)
+        // Plenty of room: use the full 90dp (236px on the Pixel 8).
+        assertThat(DockCapsuleGeometry.preferredHeightPx(pixel8Density)).isEqualTo(236)
+        assertThat(DockCapsuleGeometry.panelHeightPx(500, pixel8Density)).isEqualTo(236)
         // Tight container: never exceed what is available.
         assertThat(DockCapsuleGeometry.panelHeightPx(120, pixel8Density)).isEqualTo(120)
     }
@@ -49,11 +49,23 @@ class DockCapsuleGeometryTest {
     }
 
     @Test
+    fun glassBorder_isThin() {
+        // The specular edge must read as a hairline highlight, not a frame.
+        assertThat(DockCapsuleGeometry.GLASS_BORDER_WIDTH_DP).isAtMost(2)
+    }
+
+    @Test
+    fun glassTint_keepsWallpaperVisible() {
+        // Ultra-thin glass: the tint stays low enough for the wallpaper to show through.
+        assertThat(DockCapsuleGeometry.GLASS_TINT_PERCENT).isIn(8..20)
+    }
+
+    @Test
     fun cornerRadius_keepsStraightSides() {
         val panelHeight = DockCapsuleGeometry.panelHeightPx(400, pixel8Density)
         val radius = DockCapsuleGeometry.cornerRadiusPx(panelHeight, pixel8Density)
-        // 16dp on the Pixel 8, and below half the height: the sides stay straight.
-        assertThat(radius).isEqualTo(16 * pixel8Density)
+        // 32dp on the Pixel 8, and below half the height: the sides stay straight.
+        assertThat(radius).isEqualTo(32 * pixel8Density)
         assertThat(radius).isLessThan(panelHeight / 2f)
     }
 
