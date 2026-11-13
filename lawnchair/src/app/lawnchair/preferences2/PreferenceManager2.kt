@@ -310,6 +310,12 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = context.resources.getBoolean(R.bool.config_default_show_hotseat),
     )
 
+    /** Whether the search bar capsule is shown inside the dock. */
+    val showDockSearchBar = preference(
+        key = booleanPreferencesKey(name = "show_dock_search_bar"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_show_dock_search_bar),
+    )
+
     val hotseatQsbProvider = preference(
         key = stringPreferencesKey(name = "dock_search_bar_provider"),
         defaultValue = getRemoteDefault("dock_search_bar_provider")?.let {
@@ -934,6 +940,15 @@ class PreferenceManager2 @Inject constructor(
             .launchIn(scope)
 
         isHotseatEnabled.get()
+            .drop(1)
+            .distinctUntilChanged()
+            .onEach {
+                reloadHelper.recreate()
+                reloadHelper.reloadGrid()
+            }
+            .launchIn(scope)
+
+        showDockSearchBar.get()
             .drop(1)
             .distinctUntilChanged()
             .onEach {

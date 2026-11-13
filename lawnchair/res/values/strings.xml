@@ -807,6 +807,7 @@
 
     <string name="search_bar_label">Search bar</string>
     <string name="search_bar_settings">Search bar settings</string>
+    <string name="dock_search_bar_toggle_label">Show search bar in dock</string>
     <string name="hotseat_mode_label">Search bar widget</string>
     <string name="hotseat_mode_disabled">Disabled</string>
     <string name="hotseat_mode_lawnchair" translatable="false">Lawnchair</string>

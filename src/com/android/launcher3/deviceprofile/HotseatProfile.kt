@@ -18,7 +18,6 @@ package com.android.launcher3.deviceprofile
 
 import android.content.res.Resources
 import android.graphics.Rect
-import app.lawnchair.hotseat.HotseatMode
 import app.lawnchair.preferences2.PreferenceManager2
 import com.android.launcher3.InvariantDeviceProfile
 import com.android.launcher3.InvariantDeviceProfile.INDEX_DEFAULT
@@ -62,7 +61,7 @@ data class HotseatProfile(
             isVerticalBarLayout: Boolean,
             responsiveHotseatSpec: CalculatedHotseatSpec?,
             workspacePageIndicatorHeight: Int,
-            hotseatMode: HotseatMode,
+            isQsbEnable: Boolean,
         ): HotseatProfile {
             val areNavButtonsInline = isTaskbarPresent && !deviceProperties.isGestureMode
             var inlineNavButtonsEndSpacingPx = 0
@@ -90,8 +89,6 @@ data class HotseatProfile(
                     responsiveHotseatSpec != null -> responsiveHotseatSpec.edgePadding
                     else -> workspacePageIndicatorHeight
                 }
-            val isQsbEnable = hotseatMode.layoutResourceId != R.layout.empty_view
-
             val hotseatBarWorkspaceSpacePx =
                 if (responsiveHotseatSpec != null) 0
                 else res.getDimensionPixelSize(R.dimen.dynamic_grid_hotseat_side_padding)

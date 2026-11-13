@@ -3,7 +3,6 @@ package app.lawnchair.hotseat
 import android.content.Context
 import androidx.annotation.LayoutRes
 import androidx.annotation.StringRes
-import app.lawnchair.util.isPackageInstalledAndEnabled
 import com.android.launcher3.R
 
 sealed class HotseatMode(
@@ -13,7 +12,8 @@ sealed class HotseatMode(
     companion object {
         fun fromString(value: String): HotseatMode = when (value) {
             "disabled" -> DisabledHotseat
-            "google_search" -> GoogleSearchHotseat
+            // The Google search bar capsule was removed; any stored preference now uses the
+            // Lawnchair (iOS-style) dock instead.
             else -> LawnchairHotseat
         }
 
@@ -23,11 +23,13 @@ sealed class HotseatMode(
         fun values() = listOf(
             DisabledHotseat,
             LawnchairHotseat,
-            GoogleSearchHotseat,
         )
     }
 
     abstract fun isAvailable(context: Context): Boolean
+
+    /** Whether this mode's layout provides a search bar widget inside the dock. */
+    open val hasSearchBar: Boolean get() = true
 }
 
 object LawnchairHotseat : HotseatMode(
@@ -38,15 +40,6 @@ object LawnchairHotseat : HotseatMode(
     override fun isAvailable(context: Context): Boolean = true
 }
 
-object GoogleSearchHotseat : HotseatMode(
-    nameResourceId = R.string.hotseat_mode_google_search,
-    layoutResourceId = R.layout.search_container_hotseat_google_search,
-) {
-    override fun toString(): String = "google_search"
-
-    override fun isAvailable(context: Context): Boolean = context.packageManager.isPackageInstalledAndEnabled("com.google.android.googlequicksearchbox")
-}
-
 object DisabledHotseat : HotseatMode(
     nameResourceId = R.string.hotseat_mode_disabled,
     layoutResourceId = R.layout.empty_view,
@@ -54,4 +47,6 @@ object DisabledHotseat : HotseatMode(
     override fun toString(): String = "disabled"
 
     override fun isAvailable(context: Context): Boolean = true
+
+    override val hasSearchBar: Boolean get() = false
 }

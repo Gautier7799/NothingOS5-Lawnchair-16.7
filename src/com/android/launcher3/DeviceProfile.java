@@ -516,7 +516,8 @@ public class DeviceProfile {
         workspaceCellPaddingXPx = res.getDimensionPixelSize(R.dimen.dynamic_grid_cell_padding_x);
 
         HotseatMode hotseatMode = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatMode());
-        boolean isQsbEnable = hotseatMode.getLayoutResourceId() != R.layout.empty_view;
+        boolean isQsbEnable = app.lawnchair.hotseat.DockSearchBar.isEnabled(hotseatMode,
+                PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()));
 
         numShownHotseatIcons = displayOptionSpec.numShownHotseatIcons;
         numHotseatRows = Math.max(1, Math.min(2, PreferenceManager.getInstance(context).getHotseatRows().get()));
@@ -565,7 +566,7 @@ public class DeviceProfile {
                 isVerticalBarLayout(),
                 mResponsiveHotseatSpec,
                 workspacePageIndicatorHeight,
-                hotseatMode
+                isQsbEnable
         );
 
         // Whether QSB might be inline in appropriate orientation (e.g. landscape).
@@ -899,7 +900,8 @@ public class DeviceProfile {
         int iconTextHeight = Utilities.calculateTextHeight(iconTextSizePx);
         boolean isLabelInDock = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getEnableLabelInDock());
         HotseatMode hotseatMode = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatMode());
-        boolean isQsbEnable = hotseatMode.getLayoutResourceId() != R.layout.empty_view;
+        boolean isQsbEnable = app.lawnchair.hotseat.DockSearchBar.isEnabled(hotseatMode,
+                PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()));
         // LC-Note: Hidden dock labels need no text space; keep the minimum touch target.
         hotseatCellHeightPx = app.lawnchair.util.DockCellSize.calculate(
                 hotseatIconSizePx, iconTextHeight, isLabelInDock, pxFromDp(48, mMetrics));

@@ -147,6 +147,11 @@ public class Hotseat extends FrameLayout implements Insettable {
             com.patrykmichalik.opto.core.PreferenceExtensionsKt.setBlocking(preferenceManager2.getHotseatMode(), hotseatMode);
         }
         int layoutId = hotseatMode.getLayoutResourceId();
+        boolean showDockSearchBar = app.lawnchair.hotseat.DockSearchBar.isEnabled(hotseatMode,
+                PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()));
+        if (!showDockSearchBar) {
+            layoutId = R.layout.empty_view;
+        }
 
         mIconsContainer = new FrameLayout(context);
         mIconsContainer.setLayoutParams(new LayoutParams(
