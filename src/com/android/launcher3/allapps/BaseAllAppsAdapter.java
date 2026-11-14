@@ -49,8 +49,6 @@ import android.widget.PopupMenu;
 import android.widget.EditText;
 import android.widget.CheckBox;
 import android.app.AlertDialog;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -470,10 +468,18 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                     caddyParams.height = dp(184);
                     holder.itemView.setLayoutParams(caddyParams);
                 }
-                if (caddyItem.caddyIsSearchActions) {
-                    bindCaddySearchActionsCard((FrameLayout) holder.itemView);
-                } else {
-                    bindIndependentCaddyCard((FrameLayout) holder.itemView, caddyItem);
+                // A Caddy card must never take the launcher down. If building the card
+                // throws for any reason, fall back to an empty holder and log it so the
+                // drawer still opens instead of crashing.
+                try {
+                    if (caddyItem.caddyIsSearchActions) {
+                        bindCaddySearchActionsCard((FrameLayout) holder.itemView);
+                    } else {
+                        bindIndependentCaddyCard((FrameLayout) holder.itemView, caddyItem);
+                    }
+                } catch (RuntimeException | Error e) {
+                    Log.e(TAG, "Unable to render Caddy card at position " + position, e);
+                    ((FrameLayout) holder.itemView).removeAllViews();
                 }
                 break;
             }
@@ -506,8 +512,14 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                         R.layout.all_apps_folder_icon, mActivityContext, container, folderInfo);
                 folderIcon.setOnLongClickListener(mOnIconLongClickListener);
                 if (!PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
-                    folderIcon.setCaddyCard(true);
-                    bindCaddyCategoryCard(folderIcon, folderInfo);
+                    // Same guard as the Caddy category card: a rendering failure must not
+                    // crash the drawer.
+                    try {
+                        folderIcon.setCaddyCard(true);
+                        bindCaddyCategoryCard(folderIcon, folderInfo);
+                    } catch (RuntimeException | Error e) {
+                        Log.e(TAG, "Unable to render Caddy folder card", e);
+                    }
                 }
                 container.addView(folderIcon);
                 break;
@@ -1011,7 +1023,13 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         dialog.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String title = nameInput.getText().toString().trim();
-            if (title.isEmpty() || selectedKeys.isEmpty()) {
+            // Build the card "from scratch" out of the picked apps. The engine owns validation
+            // (non-blank title, at least one app) and de-duplication, so this flow and any
+            // future assembly gesture produce identical stored cards.
+            java.util.List<String> newCardKeys = new java.util.ArrayList<>(selectedKeys);
+            app.lawnchair.allapps.caddy.CaddyCardSpec spec =
+                    app.lawnchair.allapps.caddy.CaddyCardAssembly.INSTANCE.assemble(title, newCardKeys);
+            if (spec == null) {
                 android.widget.Toast.makeText(mActivityContext,
                         "Enter a name and select at least one app",
                         android.widget.Toast.LENGTH_SHORT).show();
@@ -1020,20 +1038,24 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             try {
                 android.content.SharedPreferences preferences =
                         mActivityContext.getSharedPreferences(
-                                "caddy_custom_categories", Context.MODE_PRIVATE);
-                JSONArray categories = new JSONArray(
-                        preferences.getString("categories", "[]"));
-                JSONObject category = new JSONObject();
-                category.put("title", title);
-                JSONArray apps = new JSONArray();
-                for (String key : selectedKeys) apps.put(key);
-                category.put("apps", apps);
-                categories.put(category);
+                                app.lawnchair.allapps.caddy.CaddyCategoryStore.PREFS_NAME,
+                                Context.MODE_PRIVATE);
+                java.util.List<app.lawnchair.allapps.caddy.CaddyCardSpec> existing =
+                        app.lawnchair.allapps.caddy.CaddyCategoryStore.INSTANCE.decode(
+                                preferences.getString(
+                                        app.lawnchair.allapps.caddy.CaddyCategoryStore.KEY_CATEGORIES,
+                                        "[]"));
+                java.util.List<app.lawnchair.allapps.caddy.CaddyCardSpec> merged =
+                        app.lawnchair.allapps.caddy.CaddyCardAssembly.INSTANCE.mergeInto(
+                                existing, spec);
+                String encoded =
+                        app.lawnchair.allapps.caddy.CaddyCategoryStore.INSTANCE.encode(merged);
 
                 // Commit synchronously before rebuilding the drawer. This avoids
                 // rendering from a stale preferences snapshot immediately after Create.
                 boolean saved = preferences.edit()
-                        .putString("categories", categories.toString())
+                        .putString(app.lawnchair.allapps.caddy.CaddyCategoryStore.KEY_CATEGORIES,
+                                encoded)
                         .commit();
                 if (!saved) {
                     android.widget.Toast.makeText(mActivityContext,
@@ -1049,7 +1071,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 android.widget.Toast.makeText(mActivityContext,
                         "Category created",
                         android.widget.Toast.LENGTH_SHORT).show();
-            } catch (org.json.JSONException exception) {
+            } catch (RuntimeException exception) {
                 Log.e(TAG, "Unable to save Caddy category", exception);
                 android.widget.Toast.makeText(mActivityContext,
                         "Could not create category",
