@@ -54,7 +54,7 @@ object CaddyCardRenderer {
     @JvmOverloads
     fun renderCategoryCard(
         host: FrameLayout,
-        title: String,
+        title: String?,
         apps: List<AppInfo>,
         isAddCategory: Boolean = false,
         cardClick: (() -> Unit)? = null,

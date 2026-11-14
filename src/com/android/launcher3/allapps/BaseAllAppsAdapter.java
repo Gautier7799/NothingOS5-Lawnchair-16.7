@@ -98,9 +98,13 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
 
     // LC-Feature: Folder support in All Apps, can be any ID
     public static final int VIEW_TYPE_FOLDER = 1 << 10;
-    // Caddy owns a separate card type; it is not a native FolderIcon/FolderInfo.
-    public static final int VIEW_TYPE_CADDY_CATEGORY = 1 << 11;
-    public static final int VIEW_TYPE_CADDY_SPACER = 1 << 12;
+    // Caddy owns separate card types; they are not native FolderIcon/FolderInfo.
+    // These bits must stay clear of every search-result view type
+    // (LawnchairSearchAdapterProvider uses 1 << 10 .. 1 << 22). 1 << 11 and 1 << 12
+    // used to collide with SEARCH_RESULT_ICON_ROW / SEARCH_RESULT_SMALL_ICON_ROW, so a
+    // horizontal-text search result was bound as a Caddy card and crashed on its null title.
+    public static final int VIEW_TYPE_CADDY_CATEGORY = 1 << 23;
+    public static final int VIEW_TYPE_CADDY_SPACER = 1 << 24;
 
     // Common view type masks
     public static final int VIEW_TYPE_MASK_DIVIDER = VIEW_TYPE_ALL_APPS_DIVIDER;
