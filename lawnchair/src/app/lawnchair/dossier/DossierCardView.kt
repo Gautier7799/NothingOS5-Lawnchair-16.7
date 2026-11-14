@@ -46,6 +46,8 @@ class DossierCardView @JvmOverloads constructor(
         launcher: Launcher,
     ) {
         bound = info
+        tag = info
+        isFocusable = true
         this.resolveApp = resolveApp
         setOnLongClickListener {
             val cellLayout = findCellLayout()
