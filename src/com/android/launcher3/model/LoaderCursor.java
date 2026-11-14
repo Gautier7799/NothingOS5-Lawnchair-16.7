@@ -207,6 +207,11 @@ public class LoaderCursor extends CursorWrapper {
         return result;
     }
 
+    /** Returns the raw INTENT column for launcher-owned item payloads. */
+    public String getIntentDescription() {
+        return getString(mIntentIndex);
+    }
+
     public Intent parseIntent() {
         String intentDescription = getString(mIntentIndex);
         try {
