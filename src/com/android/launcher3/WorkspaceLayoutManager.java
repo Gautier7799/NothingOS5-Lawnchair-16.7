@@ -167,10 +167,23 @@ public interface WorkspaceLayoutManager {
         }
 
         child.setHapticFeedbackEnabled(false);
-        child.setOnLongClickListener(getWorkspaceChildOnLongClickListener());
+        if (child instanceof WorkspaceChildLongClickListener) {
+            child.setOnLongClickListener(v ->
+                    ((WorkspaceChildLongClickListener) child).onWorkspaceChildLongClick());
+        } else {
+            child.setOnLongClickListener(getWorkspaceChildOnLongClickListener());
+        }
         if (child instanceof DropTarget) {
             onAddDropTarget((DropTarget) child);
         }
+    }
+
+    /**
+     * Optional per-view long-press handling for workspace items that need a distinct
+     * edit-mode action while retaining their normal drag behavior outside edit mode.
+     */
+    interface WorkspaceChildLongClickListener {
+        boolean onWorkspaceChildLongClick();
     }
 
     default View.OnLongClickListener getWorkspaceChildOnLongClickListener() {
