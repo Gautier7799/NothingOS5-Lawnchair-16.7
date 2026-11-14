@@ -74,5 +74,22 @@ class DossierCardCoordinator(private val launcher: Launcher) {
         val apps = launcher.appsView?.appsStore?.apps?.toList() ?: return
         if (apps.isEmpty()) return
         controller.sync(apps)
+        refreshBoundCards()
+    }
+
+    /**
+     * Existing Dossier rows are model-owned and are not re-seeded by controller.sync().
+     * Refresh their resolved icons explicitly after AllAppsStore publishes a stable list.
+     */
+    private fun refreshBoundCards() {
+        val workspace = launcher.workspace ?: return
+        val order = workspace.screenOrder
+        for (index in 0 until order.size()) {
+            val cellLayout = workspace.getScreenWithId(order.get(index)) ?: continue
+            val children = cellLayout.shortcutsAndWidgets
+            for (childIndex in 0 until children.childCount) {
+                (children.getChildAt(childIndex) as? DossierCardView)?.refreshApps()
+            }
+        }
     }
 }
