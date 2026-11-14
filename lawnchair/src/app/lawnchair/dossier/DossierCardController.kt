@@ -65,18 +65,20 @@ class DossierCardController(
         var inserted = false
         val reserved = mutableListOf<ReservedPlacement>()
         desired.forEach { card ->
-            val spanX = card.spanX.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
-            val spanY = card.spanY.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
-            val placement = findPlacement(spanX, spanY, reserved) ?: return@forEach
-            reserved += ReservedPlacement(placement.first, placement.second[0], placement.second[1], spanX, spanY)
+            val targetSpanX = card.spanX.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
+            val targetSpanY = card.spanY.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
+            val placement = findPlacement(targetSpanX, targetSpanY, reserved) ?: return@forEach
+            reserved += ReservedPlacement(
+                placement.first, placement.second[0], placement.second[1], targetSpanX, targetSpanY,
+            )
             val info = DossierInfo(
                 title = card.title,
                 appKeys = card.appKeys,
                 gridColumns = columns,
                 gridRows = rows,
             ).apply {
-                spanX = spanX
-                spanY = spanY
+                spanX = targetSpanX
+                spanY = targetSpanY
             }
             launcher.modelWriter.addItemToDatabase(
                 info,
