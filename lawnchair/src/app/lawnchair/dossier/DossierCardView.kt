@@ -25,7 +25,6 @@ import com.android.launcher3.CellLayout
 import com.android.launcher3.Launcher
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
-import com.android.launcher3.touch.ItemLongClickListener
 
 /** Workspace view for a database-backed Dossier item. */
 class DossierCardView @JvmOverloads constructor(
@@ -120,7 +119,7 @@ class DossierCardView @JvmOverloads constructor(
                 cardClick = { onCardClick?.invoke() },
                 iconBinder = { icon, _ ->
                     icon.setOnClickListener(ItemClickHandler.INSTANCE)
-                    icon.setOnLongClickListener(ItemLongClickListener.INSTANCE_ALL_APPS)
+                    icon.setOnLongClickListener { performLongClick() }
                 },
                 fitGridToHost = true,
                 columns = columns,
