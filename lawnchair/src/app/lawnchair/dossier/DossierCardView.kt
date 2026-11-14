@@ -149,11 +149,12 @@ class DossierCardView @JvmOverloads constructor(
             val rows = minOf(info.gridRows, pixelRows).coerceAtLeast(1)
             val cellSizePx = minOf(availableWidth / columns, availableHeight / rows)
 
-            // Do not clear already-rendered icons while AllAppsStore is temporarily
-            // incomplete (for example during profile/package refresh). Keep the last
-            // stable rendering until every persisted key can be resolved again.
+            // Render the card surface and every icon that is currently resolvable.
+            // On a cold boot AllAppsStore can publish apps in more than one pass. Requiring
+            // every key before drawing made the entire card (including its background and
+            // title) stay blank when just one app was not ready yet. Subsequent store updates
+            // call refreshApps() and fill in the remaining icons without moving the card.
             val resolvedApps = info.appKeys.mapNotNull(resolve)
-            if (resolvedApps.size != info.appKeys.size) return
 
             CaddyCardRenderer.renderCategoryCard(
                 host = this,
