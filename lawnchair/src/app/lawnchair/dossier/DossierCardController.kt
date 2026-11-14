@@ -37,12 +37,17 @@ class DossierCardController(
 ) {
     private val context: Context get() = launcher
     private val preferences by lazy { PreferenceManager2.getInstance(launcher) }
+    private var seedRequested = false
 
     /** Seed the workspace once; subsequent launches load DossierInfo from Favorites. */
     fun sync(apps: List<AppInfo>) {
-        if (apps.isEmpty()) return
+        if (apps.isEmpty() || seedRequested) return
         val workspace = launcher.workspace ?: return
-        if (workspace.screenOrder.size() == 0 || hasBoundDossier(workspace)) return
+        if (workspace.screenOrder.size() == 0) return
+        if (hasBoundDossier(workspace)) {
+            seedRequested = true
+            return
+        }
 
         val storedCards = repository.load()
         val desired = if (storedCards.isEmpty()) {
@@ -57,6 +62,7 @@ class DossierCardController(
         val rows = preferences.dossierGridRows.firstCached()
             .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE)
 
+        var inserted = false
         desired.forEach { card ->
             val placement = findPlacement(card.spanX, card.spanY) ?: return@forEach
             val info = DossierInfo(
@@ -75,7 +81,9 @@ class DossierCardController(
                 placement.second[0],
                 placement.second[1],
             )
+            inserted = true
         }
+        seedRequested = inserted
     }
 
     /** No manually attached views remain; the model owns their lifecycle. */
