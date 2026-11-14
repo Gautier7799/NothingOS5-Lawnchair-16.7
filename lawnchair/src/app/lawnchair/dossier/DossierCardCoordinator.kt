@@ -51,6 +51,10 @@ class DossierCardCoordinator(private val launcher: Launcher) {
 
     /** Called after the workspace has (re)bound its pages. */
     fun onWorkspaceBound() {
+        // onCreate() can run before AppsView has been inflated. Retry listener attachment
+        // after the workspace has finished binding so the first complete AllAppsStore update
+        // cannot be missed during a cold launcher start.
+        start()
         workspaceReady = true
         // The workspace model is now bound, so initial Dossier rows can be safely seeded.
         syncFromApps()
