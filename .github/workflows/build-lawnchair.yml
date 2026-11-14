@@ -32,6 +32,7 @@ on:
       - openhands/dossier-workspace-cards
       - fix/dossier-native-workspace-integration
       - fix/dossier-cold-render-resize-2026-11-14
+      - openhands/dossier-interaction-fixes
 
 permissions:
   contents: read

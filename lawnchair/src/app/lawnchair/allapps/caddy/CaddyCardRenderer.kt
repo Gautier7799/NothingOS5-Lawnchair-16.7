@@ -69,9 +69,9 @@ object CaddyCardRenderer {
         host.removeAllViews()
         host.clipToPadding = false
         host.clipChildren = false
-        // Add a small gutter between neighboring Caddy cards without changing
-        // the RecyclerView's grid sizing or the normal app drawer.
-        host.setPadding(dp(context, 4f), dp(context, 4f), dp(context, 4f), dp(context, 4f))
+        // Small gutter so neighboring cards stay visually distinct without wasting
+        // the workspace cell on empty margin.
+        host.setPadding(dp(context, 2f), dp(context, 2f), dp(context, 2f), dp(context, 2f))
 
         val densityPadding = dp(context, 14f)
         val themeColor = resolveDynamicColor(context)
@@ -178,15 +178,12 @@ object CaddyCardRenderer {
         // exceed the cell; never let the grid or the card crop them.
         grid.clipChildren = false
         grid.clipToPadding = false
-        // Drawer cards have a known preview height. Workspace cards are measured
-        // from a 2x2 CellLayout span, which varies with the active grid/device profile.
-        // Let the workspace grid consume the remaining measured height instead of
-        // forcing 128dp and clipping the second icon row on compact home-screen cells.
-        // A workspace card is measured from a CellLayout span whose cell height varies with
-        // the active grid. Size the rows from the real cell size the host reports so icons
-        // never overflow their row (which made them overlap and look distorted), and let the
-        // grid wrap its content instead of being stretched by a layout weight.
         val rows = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
+        // A workspace card is measured from a CellLayout span whose cell height varies with
+        // the active grid. When the caller reports a real cell size, size the rows from it so
+        // icons never overflow their row (which made them overlap and look distorted).
+        // Otherwise let the grid consume the remaining measured height with weighted rows,
+        // which also works when the card has not been measured yet.
         val explicitCell = fitGridToHost && cellSizePx > 0
         val gridHeight = when {
             explicitCell -> cellSizePx * rows
@@ -198,7 +195,7 @@ object CaddyCardRenderer {
             gridHeight,
             if (fitGridToHost && !explicitCell) 1f else 0f,
         )
-        gridLp.topMargin = dp(context, if (fitGridToHost) 4f else 8f)
+        gridLp.topMargin = dp(context, if (fitGridToHost) 2f else 8f)
         card.addView(grid, gridLp)
 
         // Keep the category preview visually balanced: equal icon slots in a
@@ -247,6 +244,9 @@ object CaddyCardRenderer {
             .inflate(R.layout.all_apps_icon, cell, false) as BubbleTextView
         icon.applyFromApplicationInfo(app)
         icon.setTextVisibility(false)
+        // Home cards are icon-only. Removing the invisible label lets TextView's
+        // CENTER gravity center the actual drawable in the available cell.
+        if (fitGridToHost) icon.text = ""
         icon.setLongPressTimeoutFactor(1f)
         icon.contentDescription = app.title
         iconBinder(icon, app)
@@ -267,30 +267,28 @@ object CaddyCardRenderer {
             icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
         }
         icon.gravity = Gravity.CENTER
-        // BubbleTextView's icon size is final, set from the device profile at inflation and
-        // never changeable at runtime. Laying it out at a smaller size therefore clips the
-        // drawable (which is what distorted the workspace cards). Instead lay the icon out at
-        // its own native size and scale the whole view down to the slot we want; with clipping
-        // disabled on the cell this never crops the icon.
-        val nativeSize = icon.iconSize.takeIf { it > 0 } ?: iconSize
-        val scale = if (fitGridToHost) {
-            if (iconSize <= 0 || nativeSize <= 0) 1f else (iconSize.toFloat() / nativeSize).coerceAtMost(1f)
-        } else {
-            1f
-        }
+        // Laying the icon out at a smaller view size clips the drawable, because
+        // BubbleTextView sizes its compound drawable from the device profile at inflation.
+        // Instead change the drawable's real bounds to fit the measured cell: this measures
+        // and draws the icon completely inside its viewport without cropping adaptive edges.
         val iconParams = FrameLayout.LayoutParams(
-            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
-            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
             Gravity.CENTER,
         )
         cell.clipChildren = false
         cell.clipToPadding = false
         icon.clipToOutline = false
-        if (scale < 1f) {
-            icon.scaleX = scale
-            icon.scaleY = scale
-        }
         cell.addView(icon, iconParams)
+        if (fitGridToHost) {
+            cell.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                val available = (minOf(view.width, view.height) - dp(context, 8f))
+                    .coerceAtLeast(dp(context, 16f))
+                icon.setIconSizeOverride(available)
+                icon.scaleX = 1f
+                icon.scaleY = 1f
+            }
+        }
     }
 
     /**

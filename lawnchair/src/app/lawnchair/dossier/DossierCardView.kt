@@ -22,13 +22,15 @@ import android.util.AttributeSet
 import android.view.View
 import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
+import app.lawnchair.allapps.caddy.CaddyCategoryDialog
 import com.android.launcher3.CellLayout
+import com.android.launcher3.DropTarget
 import com.android.launcher3.Launcher
-import com.android.launcher3.LauncherState
+import com.android.launcher3.dragndrop.DragOptions
 import com.android.launcher3.dragndrop.DraggableView
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
-import com.android.launcher3.touch.ItemLongClickListener
+import com.android.launcher3.util.ComponentKey
 
 /** Workspace view for a database-backed Dossier item. */
 class DossierCardView @JvmOverloads constructor(
@@ -37,6 +39,7 @@ class DossierCardView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr),
     DraggableView,
+    DropTarget,
     com.android.launcher3.WorkspaceLayoutManager.WorkspaceChildLongClickListener {
 
     override fun getViewType(): Int = DraggableView.DRAGGABLE_WIDGET
@@ -61,8 +64,6 @@ class DossierCardView @JvmOverloads constructor(
         getWorkspaceVisualDragBounds(bounds)
     }
 
-    var onCardClick: (() -> Unit)? = null
-
     private var bound: DossierInfo? = null
     private var resolveApp: ((String) -> AppInfo?)? = null
     private var rendering = false
@@ -71,7 +72,6 @@ class DossierCardView @JvmOverloads constructor(
     fun bind(
         info: DossierInfo,
         resolveApp: (String) -> AppInfo?,
-        launcher: Launcher,
     ) {
         bound = info
         tag = info
@@ -83,15 +83,14 @@ class DossierCardView @JvmOverloads constructor(
     /**
      * WorkspaceLayoutManager delegates long-press handling here instead of replacing
      * the Dossier-specific behavior with the generic workspace listener.
+     *
+     * A long-press always opens the resize frame, in normal mode as well as edit mode.
+     * In normal mode the frame is shown directly (the same way a freshly added widget
+     * shows its resize frame), so resizing never depends on first entering edit mode.
      */
     override fun onWorkspaceChildLongClick(): Boolean {
         val info = bound ?: return false
-        val launcher = Launcher.getLauncher(context)
-        return if (launcher.isInState(LauncherState.EDIT_MODE)) {
-            showResizeFrame(info, launcher)
-        } else {
-            ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this)
-        }
+        return showResizeFrame(info, Launcher.getLauncher(context))
     }
 
     private fun showResizeFrame(info: DossierInfo, launcher: Launcher): Boolean {
@@ -134,6 +133,60 @@ class DossierCardView @JvmOverloads constructor(
     /** Re-resolve app icons after AllAppsStore publishes a completed update. */
     fun refreshApps() {
         renderIfMeasured()
+    }
+
+    /** Opens the category panel listing every app assigned to this card. */
+    private fun openCard() {
+        val info = bound ?: return
+        val resolve = resolveApp ?: return
+        CaddyCategoryDialog.show(
+            context = context,
+            title = info.title?.toString().orEmpty(),
+            apps = info.appKeys.mapNotNull(resolve),
+        )
+    }
+
+    // ---------------------------------------------------------------------
+    // DropTarget: accept an app icon dropped from the drawer onto this card.
+    // ---------------------------------------------------------------------
+
+    override fun isDropEnabled(): Boolean = true
+
+    override fun acceptDrop(dragObject: DropTarget.DragObject): Boolean = appKeyFor(dragObject) != null
+
+    override fun onDragEnter(dragObject: DropTarget.DragObject) {
+        alpha = HOVER_ALPHA
+    }
+
+    override fun onDragOver(dragObject: DropTarget.DragObject) = Unit
+
+    override fun onDragExit(dragObject: DropTarget.DragObject) {
+        alpha = 1f
+    }
+
+    override fun onDrop(dragObject: DropTarget.DragObject, options: DragOptions) {
+        alpha = 1f
+        val info = bound ?: return
+        val key = appKeyFor(dragObject) ?: return
+        if (!info.addApp(key)) return
+        Launcher.getLauncher(context).modelWriter.updateItemInDatabase(info)
+        lastRenderSignature = null
+        renderIfMeasured()
+    }
+
+    override fun prepareAccessibilityDrop() = Unit
+
+    override fun getHitRectRelativeToDragLayer(outRect: Rect) {
+        Launcher.getLauncher(context).dragLayer.getViewRectRelativeToSelf(this, outRect)
+    }
+
+    override fun getDropView(): View = this
+
+    /** Returns the stable component key for the dragged app, or null for anything else. */
+    private fun appKeyFor(dragObject: DropTarget.DragObject): String? {
+        val app = dragObject.dragInfo as? AppInfo ?: return null
+        val component = app.componentName ?: return null
+        return ComponentKey(component, app.user).toString()
     }
 
     override fun onAttachedToWindow() {
@@ -188,7 +241,7 @@ class DossierCardView @JvmOverloads constructor(
                 host = this,
                 title = info.title?.toString().orEmpty(),
                 apps = resolvedApps,
-                cardClick = { onCardClick?.invoke() },
+                cardClick = { openCard() },
                 iconBinder = { icon, _ ->
                     icon.setOnClickListener(ItemClickHandler.INSTANCE)
                     icon.setOnLongClickListener { performLongClick() }
@@ -223,5 +276,6 @@ class DossierCardView @JvmOverloads constructor(
         const val GUTTER_DP = 4f
         const val CARD_PADDING_DP = 14f
         const val TITLE_DP = 24f
+        const val HOVER_ALPHA = 0.8f
     }
 }

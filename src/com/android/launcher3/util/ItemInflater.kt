@@ -83,7 +83,7 @@ class ItemInflater<T>(
             Favorites.ITEM_TYPE_DOSSIER -> {
                 val dossier = item as DossierInfo
                 return DossierCardView(context).apply {
-                    bind(dossier, ::resolveDossierApp, com.android.launcher3.Launcher.getLauncher(context))
+                    bind(dossier, ::resolveDossierApp)
                 }
             }
             Favorites.ITEM_TYPE_FOLDER ->

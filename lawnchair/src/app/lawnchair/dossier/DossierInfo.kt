@@ -36,7 +36,8 @@ class DossierInfo(
     gridRows: Int = DEFAULT_GRID_ROWS,
 ) : ItemInfo() {
 
-    val appKeys: List<String> = appKeys.toList()
+    /** Mutable so a drop onto the card can append an app and persist it. */
+    val appKeys: MutableList<String> = appKeys.toMutableList()
     val gridColumns: Int = gridColumns.coerceIn(MIN_GRID_SIZE, MAX_GRID_SIZE)
     val gridRows: Int = gridRows.coerceIn(MIN_GRID_SIZE, MAX_GRID_SIZE)
 
@@ -46,6 +47,9 @@ class DossierInfo(
         spanX = DEFAULT_SPAN_X
         spanY = DEFAULT_SPAN_Y
     }
+
+    /** Adds [key] if it is not already present. Returns true when the list changed. */
+    fun addApp(key: String?): Boolean = DossierAppKeys.add(appKeys, key)
 
     override fun onAddToDatabase(writer: ContentWriter) {
         super.onAddToDatabase(writer)
