@@ -45,13 +45,14 @@ class DossierCardView @JvmOverloads constructor(
      * divides 0 by 0 when calculating the final drop scale.
      */
     override fun getWorkspaceVisualDragBounds(bounds: Rect) {
-        val dragWidth = width.takeIf { it > 0 } ?: measuredWidth
-        val dragHeight = height.takeIf { it > 0 } ?: measuredHeight
-        if (dragWidth > 0 && dragHeight > 0) {
-            bounds.set(0, 0, dragWidth, dragHeight)
-        } else {
-            bounds.setEmpty()
-        }
+        // DragPreviewProvider uses these bounds to size the drag bitmap. If either
+        // dimension is zero, the bitmap can be only the outline padding wide; then
+        // DragLayer's (dragViewWidth - blurSizeOutline) denominator becomes zero
+        // and the drop animation receives NaN. Keep the Dossier preview non-empty
+        // even during an early/unmeasured layout pass.
+        val dragWidth = maxOf(width, measuredWidth, minimumWidth, 1)
+        val dragHeight = maxOf(height, measuredHeight, minimumHeight, 1)
+        bounds.set(0, 0, dragWidth, dragHeight)
     }
 
     override fun getSourceVisualDragBounds(bounds: Rect) {
