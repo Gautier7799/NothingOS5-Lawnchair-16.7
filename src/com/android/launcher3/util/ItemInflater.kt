@@ -131,6 +131,11 @@ class ItemInflater<T>(
         return favorite
     }
 
+    private fun resolveDossierApp(key: String): com.android.launcher3.model.data.AppInfo? {
+        val componentKey = com.android.launcher3.util.ComponentKey.fromString(key) ?: return null
+        return com.android.launcher3.Launcher.getLauncher(context).appsView?.appsStore?.getApp(componentKey)
+    }
+
     private fun inflateAppWidget(item: LauncherAppWidgetInfo, writer: ModelWriter): View? {
         TraceHelper.INSTANCE.beginSection("BIND_WIDGET_id=" + item.appWidgetId)
         try {
