@@ -173,9 +173,20 @@ class DossierResizeFrame @JvmOverloads constructor(
         ) {
             return
         }
-        // Reorder-free resize: Dossier cards always grow into free space, so we only
-        // re-mark the occupied cells instead of running the widget reorder algorithm.
+        // Match the widget resize safety rule: a Dossier may only claim cells that
+        // are actually free. Temporarily release its current region before checking
+        // the proposed one, then restore occupancy if the resize would overlap.
         cellLayout.markCellsAsUnoccupiedForView(cardView)
+        val regionIsVacant = cellLayout.isRegionVacant(
+            placement.cellX,
+            placement.cellY,
+            placement.spanX,
+            placement.spanY,
+        )
+        if (!regionIsVacant) {
+            cellLayout.markCellsAsOccupiedForView(cardView)
+            return
+        }
         lp.cellX = placement.cellX
         lp.cellY = placement.cellY
         lp.cellHSpan = placement.spanX
