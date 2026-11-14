@@ -8,8 +8,6 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
@@ -53,17 +51,20 @@ object CaddyCategoryStore {
     /**
      * Parses the persisted JSON. Malformed entries are skipped rather than throwing, so one bad
      * card cannot break the whole drawer.
+     *
+     * This runs on the main thread every time the drawer opens, so it must never throw: every
+     * element access uses a safe cast instead of `jsonPrimitive` (which throws on non-primitives).
      */
     fun decode(text: String?): List<CaddyCardSpec> {
         if (text.isNullOrBlank()) return emptyList()
-        val array = runCatching { json.parseToJsonElement(text).jsonArray }.getOrNull()
+        val array = runCatching { json.parseToJsonElement(text) as? JsonArray }.getOrNull()
             ?: return emptyList()
         val result = ArrayList<CaddyCardSpec>(array.size)
         for (element in array) {
             val card = element as? JsonObject ?: continue
-            val title = card["title"]?.jsonPrimitive?.contentOrNull
+            val title = (card["title"] as? JsonPrimitive)?.contentOrNull
             val apps = (card["apps"] as? JsonArray)
-                ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
                 ?: continue
             CaddyCardAssembly.assemble(title, apps)?.let(result::add)
         }

@@ -60,6 +60,51 @@ class CaddyCategoryStoreTest {
     }
 
     @Test
+    fun decode_entryWithNonPrimitiveTitleIsSkippedWithoutThrowing() {
+        // A hand-edited/older value could store an object where a string is expected.
+        // decode must not throw: it runs on the main thread whenever the drawer opens.
+        val json = """
+            [
+              {"title": {"nested": 1}, "apps": ["a"]},
+              {"title": "Social", "apps": ["b"]}
+            ]
+        """.trimIndent()
+        val decoded = CaddyCategoryStore.decode(json)
+        assertThat(decoded.map { it.title }).containsExactly("Social")
+    }
+
+    @Test
+    fun decode_entryWithNonPrimitiveAppKeyIsSkippedWithoutThrowing() {
+        val json = """
+            [
+              {"title": "Social", "apps": [{"bad": true}, "b"]},
+              {"title": "Tools", "apps": ["c"]}
+            ]
+        """.trimIndent()
+        val decoded = CaddyCategoryStore.decode(json)
+        assertThat(decoded.map { it.title }).containsExactly("Social", "Tools").inOrder()
+        assertThat(decoded.first().appKeys).containsExactly("b")
+    }
+
+    @Test
+    fun decode_entryWhoseAppsIsNotAnArrayIsSkipped() {
+        val json = """
+            [
+              {"title": "Social", "apps": "oops"},
+              {"title": "Tools", "apps": ["c"]}
+            ]
+        """.trimIndent()
+        val decoded = CaddyCategoryStore.decode(json)
+        assertThat(decoded.map { it.title }).containsExactly("Tools")
+    }
+
+    @Test
+    fun decode_nonArrayRootReturnsEmptyWithoutThrowing() {
+        assertThat(CaddyCategoryStore.decode("{\"title\":\"x\"}")).isEmpty()
+        assertThat(CaddyCategoryStore.decode("42")).isEmpty()
+    }
+
+    @Test
     fun encode_producesJsonReadableByTheLoaderContract() {
         val encoded = CaddyCategoryStore.encode(listOf(CaddyCardSpec("Social", listOf("a"))))
         assertThat(encoded).contains("\"title\"")

@@ -107,24 +107,30 @@ class LawnchairAlphabeticalAppsList<T>(
             // Persisted component keys keep each app in the category selected by the user.
             val customCategories = mutableListOf<Pair<String, List<AppInfo>>>()
             val customAssignedKeys = linkedSetOf<String>()
-            val stored = context.getSharedPreferences(
-                app.lawnchair.allapps.caddy.CaddyCategoryStore.PREFS_NAME,
-                Context.MODE_PRIVATE,
-            ).getString(app.lawnchair.allapps.caddy.CaddyCategoryStore.KEY_CATEGORIES, "[]")
-            for (card in app.lawnchair.allapps.caddy.CaddyCategoryStore.decode(stored)) {
-                val selectedKeys = card.appKeys
-                val selectedApps = validApps.filter { app ->
-                    val componentKey = app.toComponentKey().toString()
-                    componentKey in selectedKeys ||
-                        app.componentName?.flattenToString()?.let { it in selectedKeys } == true
+            // This runs on the main thread whenever the drawer opens, so it must never crash the
+            // launcher: a corrupt or hand-edited preference is logged and ignored.
+            runCatching {
+                val stored = context.getSharedPreferences(
+                    app.lawnchair.allapps.caddy.CaddyCategoryStore.PREFS_NAME,
+                    Context.MODE_PRIVATE,
+                ).getString(app.lawnchair.allapps.caddy.CaddyCategoryStore.KEY_CATEGORIES, "[]")
+                for (card in app.lawnchair.allapps.caddy.CaddyCategoryStore.decode(stored)) {
+                    val selectedKeys = card.appKeys
+                    val selectedApps = validApps.filter { app ->
+                        val componentKey = app.toComponentKey().toString()
+                        componentKey in selectedKeys ||
+                            app.componentName?.flattenToString()?.let { it in selectedKeys } == true
+                    }
+                    if (selectedApps.isNotEmpty()) {
+                        customCategories.add(card.title to selectedApps)
+                        // Normalize both current and legacy stored keys so an app cannot
+                        // appear again in an automatically generated category.
+                        customAssignedKeys.addAll(
+                            selectedApps.map { it.toComponentKey().toString() },
+                        )
+                    }
                 }
-                if (selectedApps.isNotEmpty()) {
-                    customCategories.add(card.title to selectedApps)
-                    // Normalize both current and legacy stored keys so an app cannot
-                    // appear again in an automatically generated category.
-                    customAssignedKeys.addAll(selectedApps.map { it.toComponentKey().toString() })
-                }
-            }
+            }.onFailure { Log.w(TAG, "Unable to load custom Caddy categories", it) }
 
             val automaticApps = validApps.filterNot {
                 it.toComponentKey().toString() in customAssignedKeys
