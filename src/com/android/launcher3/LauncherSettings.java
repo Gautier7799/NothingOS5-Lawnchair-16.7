@@ -110,6 +110,9 @@ public class LauncherSettings {
          */
         public static final int ITEM_TYPE_FOLDER = 2;
 
+        /** The favorite is a Dossier workspace card. */
+        public static final int ITEM_TYPE_DOSSIER = 3;
+
         /**
          * The favorite is a widget
          */
@@ -216,6 +219,7 @@ public class LauncherSettings {
                 case ITEM_TYPE_APPLICATION: return "APP";
                 case ITEM_TYPE_SHORTCUT: return "SHORTCUT";
                 case ITEM_TYPE_FOLDER: return "FOLDER";
+                case ITEM_TYPE_DOSSIER: return "DOSSIER";
                 case ITEM_TYPE_APPWIDGET: return "WIDGET";
                 case ITEM_TYPE_CUSTOM_APPWIDGET: return "CUSTOMWIDGET";
                 case ITEM_TYPE_DEEP_SHORTCUT: return "DEEPSHORTCUT";
