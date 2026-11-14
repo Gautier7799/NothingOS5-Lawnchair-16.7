@@ -18,46 +18,74 @@ package app.lawnchair.dossier
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.View
 import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
+import com.android.launcher3.CellLayout
+import com.android.launcher3.Launcher
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
 import com.android.launcher3.touch.ItemLongClickListener
 
-/**
- * A Dossier card on the workspace.
- *
- * The card is drawn by [CaddyCardRenderer] with `fitGridToHost = true`, so the
- * icon grid measures itself against the card's real (resizable) grid area rather
- * than a fixed preview size. Because the card is resized by changing its
- * CellLayout span, the icon grid is re-rendered whenever the view is measured at
- * a new size, so a resized Dossier shows more or fewer apps instead of stretching
- * the old layout. App icons reuse the drawer's own click and long-click handlers,
- * so tapping an icon launches the app and long-pressing it behaves exactly as it
- * does inside the drawer.
- */
+/** Workspace view for a database-backed Dossier item. */
 class DossierCardView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
-    /** Invoked when the card is long-pressed; opens the native resize UI. */
-    var onCardResizeRequested: (() -> Unit)? = null
-
-    /** Invoked when the card itself is tapped. */
     var onCardClick: (() -> Unit)? = null
 
-    private var bound: DossierCardInfo? = null
+    private var bound: DossierInfo? = null
     private var resolveApp: ((String) -> AppInfo?)? = null
     private var rendering = false
 
-    fun bind(card: DossierCardInfo, resolveApp: (String) -> AppInfo?) {
-        bound = card
+    fun bind(
+        info: DossierInfo,
+        resolveApp: (String) -> AppInfo?,
+        launcher: Launcher,
+    ) {
+        bound = info
         this.resolveApp = resolveApp
         setOnLongClickListener {
-            onCardResizeRequested?.invoke()
-            true
+            val cellLayout = findCellLayout()
+            if (cellLayout == null) {
+                false
+            } else {
+                val card = DossierCardInfo(
+                    id = info.id,
+                    title = info.title?.toString().orEmpty(),
+                    appKeys = info.appKeys,
+                    screenId = info.screenId,
+                    cellX = info.cellX,
+                    cellY = info.cellY,
+                    spanX = info.spanX,
+                    spanY = info.spanY,
+                )
+                DossierResizeFrame.showForCard(
+                    launcher = launcher,
+                    cardView = this,
+                    card = card,
+                    cellLayout = cellLayout,
+                    onResized = { updated ->
+                        info.cellX = updated.cellX
+                        info.cellY = updated.cellY
+                        info.spanX = updated.spanX
+                        info.spanY = updated.spanY
+                        launcher.modelWriter.modifyItemInDatabase(
+                            info,
+                            info.container,
+                            info.screenId,
+                            info.cellX,
+                            info.cellY,
+                            info.spanX,
+                            info.spanY,
+                        )
+                        renderIfMeasured()
+                    },
+                )
+                true
+            }
         }
         renderIfMeasured()
     }
@@ -68,27 +96,25 @@ class DossierCardView @JvmOverloads constructor(
     }
 
     private fun renderIfMeasured() {
-        val card = bound ?: return
+        val info = bound ?: return
         val resolve = resolveApp ?: return
-        if (width <= 0 || height <= 0) return
-        if (rendering) return
+        if (width <= 0 || height <= 0 || rendering) return
         rendering = true
         try {
             val gutter = dp(GUTTER_DP) + dp(CARD_PADDING_DP)
             val availableWidth = (width - 2 * gutter).coerceAtLeast(0)
             val availableHeight = (height - 2 * gutter - dp(TITLE_DP)).coerceAtLeast(0)
-
-            // Fit as many icon cells as the card's real size allows, so a larger
-            // Dossier shows more apps instead of stretching the original grid.
             val targetCell = dp(TARGET_CELL_DP).coerceAtLeast(1)
-            val columns = (availableWidth / targetCell).coerceAtLeast(1)
-            val rows = (availableHeight / targetCell).coerceAtLeast(1)
+            val pixelColumns = (availableWidth / targetCell).coerceAtLeast(1)
+            val pixelRows = (availableHeight / targetCell).coerceAtLeast(1)
+            val columns = minOf(info.gridColumns, pixelColumns).coerceAtLeast(1)
+            val rows = minOf(info.gridRows, pixelRows).coerceAtLeast(1)
             val cellSizePx = minOf(availableWidth / columns, availableHeight / rows)
 
             CaddyCardRenderer.renderCategoryCard(
                 host = this,
-                title = card.title,
-                apps = card.appKeys.mapNotNull(resolve),
+                title = info.title?.toString().orEmpty(),
+                apps = info.appKeys.mapNotNull(resolve),
                 cardClick = { onCardClick?.invoke() },
                 iconBinder = { icon, _ ->
                     icon.setOnClickListener(ItemClickHandler.INSTANCE)
@@ -99,27 +125,27 @@ class DossierCardView @JvmOverloads constructor(
                 maxIcons = columns * rows,
                 cellSizePx = cellSizePx,
             )
-            // The renderer's card consumes touches, so the long-press that opens the
-            // resize UI must be attached to the card it draws, not to this host.
             getChildAt(0)?.setOnLongClickListener {
-                onCardResizeRequested?.invoke()
-                true
+                performLongClick()
             }
         } finally {
             rendering = false
         }
     }
 
-    /** The card currently rendered, or null before the first bind. */
-    fun currentCard(): DossierCardInfo? = bound
+    private fun findCellLayout(): CellLayout? {
+        var current: View? = this
+        while (current != null) {
+            if (current is CellLayout) return current
+            current = current.parent as? View
+        }
+        return null
+    }
 
     private fun dp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
 
     private companion object {
-        /** Preferred icon-cell size; the grid fits as many as the card allows. */
         const val TARGET_CELL_DP = 60f
-
-        /** Mirrors [CaddyCardRenderer]'s own outer gutter and inner padding. */
         const val GUTTER_DP = 4f
         const val CARD_PADDING_DP = 14f
         const val TITLE_DP = 24f
