@@ -29,6 +29,7 @@ on:
       - refactor/remove-caddy-home
       - openhands/remove-caddy-home-clean
       - openhands/remove-caddy-home-ios-dock
+      - openhands/dossier-workspace-cards
 
 permissions:
   contents: read
