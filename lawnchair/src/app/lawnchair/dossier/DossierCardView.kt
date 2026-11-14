@@ -171,13 +171,14 @@ class DossierCardView @JvmOverloads constructor(
             val renderSignature = buildString {
                 append(info.id).append('|')
                 append(info.title).append('|')
+                append(info.appKeys.joinToString(",")).append('|')
                 append(info.gridColumns).append('x').append(info.gridRows).append('|')
                 append(width).append('x').append(height).append('|')
                 resolvedApps.forEach { app ->
                     append(app.componentName).append(':')
                     append(app.user).append(':')
                     append(app.title).append(':')
-                    append(System.identityHashCode(app)).append(';')
+                    append(System.identityHashCode(app.bitmap.icon)).append(';')
                 }
             }
             // AllAppsStore may publish multiple identical updates during startup.
