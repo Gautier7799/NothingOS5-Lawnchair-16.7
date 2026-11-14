@@ -326,6 +326,19 @@ class PreferenceManager2 @Inject constructor(
         onSet = { reloadHelper.restart() },
     )
 
+    /** Independent icon-grid limits for Dossier cards; folder grid preferences remain untouched. */
+    val dossierGridColumns = preference(
+        key = intPreferencesKey(name = "dossier_grid_columns"),
+        defaultValue = 3,
+        onSet = { reloadHelper.reloadGrid() },
+    )
+
+    val dossierGridRows = preference(
+        key = intPreferencesKey(name = "dossier_grid_rows"),
+        defaultValue = 3,
+        onSet = { reloadHelper.reloadGrid() },
+    )
+
     val hotseatQsbProvider = preference(
         key = stringPreferencesKey(name = "dock_search_bar_provider"),
         defaultValue = getRemoteDefault("dock_search_bar_provider")?.let {
