@@ -102,6 +102,13 @@ fun HomeScreenPreferences(
                 description = stringResource(R.string.hide_workspace_smartspace_description),
             )
         }
+        PreferenceGroup(heading = stringResource(id = R.string.dossier)) {
+            SwitchPreference(
+                adapter = prefs2.dossierEnabled.getAdapter(),
+                label = stringResource(R.string.dossier_enabled_label),
+                description = stringResource(R.string.dossier_enabled_description),
+            )
+        }
         val feedAvailable = OverlayCallbackImpl.minusOneAvailable(LocalContext.current)
         val enableFeedAdapter = prefs2.enableFeed.getAdapter()
         PreferenceGroup(heading = stringResource(id = R.string.minus_one)) {
@@ -254,7 +261,6 @@ fun HomeScreenPreferences(
     }
 }
 
-
 @Composable
 fun HomeScreenTextColorPreference(
     modifier: Modifier = Modifier,
@@ -266,4 +272,3 @@ fun HomeScreenTextColorPreference(
         modifier = modifier,
     )
 }
-

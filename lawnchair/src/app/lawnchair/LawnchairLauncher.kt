@@ -35,6 +35,7 @@ import app.lawnchair.LawnchairApp.Companion.showQuickstepWarningIfNecessary
 import app.lawnchair.compat.LawnchairQuickstepCompat
 import app.lawnchair.data.AppDatabase
 import app.lawnchair.data.wallpaper.service.WallpaperService
+import app.lawnchair.dossier.DossierCardCoordinator
 import app.lawnchair.gestures.GestureController
 import app.lawnchair.gestures.VerticalSwipeTouchController
 import app.lawnchair.gestures.config.GestureHandlerConfig
@@ -107,6 +108,8 @@ class LawnchairLauncher : QuickstepLauncher() {
     }
     private val themeProvider by unsafeLazy { ThemeProvider.INSTANCE.get(this) }
 
+    private val dossierCards by unsafeLazy { DossierCardCoordinator(this) }
+
     private val noStatusBarStateListener = object : StateManager.StateListener<LauncherState> {
         override fun onStateTransitionStart(toState: LauncherState) {
             if (toState is OverviewState) {
@@ -163,6 +166,7 @@ class LawnchairLauncher : QuickstepLauncher() {
         layoutInflater.factory2 = LawnchairLayoutFactory(this)
         super.onCreate(savedInstanceState)
 
+        dossierCards.start()
 
         prefs.launcherTheme.subscribeChanges(this, ::updateTheme)
         prefs.feedProvider.subscribeChanges(this, defaultOverlay::reconnect)
@@ -502,12 +506,14 @@ class LawnchairLauncher : QuickstepLauncher() {
 
     override fun onDestroy() {
         super.onDestroy()
+        dossierCards.stop()
         // Only actually closes if required, safe to call if not enabled
         SmartspacerClient.close()
     }
 
     override fun finishBindingItems(pagesBoundFirst: IntSet?) {
         super.finishBindingItems(pagesBoundFirst)
+        dossierCards.onWorkspaceBound()
     }
 
     override fun getDefaultOverlay(): LauncherOverlayManager = defaultOverlay
