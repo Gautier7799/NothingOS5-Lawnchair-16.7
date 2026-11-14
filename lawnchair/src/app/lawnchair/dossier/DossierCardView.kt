@@ -23,15 +23,20 @@ import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import com.android.launcher3.CellLayout
 import com.android.launcher3.Launcher
+import com.android.launcher3.dragndrop.DraggableView
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
+import com.android.launcher3.touch.ItemLongClickListener
 
 /** Workspace view for a database-backed Dossier item. */
 class DossierCardView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
-) : FrameLayout(context, attrs, defStyleAttr) {
+) : FrameLayout(context, attrs, defStyleAttr), DraggableView {
+
+    override fun getViewType(): Int = DraggableView.DRAGGABLE_WIDGET
+
 
     var onCardClick: (() -> Unit)? = null
 
@@ -48,46 +53,9 @@ class DossierCardView @JvmOverloads constructor(
         tag = info
         isFocusable = true
         this.resolveApp = resolveApp
-        setOnLongClickListener {
-            val cellLayout = findCellLayout()
-            if (cellLayout == null) {
-                false
-            } else {
-                val card = DossierCardInfo(
-                    id = info.id,
-                    title = info.title?.toString().orEmpty(),
-                    appKeys = info.appKeys,
-                    screenId = info.screenId,
-                    cellX = info.cellX,
-                    cellY = info.cellY,
-                    spanX = info.spanX,
-                    spanY = info.spanY,
-                )
-                DossierResizeFrame.showForCard(
-                    launcher = launcher,
-                    cardView = this,
-                    card = card,
-                    cellLayout = cellLayout,
-                    onResized = { updated ->
-                        info.cellX = updated.cellX
-                        info.cellY = updated.cellY
-                        info.spanX = updated.spanX
-                        info.spanY = updated.spanY
-                        launcher.modelWriter.modifyItemInDatabase(
-                            info,
-                            info.container,
-                            info.screenId,
-                            info.cellX,
-                            info.cellY,
-                            info.spanX,
-                            info.spanY,
-                        )
-                        renderIfMeasured()
-                    },
-                )
-                true
-            }
-        }
+        // Use the same workspace drag entry point as native launcher items. This view
+        // implements DraggableView so Workspace can pass a non-null drag descriptor.
+        setOnLongClickListener(ItemLongClickListener.INSTANCE_WORKSPACE)
         renderIfMeasured()
     }
 
