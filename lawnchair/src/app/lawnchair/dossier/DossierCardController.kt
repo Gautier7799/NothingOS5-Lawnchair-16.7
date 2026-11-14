@@ -63,16 +63,20 @@ class DossierCardController(
             .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE)
 
         var inserted = false
+        val reserved = mutableListOf<ReservedPlacement>()
         desired.forEach { card ->
-            val placement = findPlacement(card.spanX, card.spanY) ?: return@forEach
+            val spanX = card.spanX.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
+            val spanY = card.spanY.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
+            val placement = findPlacement(spanX, spanY, reserved) ?: return@forEach
+            reserved += ReservedPlacement(placement.first, placement.second[0], placement.second[1], spanX, spanY)
             val info = DossierInfo(
                 title = card.title,
                 appKeys = card.appKeys,
                 gridColumns = columns,
                 gridRows = rows,
             ).apply {
-                spanX = card.spanX.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
-                spanY = card.spanY.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
+                spanX = spanX
+                spanY = spanY
             }
             launcher.modelWriter.addItemToDatabase(
                 info,
@@ -101,16 +105,25 @@ class DossierCardController(
         return false
     }
 
-    private fun findPlacement(spanX: Int, spanY: Int): Pair<Int, IntArray>? {
+    private data class ReservedPlacement(
+        val screenId: Int,
+        val cellX: Int,
+        val cellY: Int,
+        val spanX: Int,
+        val spanY: Int,
+    )
+
+    private fun findPlacement(
+        spanX: Int,
+        spanY: Int,
+        reserved: List<ReservedPlacement>,
+    ): Pair<Int, IntArray>? {
         val workspace = launcher.workspace ?: return null
         val order = workspace.screenOrder
         for (index in 0 until order.size()) {
             val screenId = order.get(index)
             val cellLayout = workspace.getScreenWithId(screenId) ?: continue
-            val cellXY = IntArray(2)
-            if (cellLayout.findCellForSpan(cellXY, spanX, spanY)) {
-                return screenId to cellXY
-            }
+            findVacantRegion(cellLayout, screenId, spanX, spanY, reserved)?.let { return it }
         }
 
         var maxScreenId = 0
@@ -119,12 +132,34 @@ class DossierCardController(
         }
         val newScreenId = maxScreenId + 1
         workspace.insertNewWorkspaceScreen(newScreenId)
-        val newLayout: CellLayout = workspace.getScreenWithId(newScreenId) ?: return null
-        val cellXY = IntArray(2)
-        return if (newLayout.findCellForSpan(cellXY, spanX, spanY)) {
-            newScreenId to cellXY
-        } else {
-            null
+        val newLayout = workspace.getScreenWithId(newScreenId) ?: return null
+        return findVacantRegion(newLayout, newScreenId, spanX, spanY, reserved)
+    }
+
+    /** Finds a free rectangle while also reserving placements queued for asynchronous model binds. */
+    private fun findVacantRegion(
+        cellLayout: CellLayout,
+        screenId: Int,
+        spanX: Int,
+        spanY: Int,
+        reserved: List<ReservedPlacement>,
+    ): Pair<Int, IntArray>? {
+        if (spanX <= 0 || spanY <= 0 || spanX > cellLayout.countX || spanY > cellLayout.countY) {
+            return null
         }
+        for (cellY in 0..(cellLayout.countY - spanY)) {
+            for (cellX in 0..(cellLayout.countX - spanX)) {
+                if (!cellLayout.isRegionVacant(cellX, cellY, spanX, spanY)) continue
+                val overlapsReservation = reserved.any { occupied ->
+                    occupied.screenId == screenId &&
+                        cellX < occupied.cellX + occupied.spanX &&
+                        cellX + spanX > occupied.cellX &&
+                        cellY < occupied.cellY + occupied.spanY &&
+                        cellY + spanY > occupied.cellY
+                }
+                if (!overlapsReservation) return screenId to intArrayOf(cellX, cellY)
+            }
+        }
+        return null
     }
 }
