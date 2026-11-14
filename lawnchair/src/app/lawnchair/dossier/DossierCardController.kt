@@ -97,7 +97,7 @@ class DossierCardController(
     /** No manually attached views remain; the model owns their lifecycle. */
     fun detachAll() = Unit
 
-    private fun hasBoundDossier(workspace: com.android.launcher3.Workspace<*, *>): Boolean {
+    private fun hasBoundDossier(workspace: com.android.launcher3.Workspace<*>): Boolean {
         val order = workspace.screenOrder
         for (index in 0 until order.size()) {
             val cellLayout = workspace.getScreenWithId(order.get(index)) ?: continue
