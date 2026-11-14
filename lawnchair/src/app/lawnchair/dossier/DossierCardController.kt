@@ -17,175 +17,103 @@
 package app.lawnchair.dossier
 
 import android.content.Context
+import app.lawnchair.preferences2.PreferenceManager2
+import app.lawnchair.preferences2.firstCached
 import com.android.launcher3.CellLayout
 import com.android.launcher3.Launcher
-import com.android.launcher3.celllayout.CellLayoutLayoutParams
+import com.android.launcher3.LauncherSettings.Favorites
 import com.android.launcher3.model.data.AppInfo
-import com.android.launcher3.util.ComponentKey
 
 /**
- * Places the Dossier cards on the workspace and keeps them in sync with the drawer.
+ * Migrates the legacy Dossier card list into real Favorites workspace rows.
  *
- * Cards are native workspace views hosted in a [CellLayout] and occupy their own
- * grid area (2x2 by default, resizable). Card content comes from
- * [DossierCardSource]; only grid placement is persisted here, so app data is
- * never duplicated. Existing folders, shortcuts and widgets are untouched.
+ * Once inserted, LauncherModel owns placement, occupancy, view binding and
+ * persistence. This controller only seeds the initial set and never attaches
+ * unmanaged views to CellLayout.
  */
 class DossierCardController(
     private val launcher: Launcher,
     private val repository: DossierCardRepository,
 ) {
-
     private val context: Context get() = launcher
+    private val preferences by lazy { PreferenceManager2.getInstance(launcher) }
 
-    private val attached = mutableMapOf<Int, DossierCardView>()
-
-    // Views need unique ids inside their CellLayout, so assign them sequentially
-    // instead of deriving one from the category id (whose hash could collide).
-    private val viewIds = mutableMapOf<Int, Int>()
-    private var nextViewId = 0
-
-    private fun resolveApp(key: String): AppInfo? {
-        val componentKey = ComponentKey.fromString(key) ?: return null
-        return launcher.appsView?.appsStore?.getApp(componentKey)
-    }
-
-    /** Rebuilds the workspace cards from the current app list and category sources. */
+    /** Seed the workspace once; subsequent launches load DossierInfo from Favorites. */
     fun sync(apps: List<AppInfo>) {
         if (apps.isEmpty()) return
+        val workspace = launcher.workspace ?: return
+        if (workspace.screenOrder.size() == 0 || hasBoundDossier(workspace)) return
 
-        // Seed Home from drawer categories only for a fresh installation.
-        // Once saved, Home owns its cards independently of drawer categories.
         val storedCards = repository.load()
         val desired = if (storedCards.isEmpty()) {
             DossierCardSource.build(context, apps).also(repository::save)
         } else {
             storedCards
         }
-        if (desired.isEmpty()) {
-            detachAll()
-            return
-        }
+        if (desired.isEmpty()) return
 
-        val desiredIds = desired.mapTo(mutableSetOf()) { it.id }
-        attached.keys.toList().forEach { id ->
-            if (id !in desiredIds) removeView(id)
-        }
+        val columns = preferences.dossierGridColumns.firstCached()
+            .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE)
+        val rows = preferences.dossierGridRows.firstCached()
+            .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE)
 
-        val persisted = mutableListOf<DossierCardInfo>()
         desired.forEach { card ->
-            val placed = if (card.isPlaced) {
-                card.withClampedSpan()
-            } else {
-                placeAtFreeCells(card) ?: return@forEach
+            val placement = findPlacement(card.spanX, card.spanY) ?: return@forEach
+            val info = DossierInfo(
+                title = card.title,
+                appKeys = card.appKeys,
+                gridColumns = columns,
+                gridRows = rows,
+            ).apply {
+                spanX = card.spanX.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
+                spanY = card.spanY.coerceIn(DossierCardInfo.MIN_SPAN, DossierCardInfo.MAX_SPAN)
             }
-            attach(placed)
-            persisted.add(placed)
+            launcher.modelWriter.addItemToDatabase(
+                info,
+                Favorites.CONTAINER_DESKTOP,
+                placement.first,
+                placement.second[0],
+                placement.second[1],
+            )
         }
-        repository.save(persisted)
     }
 
-    fun detachAll() {
-        attached.keys.toList().forEach(::removeView)
-        viewIds.clear()
-    }
+    /** No manually attached views remain; the model owns their lifecycle. */
+    fun detachAll() = Unit
 
-    /**
-     * Applies a new grid placement to an existing card and persists it. Called by
-     * the resize UI when the user finishes resizing a Dossier.
-     */
-    fun updatePlacement(card: DossierCardInfo): Boolean {
-        val clamped = card.withClampedSpan()
-        repository.update(clamped)
-        attach(clamped)
-        return true
-    }
-
-    /** Returns the placement currently stored for [id], or null if the card is gone. */
-    fun placementOf(id: Int): DossierCardInfo? = repository.load().firstOrNull { it.id == id }
-
-    private fun removeView(id: Int) {
-        attached.remove(id)?.let { view ->
-            (view.parent as? CellLayout)?.removeView(view)
-        }
-        viewIds.remove(id)
-    }
-
-    private fun placeAtFreeCells(card: DossierCardInfo): DossierCardInfo? {
-        val placement = findPlacement(card.spanX, card.spanY) ?: return null
-        return card.copy(
-            screenId = placement.first,
-            cellX = placement.second[0],
-            cellY = placement.second[1],
-        )
-    }
-
-    private fun attach(card: DossierCardInfo) {
-        val cellLayout = cellLayoutFor(card) ?: return
-        val view = attached.getOrPut(card.id) {
-            DossierCardView(context).apply {
-                onCardResizeRequested = { requestResize(this, card.id) }
+    private fun hasBoundDossier(workspace: com.android.launcher3.Workspace): Boolean {
+        val order = workspace.screenOrder
+        for (index in 0 until order.size()) {
+            val cellLayout = workspace.getScreenWithId(order.get(index)) ?: continue
+            val children = cellLayout.shortcutsAndWidgets
+            for (childIndex in 0 until children.childCount) {
+                if (children.getChildAt(childIndex)?.tag is DossierInfo) return true
             }
         }
-        view.bind(card, ::resolveApp)
-        val currentParams = view.layoutParams as? CellLayoutLayoutParams
-        val placementChanged = view.parent !== cellLayout ||
-            currentParams?.cellX != card.cellX ||
-            currentParams?.cellY != card.cellY ||
-            currentParams?.cellHSpan != card.spanX ||
-            currentParams?.cellVSpan != card.spanY
-        if (placementChanged) {
-            (view.parent as? CellLayout)?.removeView(view)
-            val params = CellLayoutLayoutParams(card.cellX, card.cellY, card.spanX, card.spanY)
-            val viewId = viewIds.getOrPut(card.id) { nextViewId++ }
-            if (!cellLayout.addViewToCellLayout(view, -1, viewId, params, true)) {
-                attached.remove(card.id)
-                viewIds.remove(card.id)
-            }
-        }
+        return false
     }
 
-    private fun requestResize(view: DossierCardView, id: Int) {
-        val card = placementOf(id) ?: view.currentCard() ?: return
-        val cellLayout = view.parent as? CellLayout ?: return
-        DossierResizeFrame.showForCard(
-            launcher = launcher,
-            cardView = view,
-            card = card,
-            cellLayout = cellLayout,
-            onResized = { updated -> updatePlacement(updated) },
-        )
-    }
-
-    private fun cellLayoutFor(card: DossierCardInfo): CellLayout? {
-        val workspace = launcher.workspace ?: return null
-        val screenOrder = workspace.screenOrder
-        if (screenOrder.size() == 0) return null
-        val screenId = if (card.isPlaced) card.screenId else screenOrder.get(0)
-        return workspace.getScreenWithId(screenId)
-    }
-
-    /** Finds a free region, adding a new page when every existing page is full. */
     private fun findPlacement(spanX: Int, spanY: Int): Pair<Int, IntArray>? {
         val workspace = launcher.workspace ?: return null
-        val screenOrder = workspace.screenOrder
-        for (index in 0 until screenOrder.size()) {
-            val screenId = screenOrder.get(index)
+        val order = workspace.screenOrder
+        for (index in 0 until order.size()) {
+            val screenId = order.get(index)
             val cellLayout = workspace.getScreenWithId(screenId) ?: continue
             val cellXY = IntArray(2)
             if (cellLayout.findCellForSpan(cellXY, spanX, spanY)) {
                 return screenId to cellXY
             }
         }
+
         var maxScreenId = 0
-        for (index in 0 until screenOrder.size()) {
-            maxScreenId = maxOf(maxScreenId, screenOrder.get(index))
+        for (index in 0 until order.size()) {
+            maxScreenId = maxOf(maxScreenId, order.get(index))
         }
         val newScreenId = maxScreenId + 1
         workspace.insertNewWorkspaceScreen(newScreenId)
-        val cellLayout = workspace.getScreenWithId(newScreenId) ?: return null
+        val newLayout: CellLayout = workspace.getScreenWithId(newScreenId) ?: return null
         val cellXY = IntArray(2)
-        return if (cellLayout.findCellForSpan(cellXY, spanX, spanY)) {
+        return if (newLayout.findCellForSpan(cellXY, spanX, spanY)) {
             newScreenId to cellXY
         } else {
             null
