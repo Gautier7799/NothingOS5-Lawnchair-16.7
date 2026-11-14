@@ -38,6 +38,7 @@ class DossierCardCoordinator(private val launcher: Launcher) {
     private val appsListener = AllAppsStore.OnUpdateListener { syncFromApps() }
 
     private var listening = false
+    private var workspaceReady = false
 
     /** Called once the launcher's views are ready. */
     fun start() {
@@ -46,17 +47,17 @@ class DossierCardCoordinator(private val launcher: Launcher) {
             store.addUpdateListener(appsListener)
             listening = true
         }
-        syncFromApps()
     }
 
     /** Called after the workspace has (re)bound its pages. */
     fun onWorkspaceBound() {
-        // Rebound pages are new views, so drop the stale references and rebuild.
-        controller.detachAll()
+        workspaceReady = true
+        // The workspace model is now bound, so initial Dossier rows can be safely seeded.
         syncFromApps()
     }
 
     fun stop() {
+        workspaceReady = false
         if (listening) {
             launcher.appsView?.appsStore?.removeUpdateListener(appsListener)
             listening = false
@@ -65,6 +66,7 @@ class DossierCardCoordinator(private val launcher: Launcher) {
     }
 
     private fun syncFromApps() {
+        if (!workspaceReady) return
         if (!enabled.firstCached()) {
             controller.detachAll()
             return
