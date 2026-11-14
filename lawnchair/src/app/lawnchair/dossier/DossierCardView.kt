@@ -17,6 +17,7 @@
 package app.lawnchair.dossier
 
 import android.content.Context
+import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.View
 import android.widget.FrameLayout
@@ -38,6 +39,24 @@ class DossierCardView @JvmOverloads constructor(
 
     override fun getViewType(): Int = DraggableView.DRAGGABLE_WIDGET
 
+    /**
+     * DragPreviewProvider and DragLayer both rely on non-empty visual bounds.
+     * An empty default Rect produces a zero-sized drag bitmap; DragLayer then
+     * divides 0 by 0 when calculating the final drop scale.
+     */
+    override fun getWorkspaceVisualDragBounds(bounds: Rect) {
+        val dragWidth = width.takeIf { it > 0 } ?: measuredWidth
+        val dragHeight = height.takeIf { it > 0 } ?: measuredHeight
+        if (dragWidth > 0 && dragHeight > 0) {
+            bounds.set(0, 0, dragWidth, dragHeight)
+        } else {
+            bounds.setEmpty()
+        }
+    }
+
+    override fun getSourceVisualDragBounds(bounds: Rect) {
+        getWorkspaceVisualDragBounds(bounds)
+    }
 
     var onCardClick: (() -> Unit)? = null
 
