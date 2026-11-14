@@ -75,4 +75,33 @@ class DockCapsuleGeometryTest {
         val short = DockCapsuleGeometry.cornerRadiusPx(60, pixel8Density)
         assertThat(short).isLessThan(30f)
     }
+
+    @Test
+    fun preferredCornerRadius_defaultsToApprovedIosRadius() {
+        val panelHeight = DockCapsuleGeometry.preferredHeightPx(pixel8Density)
+        // No stored setting: the approved 32dp iOS radius is used.
+        assertThat(DockCapsuleGeometry.preferredCornerRadiusPx(panelHeight, pixel8Density, null))
+            .isEqualTo(32 * pixel8Density)
+        // A negative value is treated as "unset".
+        assertThat(DockCapsuleGeometry.preferredCornerRadiusPx(panelHeight, pixel8Density, -1f))
+            .isEqualTo(32 * pixel8Density)
+    }
+
+    @Test
+    fun preferredCornerRadius_honoursUserSetting() {
+        val panelHeight = DockCapsuleGeometry.preferredHeightPx(pixel8Density)
+        // The user's slider value wins over the built-in default.
+        assertThat(DockCapsuleGeometry.preferredCornerRadiusPx(panelHeight, pixel8Density, 18f))
+            .isEqualTo(18 * pixel8Density)
+        // 0 means square corners, not "unset".
+        assertThat(DockCapsuleGeometry.preferredCornerRadiusPx(panelHeight, pixel8Density, 0f))
+            .isEqualTo(0f)
+    }
+
+    @Test
+    fun preferredCornerRadius_isClampedOnShortPanels() {
+        // Even a large user value cannot exceed half the panel height.
+        val short = DockCapsuleGeometry.preferredCornerRadiusPx(60, pixel8Density, 100f)
+        assertThat(short).isLessThan(30f)
+    }
 }

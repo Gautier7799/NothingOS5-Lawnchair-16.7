@@ -47,23 +47,57 @@ class DockCapsule private constructor(
 
         val iconBounds = measureIconRow(container) ?: return
 
+        // Dock settings. The insets move the panel edges inward (the icon row stays put), matching
+        // the original Lawnchair behaviour. With every inset at 0 the panel is centred on the icon
+        // row, which keeps the approved iOS look.
+        val prefs = PreferenceManager.getInstance(context)
+        val prefs2 = PreferenceManager2.getInstance(context)
+        if (!prefs.hotseatBG.get()) {
+            // "Dock background" is off: leave the icons on a transparent row.
+            container.background = null
+            return
+        }
+        // The inset sliders are stored in pixels (as their "px" unit indicates).
+        val insetLeft = prefs.hotseatBGHorizontalInsetLeft.get()
+        val insetRight = prefs.hotseatBGHorizontalInsetRight.get()
+        val insetTop = prefs.hotseatBGVerticalInsetTop.get()
+        val insetBottom = prefs.hotseatBGVerticalInsetBottom.get()
         val sideMargin = DockCapsuleGeometry.sideMarginPx(density)
         val panelHeight = DockCapsuleGeometry.panelHeightPx(height, density)
         val top = (iconBounds.centerY() - panelHeight / 2)
             .coerceIn(0, (height - panelHeight).coerceAtLeast(0))
-        val bottom = height - top - panelHeight
+        val bottom = (height - top - panelHeight).coerceAtLeast(0)
+
+        // The drawn height shrinks as the vertical insets grow, so the radius is clamped against the
+        // real panel height to keep the sides straight.
+        val drawnHeight = (height - (top + insetTop) - (bottom + insetBottom)).coerceAtLeast(1)
+        val cornerRadius = DockCapsuleGeometry.preferredCornerRadiusPx(
+            drawnHeight,
+            density,
+            prefs2.hotseatBackgroundCornerRadius.firstCached(),
+        )
 
         // Liquid Glass: a near-transparent tinted surface plus a specular top/left edge highlight,
         // so the dock reads as thin glass rather than a solid bar.
         val panel = LiquidGlassDrawable(
             fillColor = resolveColor(),
-            cornerRadiusPx = DockCapsuleGeometry.cornerRadiusPx(panelHeight, density),
+            cornerRadiusPx = cornerRadius,
             borderWidthPx = dp(DockCapsuleGeometry.GLASS_BORDER_WIDTH_DP).coerceAtLeast(1).toFloat(),
         )
-        val inset = InsetDrawable(panel, sideMargin, top, sideMargin, bottom)
+        val inset = InsetDrawable(
+            panel,
+            sideMargin + insetLeft,
+            (top + insetTop).coerceAtLeast(0),
+            sideMargin + insetRight,
+            (bottom + insetBottom).coerceAtLeast(0),
+        )
         container.background = splitFraction?.let { fraction ->
             LayerDrawable(arrayOf(inset, buildDivider(width, fraction)))
         } ?: inset
+        // The dock background must never intercept gestures: empty areas fall through to the
+        // workspace.
+        container.isClickable = false
+        container.isFocusable = false
     }
 
     private fun measureIconRow(container: ViewGroup): Rect? {
@@ -115,10 +149,9 @@ class DockCapsule private constructor(
         val prefs = PreferenceManager.getInstance(context)
         val option = prefs2.hotseatBackgroundColor.firstCached()
         val base = option.colorPreferenceEntry.lightColor(context)
-        // Ultra-thin glass: cap the user's alpha so the wallpaper stays visible through the dock.
-        val alpha = ((prefs.hotseatBGAlpha.get() * 255) / 100)
-            .coerceAtMost((DockCapsuleGeometry.GLASS_TINT_PERCENT * 255) / 100)
-            .coerceIn(0, 255)
+        // The opacity slider drives the glass tint directly. Its default keeps the approved
+        // ultra-thin look so the wallpaper stays visible through the dock.
+        val alpha = ((prefs.hotseatBGAlpha.get() * 255) / 100).coerceIn(0, 255)
         return Color.argb(alpha, Color.red(base), Color.green(base), Color.blue(base))
     }
 

@@ -237,8 +237,7 @@ class PreferenceManager2 @Inject constructor(
 
     val hotseatBackgroundCornerRadius = preference(
         key = floatPreferencesKey(name = "hotseat_bg_corner_radius"),
-        defaultValue = context.resources.getDimension(R.dimen.bg_round_rect_radius) /
-            context.resources.displayMetrics.density, // This should hopefully match corner of all devices
+        defaultValue = app.lawnchair.ui.dock.DockCapsuleGeometry.CORNER_RADIUS_DP.toFloat(),
         onSet = { reloadHelper.recreate() },
     )
 

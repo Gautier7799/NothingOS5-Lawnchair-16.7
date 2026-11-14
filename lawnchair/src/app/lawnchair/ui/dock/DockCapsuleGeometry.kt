@@ -59,6 +59,16 @@ object DockCapsuleGeometry {
      */
     fun cornerRadiusPx(panelHeightPx: Int, density: Float): Float = minOf(CORNER_RADIUS_DP * density, panelHeightPx * MAX_CORNER_RADIUS_RATIO)
 
+    /**
+     * Returns the corner radius (px) for the dock panel. The user's [userRadiusDp] overrides the
+     * built-in iOS default; a null/negative value keeps the approved [CORNER_RADIUS_DP] look. The
+     * result is always clamped below half the height so the sides stay straight.
+     */
+    fun preferredCornerRadiusPx(panelHeightPx: Int, density: Float, userRadiusDp: Float?): Float {
+        val dp = userRadiusDp?.takeIf { it >= 0f } ?: CORNER_RADIUS_DP.toFloat()
+        return minOf(dp * density, panelHeightPx * MAX_CORNER_RADIUS_RATIO)
+    }
+
     /** Returns the side margin in px. */
     fun sideMarginPx(density: Float): Int = (SIDE_MARGIN_DP * density).roundToInt()
 
