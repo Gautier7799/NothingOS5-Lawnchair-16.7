@@ -1,0 +1,75 @@
+تقرير: إصلاح انهيار Lawnchair (NullPointerException) في بطاقات الفئات
+التاريخ (UTC): 2026-11-14T11:00Z
+الفرع: openhands/remove-caddy-home-ios-dock
+آخر commit: fffc0e7 — "Fix Caddy card crash from a view-type collision with search results"
+
+===========================================================
+1) الأعراض (Bug Report)
+===========================================================
+java.lang.NullPointerException داخل
+CaddyCardRenderer.renderCategoryCard — تُمرَّر قيمة فارغة (null) لمتغيّر
+العنوان (title) المطلوب غير فارغ، فيتوقف اللانشر عند فتح درج التطبيقات.
+البيئة المُبلَّغ عنها: Lawnchair 16.Dev (#223) على Android 17 Beta (Pixel 8).
+
+===========================================================
+2) السبب الجذري الحقيقي (تشخيص دقيق من الكود)
+===========================================================
+ليست المشكلة "إصداراً تجريبياً على نظام معاينة" كما في الحلول المؤقتة،
+بل خطأ حقيقي في الكود: تصادم في رموز نوع العرض (view-type collision)
+بين بطاقات Caddy ونتائج البحث، لأن الاثنين يستخدمان نفس المحوّل (adapter).
+
+  VIEW_TYPE_CADDY_CATEGORY = 1 << 11 = 2048
+     == SEARCH_RESULT_ICON_ROW = 1 << 11 = 2048   ← تصادم
+  VIEW_TYPE_CADDY_SPACER   = 1 << 12 = 4096
+     == SEARCH_RESULT_SMALL_ICON_ROW = 1 << 12 = 4096  ← تصادم
+
+عندما تظهر نتائج البحث، يُمرَّر عنصر SearchAdapterItem (لا يملك caddyTitle)
+إلى فرع Caddy في BaseAllAppsAdapter.onBindViewHolder، فيُقرأ caddyTitle
+(يساوي null) ويُمرَّر إلى دالة Kotlin تتطلّب String غير فارغ → NPE وانهيار.
+
+===========================================================
+3) الإصلاح
+===========================================================
+- نقل رموز Caddy بعيداً عن نطاق البحث (1<<10 .. 1<<22):
+    VIEW_TYPE_CADDY_CATEGORY = 1 << 23
+    VIEW_TYPE_CADDY_SPACER   = 1 << 24
+  مع إبقائها داخل VIEW_TYPE_MASK_ICON حتى لا يتغيّر منطق الشبكة/الامتداد.
+- جعل عنوان renderCategoryCard قابلاً لأن يكون فارغاً (String?) كحماية
+  دفاعية: أي تعارض مستقبلي يتدهور بأمان بدل أن يُسقط اللانشر.
+- إضافة اختبار CaddyViewTypeCollisionTest يضمن عدم تصادم رموز Caddy مع
+  رموز نتائج البحث أبداً.
+
+ملاحظة: الحلول المؤقتة المذكورة (مسح البيانات / تعطيل الميزة / الرجوع
+لإصدار أقدم) لم تكن ضرورية — أُصلح العطل من جذره في الكود.
+
+===========================================================
+4) الملفات المعدّلة
+===========================================================
+- src/com/android/launcher3/allapps/BaseAllAppsAdapter.java
+- lawnchair/src/app/lawnchair/allapps/caddy/CaddyCardRenderer.kt
+- lawnchair/test/app/lawnchair/allapps/caddy/CaddyViewTypeCollisionTest.kt (جديد)
+
+===========================================================
+5) البناء والاختبارات
+===========================================================
+- البناء: BUILD SUCCESSFUL
+- الاختبارات: 0 فشل
+  * CaddyViewTypeCollisionTest: 3/3 (جديد)
+  * CaddyCategoryEngineTest: 7/7
+  * HotseatModeTest: 8/8
+  * PredictionOrderingTest: 11/11
+  * DockCapsuleGeometryTest: 11/11
+
+===========================================================
+6) ملف APK
+===========================================================
+الاسم: Lawnchair.16.Dev.(fffc0e7).github.debug.apk
+الحجم: 50,689,085 بايت
+SHA-256: 152cfc919e32c349b8893ed6ce7383bae69212a02e4e2ce69549040fdc9e4ca6
+الرابط: https://work-1-qhkkfkqfcrlfmjje.prod-runtime.all-hands.dev/Lawnchair.16.Dev.(fffc0e7).github.debug.apk
+
+===========================================================
+7) ملاحظة
+===========================================================
+مقاسات دوك iOS المعتمدة لم تُمسّ، ولم يتغيّر أي سلوك مرئي في الواجهة.
+هذا التقرير أُنشئ بواسطة وكيل ذكاء اصطناعي (OpenHands) نيابة عن المستخدم.
