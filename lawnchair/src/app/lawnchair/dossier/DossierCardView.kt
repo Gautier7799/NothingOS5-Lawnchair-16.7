@@ -23,6 +23,7 @@ import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import com.android.launcher3.CellLayout
 import com.android.launcher3.Launcher
+import com.android.launcher3.LauncherState
 import com.android.launcher3.dragndrop.DraggableView
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
@@ -53,10 +54,53 @@ class DossierCardView @JvmOverloads constructor(
         tag = info
         isFocusable = true
         this.resolveApp = resolveApp
-        // Use the same workspace drag entry point as native launcher items. This view
-        // implements DraggableView so Workspace can pass a non-null drag descriptor.
-        setOnLongClickListener(ItemLongClickListener.INSTANCE_WORKSPACE)
+        // Normal workspace long-press starts the native drag flow. In edit mode,
+        // keep the existing resize-frame interaction as a separate operation.
+        setOnLongClickListener {
+            if (launcher.isInState(LauncherState.EDIT_MODE)) {
+                showResizeFrame(info, launcher)
+            } else {
+                ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this)
+            }
+        }
         renderIfMeasured()
+    }
+
+    private fun showResizeFrame(info: DossierInfo, launcher: Launcher): Boolean {
+        val cellLayout = findCellLayout() ?: return false
+        val card = DossierCardInfo(
+            id = info.id,
+            title = info.title?.toString().orEmpty(),
+            appKeys = info.appKeys,
+            screenId = info.screenId,
+            cellX = info.cellX,
+            cellY = info.cellY,
+            spanX = info.spanX,
+            spanY = info.spanY,
+        )
+        DossierResizeFrame.showForCard(
+            launcher = launcher,
+            cardView = this,
+            card = card,
+            cellLayout = cellLayout,
+            onResized = { updated ->
+                info.cellX = updated.cellX
+                info.cellY = updated.cellY
+                info.spanX = updated.spanX
+                info.spanY = updated.spanY
+                launcher.modelWriter.modifyItemInDatabase(
+                    info,
+                    info.container,
+                    info.screenId,
+                    info.cellX,
+                    info.cellY,
+                    info.spanX,
+                    info.spanY,
+                )
+                renderIfMeasured()
+            },
+        )
+        return true
     }
 
     /** Re-resolve app icons after AllAppsStore publishes a completed update. */
