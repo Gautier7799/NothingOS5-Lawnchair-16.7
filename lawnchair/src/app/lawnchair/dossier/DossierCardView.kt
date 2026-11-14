@@ -91,6 +91,11 @@ class DossierCardView @JvmOverloads constructor(
         renderIfMeasured()
     }
 
+    /** Re-resolve app icons after AllAppsStore publishes a completed update. */
+    fun refreshApps() {
+        renderIfMeasured()
+    }
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w != oldw || h != oldh) renderIfMeasured()
@@ -112,10 +117,16 @@ class DossierCardView @JvmOverloads constructor(
             val rows = minOf(info.gridRows, pixelRows).coerceAtLeast(1)
             val cellSizePx = minOf(availableWidth / columns, availableHeight / rows)
 
+            // Do not clear already-rendered icons while AllAppsStore is temporarily
+            // incomplete (for example during profile/package refresh). Keep the last
+            // stable rendering until every persisted key can be resolved again.
+            val resolvedApps = info.appKeys.mapNotNull(resolve)
+            if (resolvedApps.size != info.appKeys.size) return
+
             CaddyCardRenderer.renderCategoryCard(
                 host = this,
                 title = info.title?.toString().orEmpty(),
-                apps = info.appKeys.mapNotNull(resolve),
+                apps = resolvedApps,
                 cardClick = { onCardClick?.invoke() },
                 iconBinder = { icon, _ ->
                     icon.setOnClickListener(ItemClickHandler.INSTANCE)
