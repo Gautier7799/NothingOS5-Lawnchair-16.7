@@ -315,6 +315,17 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = context.resources.getBoolean(R.bool.config_default_show_dock_search_bar),
     )
 
+    /**
+     * Master switch for the Dossier workspace cards. A Dossier is an independent,
+     * resizable card that groups apps on the home screen. Off by default so the
+     * standard home screen is unchanged until the user opts in.
+     */
+    val dossierEnabled = preference(
+        key = booleanPreferencesKey(name = "dossier_enabled"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_dossier_enabled),
+        onSet = { reloadHelper.restart() },
+    )
+
     val hotseatQsbProvider = preference(
         key = stringPreferencesKey(name = "dock_search_bar_provider"),
         defaultValue = getRemoteDefault("dock_search_bar_provider")?.let {

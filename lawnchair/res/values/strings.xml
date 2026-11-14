@@ -141,6 +141,10 @@
     <string name="caddy_beta">Caddy (beta)</string>
     <string name="caddy">Caddy</string>
 
+    <string name="dossier">Dossier</string>
+    <string name="dossier_enabled_label">Dossier workspace cards</string>
+    <string name="dossier_enabled_description">Show resizable cards that group your apps on the home screen. Long-press a card to resize it.</string>
+
     <string name="app_drawer_folder">App drawer folders</string>
     <string name="selected_apps">Selected apps</string>
     <string name="add_apps">Add apps</string>
