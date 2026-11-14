@@ -468,10 +468,18 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                     caddyParams.height = dp(184);
                     holder.itemView.setLayoutParams(caddyParams);
                 }
-                if (caddyItem.caddyIsSearchActions) {
-                    bindCaddySearchActionsCard((FrameLayout) holder.itemView);
-                } else {
-                    bindIndependentCaddyCard((FrameLayout) holder.itemView, caddyItem);
+                // A Caddy card must never take the launcher down. If building the card
+                // throws for any reason, fall back to an empty holder and log it so the
+                // drawer still opens instead of crashing.
+                try {
+                    if (caddyItem.caddyIsSearchActions) {
+                        bindCaddySearchActionsCard((FrameLayout) holder.itemView);
+                    } else {
+                        bindIndependentCaddyCard((FrameLayout) holder.itemView, caddyItem);
+                    }
+                } catch (RuntimeException | Error e) {
+                    Log.e(TAG, "Unable to render Caddy card at position " + position, e);
+                    ((FrameLayout) holder.itemView).removeAllViews();
                 }
                 break;
             }
@@ -504,8 +512,14 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                         R.layout.all_apps_folder_icon, mActivityContext, container, folderInfo);
                 folderIcon.setOnLongClickListener(mOnIconLongClickListener);
                 if (!PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
-                    folderIcon.setCaddyCard(true);
-                    bindCaddyCategoryCard(folderIcon, folderInfo);
+                    // Same guard as the Caddy category card: a rendering failure must not
+                    // crash the drawer.
+                    try {
+                        folderIcon.setCaddyCard(true);
+                        bindCaddyCategoryCard(folderIcon, folderInfo);
+                    } catch (RuntimeException | Error e) {
+                        Log.e(TAG, "Unable to render Caddy folder card", e);
+                    }
                 }
                 container.addView(folderIcon);
                 break;
