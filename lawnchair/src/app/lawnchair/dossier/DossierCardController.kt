@@ -87,6 +87,8 @@ class DossierCardController(
                 placement.second[0],
                 placement.second[1],
             )
+            // ModelWriter excludes its owner from bind callbacks; bind this view explicitly.
+            launcher.inflateAndBindItemWithAnimation(info)
             inserted = true
         }
         seedRequested = inserted
