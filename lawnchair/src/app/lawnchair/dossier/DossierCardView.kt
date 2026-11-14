@@ -35,7 +35,9 @@ class DossierCardView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
-) : FrameLayout(context, attrs, defStyleAttr), DraggableView {
+) : FrameLayout(context, attrs, defStyleAttr),
+    DraggableView,
+    com.android.launcher3.WorkspaceLayoutManager.WorkspaceChildLongClickListener {
 
     override fun getViewType(): Int = DraggableView.DRAGGABLE_WIDGET
 
@@ -64,6 +66,7 @@ class DossierCardView @JvmOverloads constructor(
     private var bound: DossierInfo? = null
     private var resolveApp: ((String) -> AppInfo?)? = null
     private var rendering = false
+    private var lastRenderSignature: String? = null
 
     fun bind(
         info: DossierInfo,
@@ -74,16 +77,21 @@ class DossierCardView @JvmOverloads constructor(
         tag = info
         isFocusable = true
         this.resolveApp = resolveApp
-        // Normal workspace long-press starts the native drag flow. In edit mode,
-        // keep the existing resize-frame interaction as a separate operation.
-        setOnLongClickListener {
-            if (launcher.isInState(LauncherState.EDIT_MODE)) {
-                showResizeFrame(info, launcher)
-            } else {
-                ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this)
-            }
-        }
         renderIfMeasured()
+    }
+
+    /**
+     * WorkspaceLayoutManager delegates long-press handling here instead of replacing
+     * the Dossier-specific behavior with the generic workspace listener.
+     */
+    override fun onWorkspaceChildLongClick(): Boolean {
+        val info = bound ?: return false
+        val launcher = Launcher.getLauncher(context)
+        return if (launcher.isInState(LauncherState.EDIT_MODE)) {
+            showResizeFrame(info, launcher)
+        } else {
+            ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this)
+        }
     }
 
     private fun showResizeFrame(info: DossierInfo, launcher: Launcher): Boolean {
@@ -128,6 +136,14 @@ class DossierCardView @JvmOverloads constructor(
         renderIfMeasured()
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // Binding can happen before the workspace has completed its first layout.
+        // Retry after attachment; onSizeChanged remains the fallback when measurement
+        // finishes after this posted callback.
+        post { renderIfMeasured() }
+    }
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w != oldw || h != oldh) renderIfMeasured()
@@ -149,13 +165,24 @@ class DossierCardView @JvmOverloads constructor(
             val rows = minOf(info.gridRows, pixelRows).coerceAtLeast(1)
             val cellSizePx = minOf(availableWidth / columns, availableHeight / rows)
 
-            // Render the card surface and every icon that is currently resolvable.
-            // On a cold boot AllAppsStore can publish apps in more than one pass. Requiring
-            // every key before drawing made the entire card (including its background and
-            // title) stay blank when just one app was not ready yet. Subsequent store updates
-            // call refreshApps() and fill in the remaining icons without moving the card.
+            // Resolve only what is available in this AllAppsStore pass. A single
+            // missing app must not suppress the card surface or the icons already ready.
             val resolvedApps = info.appKeys.mapNotNull(resolve)
-
+            val renderSignature = buildString {
+                append(info.id).append('|')
+                append(info.title).append('|')
+                append(info.gridColumns).append('x').append(info.gridRows).append('|')
+                append(width).append('x').append(height).append('|')
+                resolvedApps.forEach { app ->
+                    append(app.componentName).append(':')
+                    append(app.user).append(':')
+                    append(app.title).append(':')
+                    append(System.identityHashCode(app)).append(';')
+                }
+            }
+            // AllAppsStore may publish multiple identical updates during startup.
+            // Rebuilding the entire view tree for each one caused visible blanking and lag.
+            if (renderSignature == lastRenderSignature) return
             CaddyCardRenderer.renderCategoryCard(
                 host = this,
                 title = info.title?.toString().orEmpty(),
@@ -170,6 +197,7 @@ class DossierCardView @JvmOverloads constructor(
                 maxIcons = columns * rows,
                 cellSizePx = cellSizePx,
             )
+            lastRenderSignature = renderSignature
             getChildAt(0)?.setOnLongClickListener {
                 performLongClick()
             }
