@@ -74,7 +74,7 @@ public class DeleteDropTarget extends ButtonDropTarget {
      */
     @Override
     public void getHitRectRelativeToDragLayer(android.graphics.Rect outRect) {
-        DragController.DragObject dragObject = mActivityContext.getDragController().mDragObject;
+        DropTarget.DragObject dragObject = mActivityContext.getDragController().mDragObject;
         if (dragObject == null || !(dragObject.dragInfo instanceof DossierInfo)) {
             super.getHitRectRelativeToDragLayer(outRect);
             return;
