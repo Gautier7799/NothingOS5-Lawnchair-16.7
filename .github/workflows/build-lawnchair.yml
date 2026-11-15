@@ -37,6 +37,7 @@ on:
       - openhands/dossier-remaining-fixes
       - fix/dossier-page-transfer-safe-delete-grid-resize-2026-11-15
       - openhands/dossier-spacing-safe-2026-11-15
+      - openhands/dossier-stage2-hardening
 
 permissions:
   contents: read

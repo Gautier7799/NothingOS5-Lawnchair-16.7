@@ -51,6 +51,19 @@ class DossierCreationTest {
     }
 
     @Test
+    fun shouldGroup_falseForInternalDropOnEmptyFloor() {
+        // Dropping an app on an empty cell has no target app, so it is not a grouping
+        // gesture and must fall through to the ordinary internal-drop path.
+        assertThat(
+            DossierCreation.shouldGroup(
+                draggedIsApp = true,
+                targetIsApp = false,
+                targetIsDossier = false,
+            ),
+        ).isFalse()
+    }
+
+    @Test
     fun defaultTitle_usesFirstNonBlankLabel() {
         val title = DossierCreation.defaultTitle(listOf(null, "  ", "Maps", "Camera"))
         assertThat(title).isEqualTo("Maps")

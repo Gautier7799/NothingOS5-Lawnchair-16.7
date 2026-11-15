@@ -51,6 +51,11 @@ import com.android.launcher3.util.ItemInfoMatcher;
 import com.android.launcher3.util.LooperExecutor;
 import com.android.launcher3.widget.LauncherWidgetHolder;
 
+import app.lawnchair.dossier.DossierCardWriteOps;
+import app.lawnchair.dossier.DossierCardWriter;
+import app.lawnchair.dossier.DossierCreationResult;
+import app.lawnchair.dossier.DossierInfo;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,6 +64,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -68,6 +74,9 @@ import java.util.stream.StreamSupport;
 public class ModelWriter {
 
     private static final String TAG = "ModelWriter";
+
+    /** Upper bound for waiting on the blocking Dossier card creation transaction. */
+    private static final long DB_WRITE_TIMEOUT_SECONDS = 10L;
 
     private final Context mContext;
     private final LauncherModel mModel;
@@ -396,6 +405,85 @@ public class ModelWriter {
                 verifier.verifyModel();
             }
         }).executeOnModelThread();
+    }
+
+    /**
+     * Creates a Dossier card and removes its source icons in a single transaction.
+     *
+     * Unlike [addItemToDatabase], this runs synchronously on the model thread and
+     * returns a result the caller can trust: the card row and the source deletions
+     * commit together or not at all. The caller is expected to have already set the
+     * card's placement (container/screen/cell) so the write reflects the final
+     * position. On success the in-memory model is updated so a later rebind sees
+     * the card; on failure nothing is committed and both apps remain on the
+     * workspace.
+     */
+    public DossierCreationResult createDossierCardInDatabase(
+            DossierInfo card, List<ItemInfo> sources) {
+        final ModelVerifier verifier = new ModelVerifier();
+        final DossierCardWriteOps ops = new DossierCardWriteOps() {
+            @Override
+            public int nextItemId() {
+                return mModel.getModelDbController().generateNewItemId();
+            }
+
+            @Override
+            public int insertCard(int cardId, int container, int screenId, int cellX, int cellY) {
+                card.id = cardId;
+                updateItemInfoProps(card, container, screenId, cellX, cellY);
+                final ContentWriter writer = new ContentWriter(mContext);
+                card.onAddToDatabase(writer);
+                writer.put(Favorites._ID, card.id);
+                return mModel.getModelDbController().insert(writer.getValues(mContext));
+            }
+
+            @Override
+            public boolean deleteRow(int id) {
+                return mModel.getModelDbController().delete(itemIdMatch(id), null) > 0;
+            }
+        };
+
+        final List<Integer> sourceIds = new ArrayList<>(sources.size());
+        for (ItemInfo source : sources) {
+            sourceIds.add(source.id);
+        }
+
+        final DossierCreationResult[] result = new DossierCreationResult[1];
+        final StackTraceElement[] stackTrace = new Throwable().getStackTrace();
+        try {
+            MODEL_EXECUTOR.submit(() -> {
+                try (SQLiteTransaction t = mModel.getModelDbController().newTransaction()) {
+                    DossierCreationResult writeResult = DossierCardWriter.write(
+                            card.id, card.container, card.screenId, card.cellX, card.cellY,
+                            sourceIds, ops);
+                    if (writeResult.isSuccess()) {
+                        card.id = writeResult.getCardId();
+                        synchronized (mBgDataModel) {
+                            checkItemInfoLocked(card.id, card, stackTrace);
+                            mBgDataModel.removeItem(mContext, sources, mOwner);
+                            mBgDataModel.addItem(mContext, card, mOwner);
+                            verifier.verifyModel();
+                        }
+                    }
+                    t.commit();
+                    result[0] = writeResult;
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to create Dossier card", e);
+                    result[0] = DossierCreationResult.failure(
+                            "transaction aborted: " + e.getMessage());
+                }
+            }).get(DB_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            // Timeout or interrupted wait: the transaction either committed already or
+            // will be aborted by the model thread; either way the caller must not place
+            // a card it cannot confirm was written.
+            Log.e(TAG, "Dossier card creation wait failed", e);
+            return DossierCreationResult.failure("card creation did not complete");
+        }
+
+        return result[0] != null
+                ? result[0]
+                : DossierCreationResult.failure("card creation did not complete");
     }
 
     /**
