@@ -250,19 +250,22 @@ class DossierCardView @JvmOverloads constructor(
         rendering = true
         try {
             val gutter = dp(GUTTER_DP) + dp(CARD_PADDING_DP)
+            // Grid settings are global user preferences. Read the current values
+            // here rather than the seed-time payload so changing Grille updates
+            // already-existing cards after the workspace grid reload.
+            val preferences = PreferenceManager2.getInstance(context)
+            val gridColumns = preferences.dossierGridColumns.firstCached()
+                .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE)
+            val gridRows = preferences.dossierGridRows.firstCached()
+                .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE)
             val grid = DossierCardLayout.compute(
                 widthPx = width,
                 heightPx = height,
                 gutterPx = gutter,
                 titlePx = dp(TITLE_DP),
                 targetCellPx = dp(TARGET_CELL_DP),
-                // Grid settings are global user preferences. Read the current values
-                // here rather than the seed-time payload so changing Grille updates
-                // already-existing cards after the workspace grid reload.
-                preferredColumns = PreferenceManager2.getInstance(context).dossierGridColumns.firstCached()
-                    .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE),
-                preferredRows = PreferenceManager2.getInstance(context).dossierGridRows.firstCached()
-                    .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE),
+                preferredColumns = gridColumns,
+                preferredRows = gridRows,
             )
             val columns = grid.columns
             val rows = grid.rows
