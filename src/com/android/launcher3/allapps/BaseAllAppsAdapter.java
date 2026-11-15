@@ -58,6 +58,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.launcher3.BubbleTextView;
+import com.android.launcher3.Launcher;
 import com.android.launcher3.R;
 import com.android.launcher3.allapps.search.SearchAdapterProvider;
 import com.android.launcher3.folder.FolderIcon;
@@ -676,12 +677,64 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                     }
                     return kotlin.Unit.INSTANCE;
                 },
+                // Dragging the card to the home screen creates a native folder holding the
+                // category's apps. The card surface owns this gesture so a drag starts even
+                // when the press lands on a preview icon.
+                () -> startCaddyCardDrag(host, item),
                 (icon, app) -> {
                     icon.setOnFocusChangeListener(mIconFocusListener);
                     icon.setOnClickListener(mOnIconClickListener);
                     icon.setOnLongClickListener(mOnIconLongClickListener);
                     return kotlin.Unit.INSTANCE;
                 });
+    }
+
+    /**
+     * Starts a drag of a Caddy category card from the drawer to the home screen.
+     *
+     * The dragged payload is a {@link app.lawnchair.allapps.caddy.CaddyFolderDragInfo}
+     * carrying the category title and the stable component keys of its apps. The
+     * workspace recognises it on drop and materialises an ordinary Lawnchair folder,
+     * so the card itself stays untouched in the drawer.
+     */
+    private boolean startCaddyCardDrag(View card, AdapterItem item) {
+        if (item.caddyIsAddCategory || item.caddyIsSearchActions || item.caddyApps == null
+                || item.caddyApps.isEmpty()) {
+            return false;
+        }
+        if (!(mActivityContext instanceof Launcher launcher)) {
+            return false;
+        }
+        if (!com.android.launcher3.touch.ItemLongClickListener.canStartDrag(launcher)) {
+            return false;
+        }
+        java.util.ArrayList<String> appKeys = new java.util.ArrayList<>(item.caddyApps.size());
+        for (AppInfo appInfo : item.caddyApps) {
+            // Use the canonical ComponentKey format so the drop path can resolve each
+            // app back through AllAppsStore.getApp(ComponentKey.fromString(...)).
+            if (appInfo.componentName == null) {
+                continue;
+            }
+            appKeys.add(new com.android.launcher3.util.ComponentKey(
+                    appInfo.componentName, appInfo.user).toString());
+        }
+        app.lawnchair.allapps.caddy.CaddyFolderFactory.FolderSpec spec =
+                app.lawnchair.allapps.caddy.CaddyFolderFactory.INSTANCE.buildSpec(
+                        item.caddyTitle, appKeys);
+        if (spec == null) {
+            return false;
+        }
+        app.lawnchair.allapps.caddy.CaddyFolderDragInfo dragInfo =
+                new app.lawnchair.allapps.caddy.CaddyFolderDragInfo(spec);
+        launcher.getWorkspace().beginDragShared(
+                card,
+                com.android.launcher3.dragndrop.DraggableView.ofType(
+                        com.android.launcher3.dragndrop.DraggableView.DRAGGABLE_ICON),
+                launcher.getAppsView(),
+                dragInfo,
+                new com.android.launcher3.graphics.DragPreviewProvider(card),
+                new com.android.launcher3.dragndrop.DragOptions());
+        return true;
     }
 
     /**

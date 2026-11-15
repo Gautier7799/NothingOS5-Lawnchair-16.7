@@ -97,9 +97,13 @@ import com.android.launcher3.dragndrop.DragOptions;
 import com.android.launcher3.dragndrop.DragView;
 import com.android.launcher3.dragndrop.DraggableView;
 import com.android.launcher3.dragndrop.SpringLoadedDragController;
+import app.lawnchair.allapps.caddy.CaddyFolderDragInfo;
+import com.android.launcher3.allapps.AllAppsStore;
 import com.android.launcher3.folder.Folder;
 import com.android.launcher3.folder.FolderIcon;
 import com.android.launcher3.folder.PreviewBackground;
+import com.android.launcher3.model.data.AppInfo;
+import com.android.launcher3.util.ComponentKey;
 import com.android.launcher3.graphics.DragPreviewProvider;
 import com.android.launcher3.icons.BitmapRenderer;
 import com.android.launcher3.icons.FastBitmapDrawable;
@@ -2256,6 +2260,70 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         return true;
     }
 
+    /**
+     * Creates a native folder on the home screen from a Caddy category card dragged out
+     * of the app drawer.
+     *
+     * The card carries the category title and the component keys of its apps. This
+     * resolves them against the live drawer model and materialises an ordinary Lawnchair
+     * folder whose contents are real app rows, so the result opens, moves, resizes and
+     * restores exactly like any other folder. The drawer card is left untouched: this is
+     * an independent record created once, at drop time.
+     */
+    void createCaddyFolderIfNecessary(CellLayout target, int container, int[] touchXY,
+            DragObject d) {
+        CaddyFolderDragInfo dragInfo = (CaddyFolderDragInfo) d.dragInfo;
+        app.lawnchair.allapps.caddy.CaddyFolderFactory.FolderSpec spec = dragInfo.getSpec();
+
+        AllAppsStore<?> store = mLauncher.getAppsView() == null
+                ? null : mLauncher.getAppsView().getAppsStore();
+        List<WorkspaceItemInfo> folderItems = new ArrayList<>();
+        if (store != null) {
+            for (String key : spec.getAppKeys()) {
+                ComponentKey componentKey = ComponentKey.fromString(key);
+                if (componentKey == null) continue;
+                AppInfo app = store.getApp(componentKey);
+                // Apps uninstalled since the card was built are skipped, so a stale card
+                // still drops the apps that remain instead of failing outright.
+                if (app == null) continue;
+                folderItems.add(app.makeWorkspaceItem(getContext()));
+            }
+        }
+        if (folderItems.isEmpty()) return;
+
+        final int screenId = getCellLayoutId(target);
+        // A folder is a single cell; find a vacant one near the drop so the new folder
+        // never overlaps an existing item. acceptDrop already confirmed a cell exists.
+        if (touchXY != null) {
+            mTargetCell = target.performReorder(touchXY[0], touchXY[1], 1, 1, 1, 1,
+                    null, mTargetCell, null, CellLayout.MODE_ON_DROP_EXTERNAL);
+        } else {
+            target.findCellForSpan(mTargetCell, 1, 1);
+        }
+        if (mTargetCell[0] < 0 || mTargetCell[1] < 0) return;
+
+        FolderIcon folderIcon = mLauncher.addFolder(target, container, screenId,
+                mTargetCell[0], mTargetCell[1]);
+        FolderInfo folderInfo = folderIcon.mInfo;
+
+        Folder folder = folderIcon.getFolder();
+        for (WorkspaceItemInfo item : folderItems) {
+            folder.addFolderContent(item);
+        }
+        // Label the folder once its contents exist, so the category title wins over
+        // auto-labelling. An empty title is left unset, letting the folder auto-label.
+        folderInfo.setTitle(spec.getTitle(), mLauncher.getModelWriter());
+        folderIcon.onTitleChanged(folderInfo.title);
+
+        mStatsLogManager.logger().withItemInfo(folderInfo).withInstanceId(d.logInstanceId)
+                .log(LauncherEvent.LAUNCHER_ITEM_DROP_FOLDER_CREATED);
+
+        if (d.dragView != null) {
+            d.deferDragViewCleanupPostAnimation = true;
+            mLauncher.getDragLayer().animateViewIntoPosition(d.dragView, folderIcon, this);
+        }
+    }
+
     boolean createUserFolderIfNecessary(View newView, int container, CellLayout target,
             int[] targetCell, float distance, boolean external, DragObject d) {
         if (distance > target.getFolderCreationRadius(targetCell)) return false;
@@ -3173,6 +3241,17 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
                 d.dragInfo = si;
                 si.container = container;
             }
+        }
+
+        // A Caddy category card dragged from the drawer becomes a native folder holding
+        // the category's apps. This runs before item inflation because the card drag
+        // carries a gesture-only payload, not a persisted item type.
+        if (CaddyFolderDragInfo.isCaddyFolderDrag(d.dragInfo)) {
+            createCaddyFolderIfNecessary(cellLayout, container, touchXY, d);
+            if (!mLauncher.isInState(EDIT_MODE)) {
+                mLauncher.getStateManager().goToState(NORMAL, SPRING_LOADED_EXIT_DELAY);
+            }
+            return;
         }
 
         ItemInfo info = d.dragInfo;
