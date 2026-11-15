@@ -146,6 +146,8 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import app.lawnchair.dossier.DossierCardCreator;
+import app.lawnchair.dossier.DossierInfo;
 import app.lawnchair.hotseat.HotseatPagedView;
 import app.lawnchair.preferences2.PreferenceCacheExtensionsKt;
 import static app.lawnchair.util.LawnchairUtilsKt.toBitmap;
@@ -2161,6 +2163,85 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         return false;
     }
 
+    /**
+     * Creates a Dossier card when one app icon is dropped onto another app icon.
+     *
+     * The original Dossier idea is that the card is born from this gesture. Both
+     * icons are folded into a single card persisted in one database insert, so the
+     * operation is atomic: the two source icons are only removed once the card has
+     * been written and its view is in place. When anything does not line up (not two
+     * apps, same app, no room for the card) this returns false and the drop falls
+     * back to the ordinary workspace paths.
+     */
+    boolean createDossierCardIfNecessary(View newView, CellLayout target, int[] targetCell,
+            float distance, boolean external, DragObject d) {
+        if (distance > target.getFolderCreationRadius(targetCell)) return false;
+        View v = target.getChildAt(targetCell[0], targetCell[1]);
+        if (v == null) return false;
+
+        boolean hasntMoved = false;
+        if (mDragInfo != null) {
+            CellLayout cellParent = getParentCellLayoutForView(mDragInfo.cell);
+            hasntMoved = (mDragInfo.cellX == targetCell[0] &&
+                    mDragInfo.cellY == targetCell[1]) && (cellParent == target);
+        }
+        if (hasntMoved) return false;
+
+        ItemInfo targetInfo = (ItemInfo) v.getTag();
+        ItemInfo draggedInfo = (ItemInfo) newView.getTag();
+        if (!DossierCardCreator.isGroupableApp(targetInfo)
+                || !DossierCardCreator.isGroupableApp(draggedInfo)) {
+            return false;
+        }
+
+        int screenId = getCellLayoutId(target);
+        // The card needs the two cells the icons occupied (default 2x1); fall back to
+        // the target icon's own span when the layout cannot host the card.
+        int spanX = Math.max(2, targetInfo.spanX);
+        int spanY = Math.max(1, targetInfo.spanY);
+        if (!target.isRegionVacant(targetCell[0], targetCell[1], spanX, spanY)) {
+            spanX = Math.max(1, targetInfo.spanX);
+            spanY = Math.max(1, targetInfo.spanY);
+        }
+
+        DossierInfo card = DossierCardCreator.build(
+                getContext(), targetInfo, draggedInfo, spanX, spanY);
+        if (card == null) return false;
+
+        // Persist the card first. Only once it is written do we remove the two
+        // source icons, so a failed insert never loses the user's apps.
+        mLauncher.getModelWriter().addItemToDatabase(card, CONTAINER_DESKTOP, screenId,
+                targetCell[0], targetCell[1]);
+        mLauncher.getModelWriter().deleteItemFromDatabase(targetInfo,
+                "Grouped into Dossier card");
+        if (!external) {
+            // A drag that started on the workspace owns a persisted row; an app dragged
+            // from the drawer does not, so only the workspace case is deleted.
+            mLauncher.getModelWriter().deleteItemFromDatabase(draggedInfo,
+                    "Grouped into Dossier card");
+        }
+
+        // Build the card view, place it, and animate the dragged icon into it.
+        View cardView = mLauncher.getItemInflater().inflateItem(card, target, CONTAINER_DESKTOP);
+        if (cardView == null) return false;
+        addInScreen(cardView, CONTAINER_DESKTOP, screenId, targetCell[0], targetCell[1],
+                spanX, spanY);
+        target.onDropChild(cardView);
+        target.getShortcutsAndWidgets().measureChild(cardView);
+
+        target.removeView(v);
+        if (!external) {
+            getParentCellLayoutForView(mDragInfo.cell).removeView(mDragInfo.cell);
+        }
+        if (d != null && d.dragView != null) {
+            d.deferDragViewCleanupPostAnimation = true;
+            mLauncher.getDragLayer().animateViewIntoPosition(d.dragView, cardView, this);
+        }
+        mStatsLogManager.logger().withItemInfo(card).withInstanceId(d.logInstanceId)
+                .log(LauncherEvent.LAUNCHER_ITEM_DROP_FOLDER_CREATED);
+        return true;
+    }
+
     boolean createUserFolderIfNecessary(View newView, int container, CellLayout target,
             int[] targetCell, float distance, boolean external, DragObject d) {
         if (distance > target.getFolderCreationRadius(targetCell)) return false;
@@ -2285,6 +2366,18 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
                         mDragViewVisualCenter[1], spanX, spanY, dropTargetLayout, mTargetCell);
                 float distance = dropTargetLayout.getDistanceFromWorkspaceCellVisualCenter(
                         mDragViewVisualCenter[0], mDragViewVisualCenter[1], mTargetCell);
+
+                // Dropping one app onto another app groups them into a Dossier card.
+                // This is the original Dossier gesture; it must run before the folder
+                // path so a card is born from the user's own action instead of a template.
+                if (DossierCardCreator.isEnabled(getContext())
+                        && createDossierCardIfNecessary(cell, dropTargetLayout, mTargetCell,
+                        distance, false, d)) {
+                    if (!mLauncher.isInState(EDIT_MODE)) {
+                        mLauncher.getStateManager().goToState(NORMAL, SPRING_LOADED_EXIT_DELAY);
+                    }
+                    return;
+                }
 
                 // If the item being dropped is a shortcut and the nearest drop
                 // cell also contains a shortcut, then create a folder with the two shortcuts.
@@ -3169,6 +3262,11 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
                         cellLayout, mTargetCell);
                 float distance = cellLayout.getDistanceFromWorkspaceCellVisualCenter(
                         mDragViewVisualCenter[0], mDragViewVisualCenter[1], mTargetCell);
+                if (DossierCardCreator.isEnabled(getContext())
+                        && createDossierCardIfNecessary(view, cellLayout, mTargetCell, distance,
+                        true, d)) {
+                    return;
+                }
                 if (createUserFolderIfNecessary(view, container, cellLayout, mTargetCell, distance,
                         true, d)) {
                     return;

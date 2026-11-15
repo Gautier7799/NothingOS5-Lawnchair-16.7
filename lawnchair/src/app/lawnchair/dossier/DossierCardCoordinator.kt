@@ -24,14 +24,13 @@ import com.android.launcher3.allapps.AllAppsStore
 /**
  * Keeps the workspace Dossier cards in step with the launcher's lifecycle.
  *
- * The card content depends on the loaded app list, and the card views live inside
- * workspace pages that are recreated whenever the workspace rebinds. This
- * coordinator listens to the app store and to workspace binds, and rebuilds the
- * cards on both events. The feature is gated by the Dossier preference.
+ * Cards are created by the user's own gesture (dropping one app onto another) and
+ * then owned by the launcher model, so this coordinator no longer seeds any cards.
+ * It only re-renders the already-bound cards when the app list settles or when the
+ * Dossier Grille settings change.
  */
 class DossierCardCoordinator(private val launcher: Launcher) {
 
-    private val controller by lazy { DossierCards.controller(launcher) }
     private val enabled by lazy {
         PreferenceManager2.getInstance(launcher).dossierEnabled
     }
@@ -56,7 +55,6 @@ class DossierCardCoordinator(private val launcher: Launcher) {
         // cannot be missed during a cold launcher start.
         start()
         workspaceReady = true
-        // The workspace model is now bound, so initial Dossier rows can be safely seeded.
         syncFromApps()
     }
 
@@ -66,18 +64,11 @@ class DossierCardCoordinator(private val launcher: Launcher) {
             launcher.appsView?.appsStore?.removeUpdateListener(appsListener)
             listening = false
         }
-        controller.detachAll()
     }
 
     private fun syncFromApps() {
         if (!workspaceReady) return
-        if (!enabled.firstCached()) {
-            controller.detachAll()
-            return
-        }
-        val apps = launcher.appsView?.appsStore?.apps?.toList() ?: return
-        if (apps.isEmpty()) return
-        controller.sync(apps)
+        if (!enabled.firstCached()) return
         refreshBoundCards()
     }
 
