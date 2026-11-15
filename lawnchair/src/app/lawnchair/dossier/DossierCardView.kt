@@ -26,6 +26,7 @@ import app.lawnchair.allapps.caddy.CaddyCategoryDialog
 import com.android.launcher3.CellLayout
 import com.android.launcher3.DropTarget
 import com.android.launcher3.Launcher
+import com.android.launcher3.LauncherState
 import com.android.launcher3.dragndrop.DragOptions
 import com.android.launcher3.dragndrop.DraggableView
 import com.android.launcher3.model.data.AppInfo
@@ -81,16 +82,21 @@ class DossierCardView @JvmOverloads constructor(
     }
 
     /**
-     * WorkspaceLayoutManager delegates long-press handling here instead of replacing
-     * the Dossier-specific behavior with the generic workspace listener.
+     * Preserve the launcher's native workspace gesture contract:
+     * - EDIT_MODE: long-press opens the Dossier resize frame.
+     * - NORMAL / OVERVIEW: long-press starts the native workspace drag.
      *
-     * A long-press always opens the resize frame, in normal mode as well as edit mode.
-     * In normal mode the frame is shown directly (the same way a freshly added widget
-     * shows its resize frame), so resizing never depends on first entering edit mode.
+     * Showing the resize frame in every state consumes the long-press and prevents
+     * users from moving/reordering a Dossier card on the workspace.
      */
     override fun onWorkspaceChildLongClick(): Boolean {
         val info = bound ?: return false
-        return showResizeFrame(info, Launcher.getLauncher(context))
+        val launcher = Launcher.getLauncher(context)
+        return if (launcher.isInState(LauncherState.EDIT_MODE)) {
+            showResizeFrame(info, launcher)
+        } else {
+            com.android.launcher3.touch.ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this)
+        }
     }
 
     private fun showResizeFrame(info: DossierInfo, launcher: Launcher): Boolean {
