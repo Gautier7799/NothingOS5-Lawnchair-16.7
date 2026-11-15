@@ -35,6 +35,7 @@ on:
       - openhands/dossier-interaction-fixes
       - fix/dossier-interaction-regression-2026-11-15
       - openhands/dossier-remaining-fixes
+      - fix/dossier-page-transfer-safe-delete-grid-resize-2026-11-15
 
 permissions:
   contents: read
