@@ -260,6 +260,15 @@ class DossierCardView @JvmOverloads constructor(
         }
     }
 
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        if (changed) {
+            (parent as? ViewGroup)?.let { container ->
+                container.post { updateDossierVerticalSpacing(container) }
+            }
+        }
+    }
+
     /**
      * Reduce only the vertical gap between adjacent Dossier cards. The negative margins
      * expand each Dossier view into half of the existing cell border gap; ordinary icons,
