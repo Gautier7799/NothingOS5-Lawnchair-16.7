@@ -387,7 +387,7 @@ class DossierCardView @JvmOverloads constructor(
 
     private companion object {
         const val TARGET_CELL_DP = 60f
-        const val CARD_VERTICAL_OVERLAP_DP = 4f
+        const val CARD_VERTICAL_OVERLAP_DP = 12f
         const val GUTTER_DP = 4f
         const val CARD_PADDING_DP = 14f
         const val TITLE_DP = 24f
