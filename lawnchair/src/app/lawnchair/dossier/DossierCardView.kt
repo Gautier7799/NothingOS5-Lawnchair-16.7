@@ -83,20 +83,43 @@ class DossierCardView @JvmOverloads constructor(
 
     /**
      * Preserve the launcher's native workspace gesture contract:
-     * - EDIT_MODE: long-press opens the Dossier resize frame.
-     * - NORMAL / OVERVIEW: long-press starts the native workspace drag.
+     * - EDIT_MODE: long-press opens the Dossier resize frame directly.
+     * - NORMAL / OVERVIEW: long-press starts the native workspace drag so the card can
+     *   be moved or reordered like any other item.
      *
-     * Showing the resize frame in every state consumes the long-press and prevents
-     * users from moving/reordering a Dossier card on the workspace.
+     * When that drag ends on the card itself (a simple long-press without moving), the
+     * resize frame is shown, matching how the launcher reveals the resize frame after a
+     * widget long-press. This keeps both gestures available instead of one replacing
+     * the other.
      */
     override fun onWorkspaceChildLongClick(): Boolean {
         val info = bound ?: return false
         val launcher = Launcher.getLauncher(context)
-        return if (launcher.isInState(LauncherState.EDIT_MODE)) {
-            showResizeFrame(info, launcher)
-        } else {
-            com.android.launcher3.touch.ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this)
+        if (launcher.isInState(LauncherState.EDIT_MODE)) {
+            return showResizeFrame(info, launcher)
         }
+        val started = com.android.launcher3.touch.ItemLongClickListener.INSTANCE_WORKSPACE
+            .onLongClick(this)
+        if (started) {
+            val controller = launcher.dragController
+            controller.addDragListener(object : com.android.launcher3.dragndrop.DragController.DragListener {
+                override fun onDragStart(
+                    dragObject: DropTarget.DragObject,
+                    options: DragOptions,
+                ) = Unit
+
+                override fun onDragEnd() {
+                    controller.removeDragListener(this)
+                    val dragInfo = controller.mDragObject?.dragInfo
+                    // Only when the card itself was dropped (not dragged onto another
+                    // target) and the launcher is back to a stable state.
+                    if (dragInfo === info && launcher.isInState(LauncherState.NORMAL)) {
+                        post { showResizeFrame(info, launcher) }
+                    }
+                }
+            })
+        }
+        return started
     }
 
     private fun showResizeFrame(info: DossierInfo, launcher: Launcher): Boolean {
@@ -215,14 +238,18 @@ class DossierCardView @JvmOverloads constructor(
         rendering = true
         try {
             val gutter = dp(GUTTER_DP) + dp(CARD_PADDING_DP)
-            val availableWidth = (width - 2 * gutter).coerceAtLeast(0)
-            val availableHeight = (height - 2 * gutter - dp(TITLE_DP)).coerceAtLeast(0)
-            val targetCell = dp(TARGET_CELL_DP).coerceAtLeast(1)
-            val pixelColumns = (availableWidth / targetCell).coerceAtLeast(1)
-            val pixelRows = (availableHeight / targetCell).coerceAtLeast(1)
-            val columns = minOf(info.gridColumns, pixelColumns).coerceAtLeast(1)
-            val rows = minOf(info.gridRows, pixelRows).coerceAtLeast(1)
-            val cellSizePx = minOf(availableWidth / columns, availableHeight / rows)
+            val grid = DossierCardLayout.compute(
+                widthPx = width,
+                heightPx = height,
+                gutterPx = gutter,
+                titlePx = dp(TITLE_DP),
+                targetCellPx = dp(TARGET_CELL_DP),
+                preferredColumns = info.gridColumns,
+                preferredRows = info.gridRows,
+            )
+            val columns = grid.columns
+            val rows = grid.rows
+            val cellSizePx = grid.cellSizePx
 
             // Resolve only what is available in this AllAppsStore pass. A single
             // missing app must not suppress the card surface or the icons already ready.

@@ -34,6 +34,7 @@ on:
       - fix/dossier-cold-render-resize-2026-11-14
       - openhands/dossier-interaction-fixes
       - fix/dossier-interaction-regression-2026-11-15
+      - openhands/dossier-remaining-fixes
 
 permissions:
   contents: read

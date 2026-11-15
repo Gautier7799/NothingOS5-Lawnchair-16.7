@@ -97,7 +97,12 @@ object CaddyCardRenderer {
 
         val card = LinearLayout(context)
         card.orientation = LinearLayout.VERTICAL
-        card.gravity = Gravity.CENTER_VERTICAL
+        // The title is the first child and must always stay inside the card. With a
+        // vertically centred column, any content taller than the card is split evenly
+        // above and below, which pushed the title out of the card and clipped it.
+        // Anchor the column to the top so the title keeps its own row and the icon
+        // grid only takes what is left.
+        card.gravity = Gravity.TOP
         card.setPadding(
             densityPadding,
             dp(context, if (fitGridToHost) 8f else 12f),
@@ -163,13 +168,6 @@ object CaddyCardRenderer {
             return
         }
 
-        if (fitGridToHost && cellSizePx <= 0) {
-            // The workspace card has not been measured yet, or has no usable icon area.
-            // Never fall back to fixed-size drawer icons: they overflow compact cards.
-            host.contentDescription = title
-            return
-        }
-
         val grid = GridLayout(context)
         grid.columnCount = columns
         grid.rowCount = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
@@ -178,22 +176,20 @@ object CaddyCardRenderer {
         // exceed the cell; never let the grid or the card crop them.
         grid.clipChildren = false
         grid.clipToPadding = false
-        val rows = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
-        // A workspace card is measured from a CellLayout span whose cell height varies with
-        // the active grid. When the caller reports a real cell size, size the rows from it so
-        // icons never overflow their row (which made them overlap and look distorted).
-        // Otherwise let the grid consume the remaining measured height with weighted rows,
-        // which also works when the card has not been measured yet.
         val explicitCell = fitGridToHost && cellSizePx > 0
+        // Workspace cards: the title owns its own row and the grid takes only the
+        // space that is left (weighted), so it can never push the title out of the
+        // card. This also lets the card render immediately on boot instead of
+        // waiting for a measured cell size (which left the card blank until the
+        // first layout pass).
         val gridHeight = when {
-            explicitCell -> cellSizePx * rows
             fitGridToHost -> 0
             else -> dp(context, 128f)
         }
         val gridLp = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             gridHeight,
-            if (fitGridToHost && !explicitCell) 1f else 0f,
+            if (fitGridToHost) 1f else 0f,
         )
         gridLp.topMargin = dp(context, if (fitGridToHost) 2f else 8f)
         card.addView(grid, gridLp)
@@ -205,20 +201,23 @@ object CaddyCardRenderer {
             val cell = FrameLayout(context)
             val cellLp = GridLayout.LayoutParams()
             cellLp.width = 0
+            // Workspace rows fill the grid's real (remaining) height equally, so a card
+            // can never overflow its own bounds no matter the span. The drawer keeps its
+            // fixed preview height.
             cellLp.height = when {
-                explicitCell -> cellSizePx
                 fitGridToHost -> 0
                 else -> dp(context, 64f)
             }
             cellLp.columnSpec = GridLayout.spec(index % columns, 1f)
-            cellLp.rowSpec = if (fitGridToHost && !explicitCell) {
+            cellLp.rowSpec = if (fitGridToHost) {
                 GridLayout.spec(index / columns, 1f)
             } else {
                 GridLayout.spec(index / columns)
             }
             grid.addView(cell, cellLp)
             // Keep the icon strictly inside its cell so it can never spill into the
-            // neighbouring row.
+            // neighbouring row. For workspace cards the final size is set from the real
+            // measured cell in addCaddyAppIcon's layout listener.
             val iconSize = if (explicitCell) {
                 (cellSizePx * ICON_FILL_RATIO).toInt()
             } else {
