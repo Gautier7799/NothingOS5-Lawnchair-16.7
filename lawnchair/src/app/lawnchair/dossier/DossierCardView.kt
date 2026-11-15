@@ -277,7 +277,13 @@ class DossierCardView @JvmOverloads constructor(
     private fun updateDossierVerticalSpacing(container: ViewGroup) {
         val cards = (0 until container.childCount)
             .mapNotNull { container.getChildAt(it) as? DossierCardView }
-        val overlap = dp(CARD_VERTICAL_OVERLAP_DP)
+        // Clamp the requested overlap to half the grid's row gap so two stacked cards can at
+        // most touch: the full row gap is consumed by the two halves, and the cards can never
+        // overlap each other or clip their own title/icon rows.
+        val borderSpacePx = findCellLayout()?.let {
+            Launcher.getLauncher(context).deviceProfile.cellLayoutBorderSpacePx.y
+        } ?: 0
+        val overlap = DossierCardLayout.safeVerticalOverlapPx(dp(CARD_VERTICAL_OVERLAP_DP), borderSpacePx)
         cards.forEach { card ->
             val params = card.layoutParams as? CellLayoutLayoutParams ?: return@forEach
             val hasDossierAbove = cards.any { other ->
@@ -387,6 +393,13 @@ class DossierCardView @JvmOverloads constructor(
 
     private companion object {
         const val TARGET_CELL_DP = 60f
+
+        /**
+         * Requested vertical overlap between two stacked Dossier cards. It is only a
+         * request: [DossierCardLayout.safeVerticalOverlapPx] clamps it to half the grid's
+         * row gap so the two cards can at most touch. On a 16dp grid gap this yields 8dp
+         * (the cards touch); a larger request would only matter on wider grids.
+         */
         const val CARD_VERTICAL_OVERLAP_DP = 12f
         const val GUTTER_DP = 4f
         const val CARD_PADDING_DP = 14f

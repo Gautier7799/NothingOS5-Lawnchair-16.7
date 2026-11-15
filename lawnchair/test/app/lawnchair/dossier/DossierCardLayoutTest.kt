@@ -73,4 +73,25 @@ class DossierCardLayoutTest {
         assertThat(withoutTitle.rows).isEqualTo(2)
         assertThat(withTitle.rows).isEqualTo(1)
     }
+
+    @Test
+    fun verticalOverlapIsClampedToHalfTheRowGap() {
+        // A 16dp row gap absorbs at most 8dp per card: the two halves consume the gap and the
+        // cards touch without overlapping.
+        assertThat(DossierCardLayout.safeVerticalOverlapPx(desiredOverlapPx = 12, cellBorderSpacePx = 16))
+            .isEqualTo(8)
+        // A request that already fits is left untouched.
+        assertThat(DossierCardLayout.safeVerticalOverlapPx(desiredOverlapPx = 4, cellBorderSpacePx = 16))
+            .isEqualTo(4)
+    }
+
+    @Test
+    fun verticalOverlapNeverExceedsTheAvailableGap() {
+        // On any grid the two cards together may consume at most the whole row gap, so the
+        // gap between them never goes negative (no overlap, no clipped title/icon rows).
+        for (gap in intArrayOf(0, 1, 6, 8, 16, 24, 64)) {
+            val overlap = DossierCardLayout.safeVerticalOverlapPx(desiredOverlapPx = 100, cellBorderSpacePx = gap)
+            assertThat(2 * overlap).isAtMost(gap)
+        }
+    }
 }
