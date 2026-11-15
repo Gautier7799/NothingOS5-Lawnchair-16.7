@@ -275,7 +275,7 @@ class DossierCardView @JvmOverloads constructor(
                 append(info.id).append('|')
                 append(info.title).append('|')
                 append(info.appKeys.joinToString(",")).append('|')
-                append(info.gridColumns).append('x').append(info.gridRows).append('|')
+                append(columns).append('x').append(rows).append('|')
                 append(width).append('x').append(height).append('|')
                 resolvedApps.forEach { app ->
                     append(app.componentName).append(':')
