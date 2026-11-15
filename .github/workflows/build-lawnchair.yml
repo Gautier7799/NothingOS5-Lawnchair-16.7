@@ -38,6 +38,7 @@ on:
       - fix/dossier-page-transfer-safe-delete-grid-resize-2026-11-15
       - openhands/dossier-spacing-safe-2026-11-15
       - openhands/dossier-stage2-hardening
+      - openhands/caddy-card-to-folder-stage2
 
 permissions:
   contents: read
