@@ -516,6 +516,11 @@ class LawnchairLauncher : QuickstepLauncher() {
         dossierCards.onWorkspaceBound()
     }
 
+    /** Re-renders bound Dossier cards after a Grille settings change, without a full rebind. */
+    fun refreshDossierCards() {
+        dossierCards.refreshCards()
+    }
+
     override fun getDefaultOverlay(): LauncherOverlayManager = defaultOverlay
 
     fun recreateIfNotScheduled() {

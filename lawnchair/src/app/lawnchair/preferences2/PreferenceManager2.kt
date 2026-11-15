@@ -330,13 +330,13 @@ class PreferenceManager2 @Inject constructor(
     val dossierGridColumns = preference(
         key = intPreferencesKey(name = "dossier_grid_columns"),
         defaultValue = 3,
-        onSet = { reloadHelper.reloadGrid() },
+        onSet = { reloadHelper.refreshDossierGrid() },
     )
 
     val dossierGridRows = preference(
         key = intPreferencesKey(name = "dossier_grid_rows"),
         defaultValue = 3,
-        onSet = { reloadHelper.reloadGrid() },
+        onSet = { reloadHelper.refreshDossierGrid() },
     )
 
     val hotseatQsbProvider = preference(

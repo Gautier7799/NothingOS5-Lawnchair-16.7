@@ -168,6 +168,16 @@ class DossierCardView @JvmOverloads constructor(
         renderIfMeasured()
     }
 
+    /**
+     * Forces the next render to rebuild, e.g. after the Dossier Grille settings changed.
+     * The grid dimensions are part of the render signature, but clearing it makes the
+     * rebuild explicit and immune to an identical app/geometry signature.
+     */
+    fun refreshGrid() {
+        lastRenderSignature = null
+        renderIfMeasured()
+    }
+
     /** Opens the category panel listing every app assigned to this card. */
     private fun openCard() {
         val info = bound ?: return

@@ -38,6 +38,17 @@ class ReloadHelper(private val context: Context) {
         PreferenceManager2.getInstance(context).withFreshCache { idp.onPreferencesChanged(context) }
     }
 
+    /**
+     * Re-renders the Dossier cards with the current Grille settings without reloading the
+     * workspace grid. The Dossier icon grid is an in-card layout, so the full rebind that
+     * [reloadGrid] triggers (which visibly flickers every page) is unnecessary here.
+     */
+    fun refreshDossierGrid() {
+        PreferenceManager2.getInstance(context).withFreshCache {
+            LawnchairLauncher.instance?.refreshDossierCards()
+        }
+    }
+
     fun recreate() {
         LawnchairLauncher.instance?.recreateIfNotScheduled()
     }

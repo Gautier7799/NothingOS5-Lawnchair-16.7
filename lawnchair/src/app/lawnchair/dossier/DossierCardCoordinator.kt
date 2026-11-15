@@ -88,18 +88,36 @@ class DossierCardCoordinator(private val launcher: Launcher) {
     private var refreshPosted = false
 
     private fun refreshBoundCards() {
-        val workspace = launcher.workspace ?: return
         if (refreshPosted) return
         refreshPosted = true
-        workspace.postOnAnimation {
+        postToBoundCards {
             refreshPosted = false
+            it.refreshApps()
+        }
+    }
+
+    /**
+     * Re-renders every bound card with the current Dossier Grille settings.
+     *
+     * The icon grid is an in-card layout, independent of the workspace cell span, so a
+     * settings change never needs the full workspace rebind that reloadGrid() performs.
+     * Called after the preference cache has been refreshed with the new value.
+     */
+    fun refreshCards() {
+        postToBoundCards { it.refreshGrid() }
+    }
+
+    /** Runs [action] on every bound Dossier card on the next animation frame. */
+    private fun postToBoundCards(action: (DossierCardView) -> Unit) {
+        val workspace = launcher.workspace ?: return
+        workspace.postOnAnimation {
             if (!workspaceReady) return@postOnAnimation
             val order = workspace.screenOrder
             for (index in 0 until order.size()) {
                 val cellLayout = workspace.getScreenWithId(order.get(index)) ?: continue
                 val children = cellLayout.shortcutsAndWidgets
                 for (childIndex in 0 until children.childCount) {
-                    (children.getChildAt(childIndex) as? DossierCardView)?.refreshApps()
+                    (children.getChildAt(childIndex) as? DossierCardView)?.let(action)
                 }
             }
         }

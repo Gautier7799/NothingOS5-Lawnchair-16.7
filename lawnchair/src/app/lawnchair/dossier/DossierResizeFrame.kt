@@ -67,6 +67,9 @@ class DossierResizeFrame @JvmOverloads constructor(
     private var topActive = false
     private var bottomActive = false
 
+    /** True between a border touch-down and its touch-up; suppresses handle re-brightening. */
+    private var resizeInProgress = false
+
     private var xDown = 0
     private var yDown = 0
 
@@ -116,7 +119,12 @@ class DossierResizeFrame @JvmOverloads constructor(
         lp.height = 2 * backgroundPadding + rect.height()
         lp.x = rect.left - backgroundPadding
         lp.y = rect.top - backgroundPadding
-        for (handle in handles) handle?.alpha = 1f
+        // Only the initial reveal brightens every handle. Once the user has grabbed an edge,
+        // the active/dimmed state set by beginResizeIfPointInRegion must survive the layout
+        // passes that fire while resizing; re-brightening here made the handles flicker.
+        if (!resizeInProgress) {
+            for (handle in handles) handle?.alpha = 1f
+        }
         requestLayout()
     }
 
@@ -134,18 +142,19 @@ class DossierResizeFrame @JvmOverloads constructor(
     }
 
     private fun beginResizeIfPointInRegion(x: Int, y: Int): Boolean {
-        leftActive = x < touchTargetWidth
-        rightActive = x > width - touchTargetWidth
-        topActive = y < touchTargetWidth
-        bottomActive = y > height - touchTargetWidth
-        val anyActive = leftActive || rightActive || topActive || bottomActive
-        if (anyActive) {
+        val borders = DossierResizeHandles.activeBorders(x, y, width, height, touchTargetWidth)
+        leftActive = borders.left
+        rightActive = borders.right
+        topActive = borders.top
+        bottomActive = borders.bottom
+        if (borders.any) {
+            resizeInProgress = true
             handles[INDEX_LEFT]?.alpha = if (leftActive) 1f else DIMMED_HANDLE_ALPHA
             handles[INDEX_RIGHT]?.alpha = if (rightActive) 1f else DIMMED_HANDLE_ALPHA
             handles[INDEX_TOP]?.alpha = if (topActive) 1f else DIMMED_HANDLE_ALPHA
             handles[INDEX_BOTTOM]?.alpha = if (bottomActive) 1f else DIMMED_HANDLE_ALPHA
         }
-        return anyActive
+        return borders.any
     }
 
     private fun visualizeResizeForDelta(deltaX: Int, deltaY: Int) {
@@ -231,6 +240,7 @@ class DossierResizeFrame @JvmOverloads constructor(
             MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP -> {
                 visualizeResizeForDelta(x - xDown, y - yDown)
                 onTouchUp()
+                resizeInProgress = false
                 xDown = 0
                 yDown = 0
             }
