@@ -23,6 +23,8 @@ import android.view.View
 import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import app.lawnchair.allapps.caddy.CaddyCategoryDialog
+import app.lawnchair.preferences2.PreferenceManager2
+import app.lawnchair.preferences2.firstCached
 import com.android.launcher3.CellLayout
 import com.android.launcher3.DropTarget
 import com.android.launcher3.Launcher
@@ -179,7 +181,17 @@ class DossierCardView @JvmOverloads constructor(
     // DropTarget: accept an app icon dropped from the drawer onto this card.
     // ---------------------------------------------------------------------
 
-    override fun isDropEnabled(): Boolean = true
+    /**
+     * Dossier cards are drop targets only for app icons from All Apps. During a
+     * workspace-card drag, leaving this enabled lets the source/other Dossier
+     * views intercept DragController hit-testing before Workspace can resolve
+     * the destination page. That prevents page transfer and can make the drop
+     * fall through to an unrelated target.
+     */
+    override fun isDropEnabled(): Boolean {
+        val dragInfo = Launcher.getLauncher(context).dragController.mDragObject?.dragInfo
+        return dragInfo is AppInfo
+    }
 
     override fun acceptDrop(dragObject: DropTarget.DragObject): Boolean = appKeyFor(dragObject) != null
 
@@ -244,8 +256,13 @@ class DossierCardView @JvmOverloads constructor(
                 gutterPx = gutter,
                 titlePx = dp(TITLE_DP),
                 targetCellPx = dp(TARGET_CELL_DP),
-                preferredColumns = info.gridColumns,
-                preferredRows = info.gridRows,
+                // Grid settings are global user preferences. Read the current values
+                // here rather than the seed-time payload so changing Grille updates
+                // already-existing cards after the workspace grid reload.
+                preferredColumns = PreferenceManager2.getInstance(context).dossierGridColumns.firstCached()
+                    .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE),
+                preferredRows = PreferenceManager2.getInstance(context).dossierGridRows.firstCached()
+                    .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE),
             )
             val columns = grid.columns
             val rows = grid.rows
