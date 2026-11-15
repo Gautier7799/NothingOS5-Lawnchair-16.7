@@ -36,6 +36,7 @@ import com.android.launcher3.dragndrop.DraggableView
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
 import com.android.launcher3.util.ComponentKey
+import com.android.launcher3.views.ActivityContext
 
 /** Workspace view for a database-backed Dossier item. */
 class DossierCardView @JvmOverloads constructor(
@@ -290,8 +291,11 @@ class DossierCardView @JvmOverloads constructor(
         // Clamp the requested overlap to half the grid's row gap so two stacked cards can at
         // most touch: the full row gap is consumed by the two halves, and the cards can never
         // overlap each other or clip their own title/icon rows.
+        // Resolve the device profile through the ActivityContext: this runs during layout,
+        // including in the Settings previews where the context is not a Launcher.
+        val activityContext: ActivityContext? = ActivityContext.lookupContextNoThrow(context)
         val borderSpacePx = findCellLayout()?.let {
-            Launcher.getLauncher(context).deviceProfile.cellLayoutBorderSpacePx.y
+            activityContext?.deviceProfile?.cellLayoutBorderSpacePx?.y
         } ?: 0
         val overlap = DossierCardLayout.safeVerticalOverlapPx(dp(CARD_VERTICAL_OVERLAP_DP), borderSpacePx)
         cards.forEach { card ->

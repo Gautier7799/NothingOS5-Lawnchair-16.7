@@ -133,7 +133,10 @@ class ItemInflater<T>(
 
     private fun resolveDossierApp(key: String): com.android.launcher3.model.data.AppInfo? {
         val componentKey = com.android.launcher3.util.ComponentKey.fromString(key) ?: return null
-        return com.android.launcher3.Launcher.getLauncher(context).appsView?.appsStore?.getApp(componentKey)
+        // `context` is already an ActivityContext (see the class bound). Resolving through it
+        // works for both the Launcher and the non-Launcher renderer used by the Settings
+        // previews; Launcher.getLauncher() throws there.
+        return context.appsView?.appsStore?.getApp(componentKey)
     }
 
     private fun inflateAppWidget(item: LauncherAppWidgetInfo, writer: ModelWriter): View? {
