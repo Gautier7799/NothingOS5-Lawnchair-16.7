@@ -105,9 +105,9 @@ object CaddyCardRenderer {
         card.gravity = Gravity.TOP
         card.setPadding(
             densityPadding,
-            dp(context, if (fitGridToHost) 4f else 12f),
+            dp(context, if (fitGridToHost) 8f else 12f),
             densityPadding,
-            dp(context, if (fitGridToHost) 4f else 12f),
+            dp(context, if (fitGridToHost) 8f else 12f),
         )
         card.isClickable = true
         card.isFocusable = true
