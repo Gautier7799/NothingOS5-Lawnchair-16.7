@@ -20,6 +20,7 @@ import android.content.Context
 import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import app.lawnchair.allapps.caddy.CaddyCategoryDialog
@@ -29,6 +30,7 @@ import com.android.launcher3.CellLayout
 import com.android.launcher3.DropTarget
 import com.android.launcher3.Launcher
 import com.android.launcher3.LauncherState
+import com.android.launcher3.celllayout.CellLayoutLayoutParams
 import com.android.launcher3.dragndrop.DragOptions
 import com.android.launcher3.dragndrop.DraggableView
 import com.android.launcher3.model.data.AppInfo
@@ -232,15 +234,65 @@ class DossierCardView @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        // Binding can happen before the workspace has completed its first layout.
-        // Retry after attachment; onSizeChanged remains the fallback when measurement
-        // finishes after this posted callback.
-        post { renderIfMeasured() }
+        // Dossier-to-Dossier gaps are tightened using per-card margins. Recalculate
+        // after the page has attached so every sibling card is present in the container.
+        post {
+            (parent as? ViewGroup)?.let(::updateDossierVerticalSpacing)
+            renderIfMeasured()
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        val oldContainer = parent as? ViewGroup
+        super.onDetachedFromWindow()
+        // A card may have been moved to another page. Restore the spacing of the cards
+        // that remain on its previous page after this view has been removed.
+        oldContainer?.post { updateDossierVerticalSpacing(oldContainer) }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        if (w != oldw || h != oldh) renderIfMeasured()
+        if (w != oldw || h != oldh) {
+            renderIfMeasured()
+            (parent as? ViewGroup)?.let { container ->
+                container.post { updateDossierVerticalSpacing(container) }
+            }
+        }
+    }
+
+    /**
+     * Reduce only the vertical gap between adjacent Dossier cards. The negative margins
+     * expand each Dossier view into half of the existing cell border gap; ordinary icons,
+     * folders, and widgets keep their original spacing and dimensions.
+     */
+    private fun updateDossierVerticalSpacing(container: ViewGroup) {
+        val cards = (0 until container.childCount)
+            .mapNotNull { container.getChildAt(it) as? DossierCardView }
+        val overlap = dp(CARD_VERTICAL_OVERLAP_DP)
+        cards.forEach { card ->
+            val params = card.layoutParams as? CellLayoutLayoutParams ?: return@forEach
+            val hasDossierAbove = cards.any { other ->
+                if (other === card) return@any false
+                val otherParams = other.layoutParams as? CellLayoutLayoutParams ?: return@any false
+                otherParams.getCellY() + otherParams.cellVSpan == params.getCellY() &&
+                    otherParams.getCellX() < params.getCellX() + params.cellHSpan &&
+                    otherParams.getCellX() + otherParams.cellHSpan > params.getCellX()
+            }
+            val hasDossierBelow = cards.any { other ->
+                if (other === card) return@any false
+                val otherParams = other.layoutParams as? CellLayoutLayoutParams ?: return@any false
+                params.getCellY() + params.cellVSpan == otherParams.getCellY() &&
+                    otherParams.getCellX() < params.getCellX() + params.cellHSpan &&
+                    otherParams.getCellX() + otherParams.cellHSpan > params.getCellX()
+            }
+            val topMargin = if (hasDossierAbove) -overlap else 0
+            val bottomMargin = if (hasDossierBelow) -overlap else 0
+            if (params.topMargin != topMargin || params.bottomMargin != bottomMargin) {
+                params.topMargin = topMargin
+                params.bottomMargin = bottomMargin
+                card.requestLayout()
+            }
+        }
     }
 
     private fun renderIfMeasured() {
@@ -326,6 +378,7 @@ class DossierCardView @JvmOverloads constructor(
 
     private companion object {
         const val TARGET_CELL_DP = 60f
+        const val CARD_VERTICAL_OVERLAP_DP = 4f
         const val GUTTER_DP = 4f
         const val CARD_PADDING_DP = 14f
         const val TITLE_DP = 24f
