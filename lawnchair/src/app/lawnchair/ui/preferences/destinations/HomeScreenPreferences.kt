@@ -102,12 +102,27 @@ fun HomeScreenPreferences(
                 description = stringResource(R.string.hide_workspace_smartspace_description),
             )
         }
+        val dossierEnabledAdapter = prefs2.dossierEnabled.getAdapter()
         PreferenceGroup(heading = stringResource(id = R.string.dossier)) {
             SwitchPreference(
-                adapter = prefs2.dossierEnabled.getAdapter(),
+                adapter = dossierEnabledAdapter,
                 label = stringResource(R.string.dossier_enabled_label),
                 description = stringResource(R.string.dossier_enabled_description),
             )
+            ExpandAndShrink(visible = dossierEnabledAdapter.state.value) {
+                SliderPreference(
+                    label = stringResource(id = R.string.columns),
+                    adapter = prefs2.dossierGridColumns.getAdapter(),
+                    step = 1,
+                    valueRange = 1..8,
+                )
+                SliderPreference(
+                    label = stringResource(id = R.string.rows),
+                    adapter = prefs2.dossierGridRows.getAdapter(),
+                    step = 1,
+                    valueRange = 1..8,
+                )
+            }
         }
         val feedAvailable = OverlayCallbackImpl.minusOneAvailable(LocalContext.current)
         val enableFeedAdapter = prefs2.enableFeed.getAdapter()
