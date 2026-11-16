@@ -546,11 +546,19 @@ class WorkspaceItemProcessor(
         c.applyCommonProperties(collection)
         // Do not trim the folder label, as is was set by the user.
         collection.title = c.getString(c.mTitleIndex)
-        collection.spanX = 1
-        collection.spanY = 1
         if (collection is FolderInfo) {
             collection.options = c.options
+            if (collection.hasOption(FolderInfo.FLAG_CADDY_FOLDER)) {
+                // A Caddy folder can be resized, so restore the span saved on the workspace.
+                collection.spanX = c.spanX
+                collection.spanY = c.spanY
+            } else {
+                collection.spanX = 1
+                collection.spanY = 1
+            }
         } else {
+            collection.spanX = 1
+            collection.spanY = 1
             // An app pair may be inside another folder, so it needs to preserve rank information.
             collection.rank = c.rank
         }

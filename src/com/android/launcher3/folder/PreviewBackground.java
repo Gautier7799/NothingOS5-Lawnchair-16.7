@@ -84,6 +84,12 @@ public class PreviewBackground extends DelegatedCellDrawing {
             = new PorterDuffXfermode(PorterDuff.Mode.DST_OUT);
     private RadialGradient mShadowShader = null;
 
+    /**
+     * When non-null, replaces the theme folder shape. Caddy folders use it to draw a
+     * rounded square instead of the default circular folder.
+     */
+    private ShapeDelegate mShapeOverride;
+
     private final Matrix mShaderMatrix = new Matrix();
     private final PathWrapper mPath = new PathWrapper();
 
@@ -298,7 +304,17 @@ public class PreviewBackground extends DelegatedCellDrawing {
     }
 
     private ShapeDelegate getShape() {
-        return ThemeManager.INSTANCE.get(mContext).getFolderShape();
+        return mShapeOverride != null
+                ? mShapeOverride : ThemeManager.INSTANCE.get(mContext).getFolderShape();
+    }
+
+    /**
+     * Replaces the theme folder shape for this preview. Used by Caddy folders to draw a
+     * rounded square instead of the default circular folder.
+     */
+    void setShapeOverride(ShapeDelegate shapeOverride) {
+        mShapeOverride = shapeOverride;
+        invalidate();
     }
 
     public void drawShadow(Canvas canvas) {

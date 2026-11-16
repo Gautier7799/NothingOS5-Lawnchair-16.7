@@ -59,16 +59,20 @@ import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.DropTarget.DragObject;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherSettings;
+import com.android.launcher3.LauncherState;
 import com.android.launcher3.OnAlarmListener;
 import com.android.launcher3.R;
 import com.android.launcher3.Reorderable;
+import com.android.launcher3.ShortcutAndWidgetContainer;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.Workspace;
 import com.android.launcher3.allapps.ActivityAllAppsContainerView;
 import com.android.launcher3.celllayout.CellLayoutLayoutParams;
 import com.android.launcher3.dot.FolderDotInfo;
 import com.android.launcher3.dragndrop.BaseItemDragListener;
+import com.android.launcher3.dragndrop.DragController;
 import com.android.launcher3.dragndrop.DragLayer;
+import com.android.launcher3.dragndrop.DragOptions;
 import com.android.launcher3.dragndrop.DragView;
 import com.android.launcher3.dragndrop.DraggableView;
 import com.android.launcher3.icons.DotRenderer;
@@ -87,6 +91,9 @@ import com.android.launcher3.util.Thunk;
 import com.android.launcher3.views.ActivityContext;
 import com.android.launcher3.views.FloatingIconViewCompanion;
 import com.android.launcher3.widget.PendingAddShortcutInfo;
+import com.android.launcher3.touch.ItemLongClickListener;
+import app.lawnchair.allapps.caddy.CaddyFolderResizeFrame;
+import app.lawnchair.allapps.caddy.CaddyFolderStyle;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -96,7 +103,8 @@ import java.util.function.Predicate;
  * An icon that can appear on in the workspace representing an {@link Folder}.
  */
 public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion,
-        DraggableView, Reorderable {
+        DraggableView, Reorderable,
+        com.android.launcher3.WorkspaceLayoutManager.WorkspaceChildLongClickListener {
 
     private final MultiTranslateDelegate mTranslateDelegate = new MultiTranslateDelegate(this);
     @Thunk ActivityContext mActivity;
@@ -226,6 +234,7 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         icon.mInfo = folderInfo;
         icon.mActivity = activity;
         icon.mDotRenderer = grid.mDotRendererWorkSpace;
+        icon.applyCaddyFolderStyle();
 
         icon.setContentDescription(icon.getAccessiblityTitle(folderInfo.title));
         icon.updateDotInfo();
@@ -586,6 +595,65 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
             // normal workspace folder setup path.
             mBackground.refreshFolderPreviewColor();
         }
+    }
+
+    /**
+     * Applies the rounded-square presentation when this folder was created from a Caddy
+     * category card. Ordinary folders are left untouched, so their configured shape and
+     * behaviour are preserved.
+     */
+    public void applyCaddyFolderStyle() {
+        if (!CaddyFolderStyle.isCaddyFolder(mInfo)) return;
+        mBackground.setShapeOverride(CaddyFolderStyle.getShape());
+    }
+
+    /**
+     * Preserves the launcher's native workspace gesture contract:
+     * - Caddy folder in EDIT_MODE: long-press opens the folder resize frame directly.
+     * - Caddy folder otherwise: long-press starts the native workspace drag; a plain
+     *   long-press (dropped on itself) then reveals the resize frame, matching how the
+     *   launcher reveals the resize frame after a widget long-press.
+     * - Any other folder: identical to the native workspace long-click behaviour.
+     */
+    @Override
+    public boolean onWorkspaceChildLongClick() {
+        if (!CaddyFolderStyle.isCaddyFolder(mInfo)) {
+            return ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this);
+        }
+        Launcher launcher = Launcher.getLauncher(getContext());
+        if (launcher.isInState(LauncherState.EDIT_MODE)) {
+            return showCaddyResizeFrame(launcher);
+        }
+        boolean started = ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this);
+        if (started) {
+            DragController controller = launcher.getDragController();
+            controller.addDragListener(new DragController.DragListener() {
+                @Override
+                public void onDragStart(DragObject dragObject, DragOptions options) {
+                }
+
+                @Override
+                public void onDragEnd() {
+                    controller.removeDragListener(this);
+                    DragObject dragObject = controller.mDragObject;
+                    // Only when the folder itself was dropped (not dragged onto another
+                    // target) and the launcher is back to a stable state.
+                    if (dragObject != null && dragObject.dragInfo == mInfo
+                            && launcher.isInState(LauncherState.NORMAL)) {
+                        post(() -> showCaddyResizeFrame(launcher));
+                    }
+                }
+            });
+        }
+        return started;
+    }
+
+    private boolean showCaddyResizeFrame(Launcher launcher) {
+        if (!(getParent() instanceof ShortcutAndWidgetContainer)) return false;
+        CellLayout cellLayout = (CellLayout) getParent().getParent();
+        if (cellLayout == null) return false;
+        CaddyFolderResizeFrame.showForFolder(launcher, this, cellLayout);
+        return true;
     }
 
     public boolean isCaddyCard() {

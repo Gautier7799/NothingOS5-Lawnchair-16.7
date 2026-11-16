@@ -732,7 +732,9 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                         com.android.launcher3.dragndrop.DraggableView.DRAGGABLE_ICON),
                 launcher.getAppsView(),
                 dragInfo,
-                new com.android.launcher3.graphics.DragPreviewProvider(card),
+                // The card is a plain container, not a DraggableView, so the stock
+                // provider would render nothing. This one draws the card itself.
+                new app.lawnchair.allapps.caddy.CaddyCardDragPreviewProvider(card),
                 new com.android.launcher3.dragndrop.DragOptions());
         return true;
     }

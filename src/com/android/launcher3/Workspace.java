@@ -2305,6 +2305,10 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         FolderIcon folderIcon = mLauncher.addFolder(target, container, screenId,
                 mTargetCell[0], mTargetCell[1]);
         FolderInfo folderInfo = folderIcon.mInfo;
+        // Mark the folder so it keeps the card's rounded-square look and can be resized.
+        // addFolder already inserted the row, so persist the flag with an update.
+        folderInfo.setOption(FolderInfo.FLAG_CADDY_FOLDER, true, mLauncher.getModelWriter());
+        folderIcon.applyCaddyFolderStyle();
 
         Folder folder = folderIcon.getFolder();
         for (WorkspaceItemInfo item : folderItems) {
