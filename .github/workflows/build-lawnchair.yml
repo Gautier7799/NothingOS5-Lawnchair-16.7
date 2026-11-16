@@ -40,6 +40,7 @@ on:
       - openhands/dossier-stage2-hardening
       - openhands/caddy-card-to-folder-stage2
       - fix/caddy-folder-resize-cancel-2026-11-16
+      - openhands/caddy-resize-corner-handles
 
 permissions:
   contents: read

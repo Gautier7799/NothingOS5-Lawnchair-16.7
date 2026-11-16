@@ -51,6 +51,26 @@ object CaddyFolderResizeHandles {
     )
 
     /**
+     * Clamps the edge touch target so a small frame keeps a usable centre.
+     *
+     * The native frame uses a fixed 2 x backgroundPadding (48dp) target, which is fine for a
+     * large widget. A Caddy folder can be a single cell (~100dp), where 48dp per side would
+     * leave almost no free centre and every tap would read as a resize. The target is capped
+     * at one third of the shorter side so the middle always stays free, while never dropping
+     * below [minTouchTarget] so the handles remain reachable.
+     */
+    fun effectiveTouchTarget(
+        width: Int,
+        height: Int,
+        desired: Int,
+        minTouchTarget: Int,
+    ): Int {
+        if (width <= 0 || height <= 0) return minTouchTarget
+        val cap = minOf(width, height) / 3
+        return desired.coerceIn(minTouchTarget, maxOf(minTouchTarget, cap))
+    }
+
+    /**
      * Whether the deferred resize frame may be revealed now.
      *
      * A Caddy folder dropped in from the drawer lands as a single cell; its resize frame

@@ -132,4 +132,62 @@ class CaddyFolderResizeHandlesTest {
             ),
         ).isFalse()
     }
+
+    // --- effectiveTouchTarget: keeps a free centre on small folders ---------------------
+
+    @Test
+    fun touchTarget_largeFrame_keepsDesiredThickness() {
+        // 400x300: a third of the shorter side is 100, so the 48dp target is not capped.
+        assertThat(
+            CaddyFolderResizeHandles.effectiveTouchTarget(
+                width = 400, height = 300, desired = 48, minTouchTarget = 13,
+            ),
+        ).isEqualTo(48)
+    }
+
+    @Test
+    fun touchTarget_singleCellFolder_isCappedToLeaveACentre() {
+        // 90x90 (one cell): a third is 30, so the desired 48 is capped to 30.
+        assertThat(
+            CaddyFolderResizeHandles.effectiveTouchTarget(
+                width = 90, height = 90, desired = 48, minTouchTarget = 13,
+            ),
+        ).isEqualTo(30)
+    }
+
+    @Test
+    fun touchTarget_neverDropsBelowMinimum() {
+        // 24x24: a third is 8, below the 13 minimum, so the minimum wins.
+        assertThat(
+            CaddyFolderResizeHandles.effectiveTouchTarget(
+                width = 24, height = 24, desired = 48, minTouchTarget = 13,
+            ),
+        ).isEqualTo(13)
+    }
+
+    @Test
+    fun touchTarget_smallFrame_leavesTheMiddleFree() {
+        val width = 90
+        val height = 90
+        val target = CaddyFolderResizeHandles.effectiveTouchTarget(
+            width = width, height = height, desired = 48, minTouchTarget = 13,
+        )
+
+        // A tap in the exact centre must not read as a resize grab.
+        val middle = CaddyFolderResizeHandles.activeBorders(
+            x = width / 2, y = height / 2, width = width, height = height,
+            touchTargetWidth = target,
+        )
+
+        assertThat(middle.any).isFalse()
+    }
+
+    @Test
+    fun touchTarget_degenerateSize_fallsBackToMinimum() {
+        assertThat(
+            CaddyFolderResizeHandles.effectiveTouchTarget(
+                width = 0, height = 0, desired = 48, minTouchTarget = 13,
+            ),
+        ).isEqualTo(13)
+    }
 }

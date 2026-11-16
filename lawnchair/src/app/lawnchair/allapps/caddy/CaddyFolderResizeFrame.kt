@@ -18,6 +18,7 @@ package app.lawnchair.allapps.caddy
 
 import android.content.Context
 import android.graphics.Rect
+import android.os.Build
 import android.util.AttributeSet
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -36,11 +37,21 @@ import com.android.launcher3.views.BaseDragLayer
  * Resize UI for a Caddy folder.
  *
  * A Caddy folder is an ordinary native [FolderInfo], so resizing reuses the workspace
- * grid: this frame mirrors the launcher's own resize frame (the same four edge handles
- * and the same "drag an edge to add or remove a whole row/column" gesture) and writes
- * the result back through the native [com.android.launcher3.model.ModelWriter]. It is a
- * separate class only because the native frame is hard-wired to a
- * `LauncherAppWidgetHostView`; the folder is deliberately kept a folder, never a widget.
+ * grid: this frame mirrors the launcher's own resize frame (the same four edge handles,
+ * four corner handles, and the same "drag an edge to add or remove a whole row/column,
+ * drag a corner to change both at once" gesture) and writes the result back through the
+ * native [com.android.launcher3.model.ModelWriter]. It is a separate class only because
+ * the native frame is hard-wired to a `LauncherAppWidgetHostView`; the folder is
+ * deliberately kept a folder, never a widget.
+ *
+ * Three things the native frame does and this one must too, so the handles are actually
+ * grabbable on a small (single cell) folder:
+ * - request system gesture exclusion for the handles (in [onLayout]), otherwise touches
+ *   near a screen edge never reach the frame;
+ * - answer [canInterceptEventsInSystemGestureRegion] so the launcher routes edge touches
+ *   here instead of to the system gesture;
+ * - keep a usable free centre, so a tap inside the folder opens it instead of reading as
+ *   an edge grab.
  */
 class CaddyFolderResizeFrame @JvmOverloads constructor(
     context: Context,
@@ -57,10 +68,15 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
     private var info: FolderInfo? = null
 
     private val handles = arrayOfNulls<View>(HANDLE_COUNT)
+    private val gestureExclusionRects = ArrayList<Rect>(HANDLE_COUNT)
 
     private val backgroundPadding =
         resources.getDimensionPixelSize(R.dimen.resize_frame_background_padding)
-    private val touchTargetWidth = 2 * backgroundPadding
+    private val desiredTouchTarget = 2 * backgroundPadding
+    private val minTouchTarget = resources.getDimensionPixelSize(R.dimen.widget_handle_margin)
+
+    /** Edge thickness actually used for hit testing, recomputed per gesture. */
+    private var touchTargetWidth = desiredTouchTarget
 
     private var leftActive = false
     private var rightActive = false
@@ -72,6 +88,13 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
 
     private var xDown = 0
     private var yDown = 0
+
+    // Frame rectangle captured at touch-down, so the frame can follow the finger while the
+    // drag is in flight (the native frame does the same in visualizeResizeForDelta).
+    private var frameBaselineLeft = 0
+    private var frameBaselineTop = 0
+    private var frameBaselineRight = 0
+    private var frameBaselineBottom = 0
 
     private var startCellX = 0
     private var startCellY = 0
@@ -88,7 +111,29 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         handles[INDEX_TOP] = findViewById(R.id.caddy_resize_top_handle)
         handles[INDEX_RIGHT] = findViewById(R.id.caddy_resize_right_handle)
         handles[INDEX_BOTTOM] = findViewById(R.id.caddy_resize_bottom_handle)
+        handles[INDEX_TOP_LEFT] = findViewById(R.id.caddy_resize_top_left_handle)
+        handles[INDEX_TOP_RIGHT] = findViewById(R.id.caddy_resize_top_right_handle)
+        handles[INDEX_BOTTOM_LEFT] = findViewById(R.id.caddy_resize_bottom_left_handle)
+        handles[INDEX_BOTTOM_RIGHT] = findViewById(R.id.caddy_resize_bottom_right_handle)
+        for (i in 0 until HANDLE_COUNT) {
+            gestureExclusionRects.add(Rect())
+        }
     }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        super.onLayout(changed, l, t, r, b)
+        // The handles overhang the folder; without excluding them from the system gesture
+        // area a touch that starts there is stolen by the system before it reaches us.
+        for (i in 0 until HANDLE_COUNT) {
+            val handle = handles[i] ?: continue
+            gestureExclusionRects[i].set(handle.left, handle.top, handle.right, handle.bottom)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            systemGestureExclusionRects = gestureExclusionRects
+        }
+    }
+
+    override fun canInterceptEventsInSystemGestureRegion(): Boolean = true
 
     private fun setup(icon: FolderIcon, layout: CellLayout) {
         this.folderIcon = icon
@@ -104,6 +149,9 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
 
     /** Aligns the frame with the folder it is resizing. */
     fun snapToFolder() {
+        // While a resize is in flight the frame is driven by the finger, not by the folder;
+        // snapping here would fight the drag and make the frame stutter.
+        if (resizeInProgress) return
         val view = folderIcon ?: return
         if (view.parent == null) return
         val rect = Rect()
@@ -113,12 +161,7 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         lp.height = 2 * backgroundPadding + rect.height()
         lp.x = rect.left - backgroundPadding
         lp.y = rect.top - backgroundPadding
-        // Only the initial reveal brightens every handle. Once the user has grabbed an edge,
-        // the active/dimmed state set by beginResizeIfPointInRegion must survive the layout
-        // passes that fire while resizing; re-brightening here made the handles flicker.
-        if (!resizeInProgress) {
-            for (handle in handles) handle?.alpha = 1f
-        }
+        for (handle in handles) handle?.alpha = 1f
         requestLayout()
     }
 
@@ -139,6 +182,13 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
                 startSpanX = lp.cellHSpan
                 startSpanY = lp.cellVSpan
             }
+            val frameLp = layoutParams as? BaseDragLayer.LayoutParams
+            if (frameLp != null) {
+                frameBaselineLeft = frameLp.x
+                frameBaselineTop = frameLp.y
+                frameBaselineRight = frameLp.x + frameLp.width
+                frameBaselineBottom = frameLp.y + frameLp.height
+            }
             xDown = x
             yDown = y
             return true
@@ -147,6 +197,14 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
     }
 
     private fun beginResizeIfPointInRegion(x: Int, y: Int): Boolean {
+        // Cap the edge target so a single-cell folder keeps a free centre: otherwise 48dp per
+        // side covers the whole folder and every tap reads as a resize grab.
+        touchTargetWidth = CaddyFolderResizeHandles.effectiveTouchTarget(
+            width = width,
+            height = height,
+            desired = desiredTouchTarget,
+            minTouchTarget = minTouchTarget,
+        )
         val borders = CaddyFolderResizeHandles.activeBorders(x, y, width, height, touchTargetWidth)
         leftActive = borders.left
         rightActive = borders.right
@@ -154,12 +212,52 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         bottomActive = borders.bottom
         if (borders.any) {
             resizeInProgress = true
-            handles[INDEX_LEFT]?.alpha = if (leftActive) 1f else DIMMED_HANDLE_ALPHA
-            handles[INDEX_RIGHT]?.alpha = if (rightActive) 1f else DIMMED_HANDLE_ALPHA
-            handles[INDEX_TOP]?.alpha = if (topActive) 1f else DIMMED_HANDLE_ALPHA
-            handles[INDEX_BOTTOM]?.alpha = if (bottomActive) 1f else DIMMED_HANDLE_ALPHA
+            updateHandleAlphas()
         }
         return borders.any
+    }
+
+    private fun updateHandleAlphas() {
+        handles[INDEX_LEFT]?.alpha = alphaFor(leftActive)
+        handles[INDEX_RIGHT]?.alpha = alphaFor(rightActive)
+        handles[INDEX_TOP]?.alpha = alphaFor(topActive)
+        handles[INDEX_BOTTOM]?.alpha = alphaFor(bottomActive)
+        handles[INDEX_TOP_LEFT]?.alpha = alphaFor(leftActive && topActive)
+        handles[INDEX_TOP_RIGHT]?.alpha = alphaFor(rightActive && topActive)
+        handles[INDEX_BOTTOM_LEFT]?.alpha = alphaFor(leftActive && bottomActive)
+        handles[INDEX_BOTTOM_RIGHT]?.alpha = alphaFor(rightActive && bottomActive)
+    }
+
+    private fun alphaFor(active: Boolean): Float = if (active) 1f else DIMMED_HANDLE_ALPHA
+
+    /** Moves the frame with the finger so the resize is visible immediately. */
+    private fun applyFrameDelta(deltaX: Int, deltaY: Int) {
+        if (!resizeInProgress) return
+        val lp = layoutParams as? BaseDragLayer.LayoutParams ?: return
+        var left = frameBaselineLeft
+        var right = frameBaselineRight
+        var top = frameBaselineTop
+        var bottom = frameBaselineBottom
+        if (leftActive) left += deltaX
+        if (rightActive) right += deltaX
+        if (topActive) top += deltaY
+        if (bottomActive) bottom += deltaY
+        val minSize = 2 * backgroundPadding
+        if (right - left < minSize) {
+            if (leftActive) left = right - minSize else right = left + minSize
+        }
+        if (bottom - top < minSize) {
+            if (topActive) top = bottom - minSize else bottom = top + minSize
+        }
+        left = left.coerceIn(0, dragLayer.width)
+        right = right.coerceIn(0, dragLayer.width)
+        top = top.coerceIn(0, dragLayer.height)
+        bottom = bottom.coerceIn(0, dragLayer.height)
+        lp.x = left
+        lp.y = top
+        lp.width = right - left
+        lp.height = bottom - top
+        requestLayout()
     }
 
     private fun visualizeResizeForDelta(deltaX: Int, deltaY: Int) {
@@ -207,7 +305,6 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         lp.cellVSpan = placement.spanY
         layout.markCellsAsOccupiedForView(view)
         view.requestLayout()
-        post { snapToFolder() }
     }
 
     private fun onTouchUp() {
@@ -228,7 +325,6 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
             lp.cellHSpan,
             lp.cellVSpan,
         )
-        post { snapToFolder() }
         layout.invalidate()
     }
 
@@ -245,7 +341,6 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         lp.cellVSpan = startSpanY
         layout.markCellsAsOccupiedForView(view)
         view.requestLayout()
-        post { snapToFolder() }
         layout.invalidate()
     }
 
@@ -281,7 +376,10 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         when (ev.action) {
             MotionEvent.ACTION_DOWN -> return handleTouchDown(ev)
 
-            MotionEvent.ACTION_MOVE -> visualizeResizeForDelta(x - xDown, y - yDown)
+            MotionEvent.ACTION_MOVE -> {
+                visualizeResizeForDelta(x - xDown, y - yDown)
+                applyFrameDelta(x - xDown, y - yDown)
+            }
 
             MotionEvent.ACTION_UP -> {
                 visualizeResizeForDelta(x - xDown, y - yDown)
@@ -315,11 +413,15 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
     override fun isOfType(type: Int): Boolean = (type and TYPE_WIDGET_RESIZE_FRAME) != 0
 
     companion object {
-        private const val HANDLE_COUNT = 4
+        private const val HANDLE_COUNT = 8
         private const val INDEX_LEFT = 0
         private const val INDEX_TOP = 1
         private const val INDEX_RIGHT = 2
         private const val INDEX_BOTTOM = 3
+        private const val INDEX_TOP_LEFT = 4
+        private const val INDEX_TOP_RIGHT = 5
+        private const val INDEX_BOTTOM_LEFT = 6
+        private const val INDEX_BOTTOM_RIGHT = 7
         private const val DIMMED_HANDLE_ALPHA = 0f
 
         /** Shows the resize frame around [icon] and keeps it in sync until closed. */
