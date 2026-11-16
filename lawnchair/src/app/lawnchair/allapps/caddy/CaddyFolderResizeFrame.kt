@@ -281,6 +281,13 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         @JvmStatic
         fun showForFolder(launcher: Launcher, icon: FolderIcon, layout: CellLayout) {
             if (icon.parent == null) return
+            // Two independent paths may try to reveal the frame for the same long-press
+            // (the drag-end listener here and the workspace drop hook). Only ever keep one.
+            val existing = AbstractFloatingView.getOpenView<AbstractFloatingView>(
+                launcher,
+                AbstractFloatingView.TYPE_WIDGET_RESIZE_FRAME,
+            )
+            if (existing is CaddyFolderResizeFrame && existing.folderIcon === icon) return
             AbstractFloatingView.closeAllOpenViews(launcher, false)
             val dragLayer = launcher.dragLayer
             val frame = launcher.layoutInflater
