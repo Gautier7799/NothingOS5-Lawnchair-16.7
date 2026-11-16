@@ -128,6 +128,17 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         val x = ev.x.toInt()
         val y = ev.y.toInt()
         if (hitRect.contains(x, y) && beginResizeIfPointInRegion(x - left, y - top)) {
+            // Each resize gesture starts from the folder's latest committed placement.
+            // The frame can remain open for several gestures, so values captured in setup()
+            // would otherwise make a second drag jump back to the original span.
+            val view = folderIcon
+            val lp = view?.layoutParams as? CellLayoutLayoutParams
+            if (lp != null) {
+                startCellX = lp.cellX
+                startCellY = lp.cellY
+                startSpanX = lp.cellHSpan
+                startSpanY = lp.cellVSpan
+            }
             xDown = x
             yDown = y
             return true
@@ -221,6 +232,35 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         layout.invalidate()
     }
 
+    /** Restores the placement captured at the start of the current gesture. */
+    private fun restoreResizeStart() {
+        val view = folderIcon ?: return
+        val layout = cellLayout ?: return
+        val lp = view.layoutParams as? CellLayoutLayoutParams ?: return
+
+        layout.markCellsAsUnoccupiedForView(view)
+        lp.cellX = startCellX
+        lp.cellY = startCellY
+        lp.cellHSpan = startSpanX
+        lp.cellVSpan = startSpanY
+        layout.markCellsAsOccupiedForView(view)
+        view.requestLayout()
+        post { snapToFolder() }
+        layout.invalidate()
+    }
+
+    /** Clears gesture-only state after either a committed or cancelled resize. */
+    private fun finishResizeGesture() {
+        resizeInProgress = false
+        leftActive = false
+        rightActive = false
+        topActive = false
+        bottomActive = false
+        xDown = 0
+        yDown = 0
+        snapToFolder()
+    }
+
     override fun onControllerInterceptTouchEvent(ev: MotionEvent): Boolean {
         // Only a fresh touch-down closes the frame. The frame can be revealed while the
         // gesture that revealed it is still in flight (a long-press opens it before the
@@ -243,12 +283,17 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
 
             MotionEvent.ACTION_MOVE -> visualizeResizeForDelta(x - xDown, y - yDown)
 
-            MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP -> {
+            MotionEvent.ACTION_UP -> {
                 visualizeResizeForDelta(x - xDown, y - yDown)
                 onTouchUp()
-                resizeInProgress = false
-                xDown = 0
-                yDown = 0
+                finishResizeGesture()
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                // Cancellation is not a successful resize. Restore the exact placement
+                // captured at ACTION_DOWN and do not write a partial gesture to the DB.
+                restoreResizeStart()
+                finishResizeGesture()
             }
         }
         return true
