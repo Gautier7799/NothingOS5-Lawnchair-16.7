@@ -2316,6 +2316,13 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         for (WorkspaceItemInfo item : folderItems) {
             folder.addFolderContent(item);
         }
+        // Finalize the drop exactly like every other drop path
+        // (createUserFolderIfNecessary / createDossierCardIfNecessary / onDropExternal):
+        // onDropChild() marks the cell dropped and re-marks it occupied, and measureChild()
+        // lays the icon out on the grid. Skipping it left the freshly created folder in a
+        // half-bound state where later app drops on its cell were not routed to it.
+        target.onDropChild(folderIcon);
+        target.getShortcutsAndWidgets().measureChild(folderIcon);
         // Label the folder once its contents exist, so the category title wins over
         // auto-labelling. An empty title is left unset, letting the folder auto-label.
         folderInfo.setTitle(spec.getTitle(), mLauncher.getModelWriter());
@@ -2575,8 +2582,16 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
                         final FolderIcon caddyIcon = (FolderIcon) cell;
                         final CellLayout caddyLayout = getParentCellLayoutForView(caddyIcon);
                         if (caddyLayout != null) {
-                            onCompleteRunnable = () -> CaddyFolderResizeFrame.showForFolder(
-                                    mLauncher, caddyIcon, caddyLayout);
+                            onCompleteRunnable = () -> {
+                                // Same guard as the widget resize frame. A frame revealed while
+                                // the workspace is still settling (spring-loaded exit) is torn
+                                // down by onPageBeginTransition(), which closes
+                                // TYPE_WIDGET_RESIZE_FRAME, so the handles flashed and vanished.
+                                if (!isPageInTransition()) {
+                                    CaddyFolderResizeFrame.showForFolder(
+                                            mLauncher, caddyIcon, caddyLayout);
+                                }
+                            };
                         }
                     }
                     mLauncher.getModelWriter().modifyItemInDatabase(info, container, screenId,

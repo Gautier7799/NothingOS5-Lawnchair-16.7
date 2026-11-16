@@ -222,10 +222,16 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
     }
 
     override fun onControllerInterceptTouchEvent(ev: MotionEvent): Boolean {
-        if (ev.action == MotionEvent.ACTION_DOWN && handleTouchDown(ev)) {
-            return true
+        // Only a fresh touch-down closes the frame. The frame can be revealed while the
+        // gesture that revealed it is still in flight (a long-press opens it before the
+        // finger is lifted); closing on the trailing ACTION_UP/CANCEL of that same gesture
+        // made the handles appear and vanish at once.
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            if (handleTouchDown(ev)) {
+                return true
+            }
+            close(false)
         }
-        close(false)
         return false
     }
 
