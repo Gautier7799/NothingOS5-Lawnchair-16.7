@@ -70,4 +70,66 @@ class CaddyFolderResizeHandlesTest {
         assertThat(borders.left).isTrue()
         assertThat(borders.top).isTrue()
     }
+
+    @Test
+    fun revealAllowed_whenPendingFolderIsSettledInNormal() {
+        assertThat(
+            CaddyFolderResizeHandles.shouldRevealFrame(
+                hasPendingFolder = true,
+                inNormalState = true,
+                inStateTransition = false,
+                inPageTransition = false,
+            ),
+        ).isTrue()
+    }
+
+    @Test
+    fun revealBlocked_whenNoPendingFolder() {
+        assertThat(
+            CaddyFolderResizeHandles.shouldRevealFrame(
+                hasPendingFolder = false,
+                inNormalState = true,
+                inStateTransition = false,
+                inPageTransition = false,
+            ),
+        ).isFalse()
+    }
+
+    @Test
+    fun revealBlocked_duringStateTransition() {
+        assertThat(
+            CaddyFolderResizeHandles.shouldRevealFrame(
+                hasPendingFolder = true,
+                inNormalState = true,
+                inStateTransition = true,
+                inPageTransition = false,
+            ),
+        ).isFalse()
+    }
+
+    @Test
+    fun revealBlocked_duringPageTransition() {
+        // The empty-screen strip that follows a drop is a page transition, which closes
+        // TYPE_WIDGET_RESIZE_FRAME; revealing then made the handles flash and vanish.
+        assertThat(
+            CaddyFolderResizeHandles.shouldRevealFrame(
+                hasPendingFolder = true,
+                inNormalState = true,
+                inStateTransition = false,
+                inPageTransition = true,
+            ),
+        ).isFalse()
+    }
+
+    @Test
+    fun revealBlocked_whenNotInNormalState() {
+        assertThat(
+            CaddyFolderResizeHandles.shouldRevealFrame(
+                hasPendingFolder = true,
+                inNormalState = false,
+                inStateTransition = false,
+                inPageTransition = false,
+            ),
+        ).isFalse()
+    }
 }

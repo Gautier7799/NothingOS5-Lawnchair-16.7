@@ -49,4 +49,22 @@ object CaddyFolderResizeHandles {
         right = x > width - touchTargetWidth,
         bottom = y > height - touchTargetWidth,
     )
+
+    /**
+     * Whether the deferred resize frame may be revealed now.
+     *
+     * A Caddy folder dropped in from the drawer lands as a single cell; its resize frame
+     * is revealed once the launcher has settled, because the frame snapshots the folder's
+     * window position. Creating it during a state or page transition leaves it at a skewed
+     * position, and a page transition (the empty-screen strip that follows a drop) tears
+     * `TYPE_WIDGET_RESIZE_FRAME` down, so the handles flash and vanish. Every gate must be
+     * clear before the frame is shown.
+     */
+    @JvmStatic
+    fun shouldRevealFrame(
+        hasPendingFolder: Boolean,
+        inNormalState: Boolean,
+        inStateTransition: Boolean,
+        inPageTransition: Boolean,
+    ): Boolean = hasPendingFolder && inNormalState && !inStateTransition && !inPageTransition
 }

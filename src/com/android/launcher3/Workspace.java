@@ -99,6 +99,7 @@ import com.android.launcher3.dragndrop.DraggableView;
 import com.android.launcher3.dragndrop.SpringLoadedDragController;
 import app.lawnchair.allapps.caddy.CaddyFolderDragInfo;
 import app.lawnchair.allapps.caddy.CaddyFolderResizeFrame;
+import app.lawnchair.allapps.caddy.CaddyFolderResizeHandles;
 import app.lawnchair.allapps.caddy.CaddyFolderStyle;
 import com.android.launcher3.allapps.AllAppsStore;
 import com.android.launcher3.folder.Folder;
@@ -1463,6 +1464,9 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
             stripEmptyScreens();
             mStripScreensOnPageStopMoving = false;
         }
+        // A drop that creates a Caddy folder defers its resize frame until the page has
+        // stopped moving, because a page transition tears TYPE_WIDGET_RESIZE_FRAME down.
+        maybeShowPendingCaddyResizeFrame();
 
         // Inform the Launcher activity that the page transition ended so that it can react to the
         // newly visible page if it wants to.
@@ -2271,8 +2275,12 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
      * folder whose contents are real app rows, so the result opens, moves, resizes and
      * restores exactly like any other folder. The drawer card is left untouched: this is
      * an independent record created once, at drop time.
+     *
+     * @return the created folder icon, or {@code null} when the card had no usable apps
+     *         or no vacant cell was found (the drop is then a no-op).
      */
-    void createCaddyFolderIfNecessary(CellLayout target, int container, int[] touchXY,
+    @Nullable
+    FolderIcon createCaddyFolderIfNecessary(CellLayout target, int container, int[] touchXY,
             DragObject d) {
         CaddyFolderDragInfo dragInfo = (CaddyFolderDragInfo) d.dragInfo;
         app.lawnchair.allapps.caddy.CaddyFolderFactory.FolderSpec spec = dragInfo.getSpec();
@@ -2291,7 +2299,7 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
                 folderItems.add(app.makeWorkspaceItem(getContext()));
             }
         }
-        if (folderItems.isEmpty()) return;
+        if (folderItems.isEmpty()) return null;
 
         final int screenId = getCellLayoutId(target);
         // A folder is a single cell; find a vacant one near the drop so the new folder
@@ -2302,7 +2310,7 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         } else {
             target.findCellForSpan(mTargetCell, 1, 1);
         }
-        if (mTargetCell[0] < 0 || mTargetCell[1] < 0) return;
+        if (mTargetCell[0] < 0 || mTargetCell[1] < 0) return null;
 
         FolderIcon folderIcon = mLauncher.addFolder(target, container, screenId,
                 mTargetCell[0], mTargetCell[1]);
@@ -2334,6 +2342,68 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         if (d.dragView != null) {
             d.deferDragViewCleanupPostAnimation = true;
             mLauncher.getDragLayer().animateViewIntoPosition(d.dragView, folderIcon, this);
+        }
+        return folderIcon;
+    }
+
+    /** Folder waiting for the launcher to settle before its resize frame is revealed. */
+    @Nullable
+    private FolderIcon mPendingCaddyResizeFrame;
+
+    /**
+     * Reveals the Caddy resize frame once the launcher is back to a stable NORMAL state.
+     *
+     * The frame snapshots the folder's window position, so it must not be created while
+     * the workspace still has scale/translation from the spring-loaded exit. A page
+     * transition (the empty-screen strip that follows a drop) also tears the frame down,
+     * so the reveal is deferred until both have finished.
+     */
+    private void scheduleCaddyResizeFrame(FolderIcon folderIcon) {
+        mPendingCaddyResizeFrame = folderIcon;
+        StateManager<LauncherState, Launcher> stateManager = mLauncher.getStateManager();
+        if (stateManager.getState() == NORMAL && !stateManager.isInTransition()) {
+            maybeShowPendingCaddyResizeFrame();
+            return;
+        }
+        stateManager.addStateListener(new StateListener<LauncherState>() {
+            @Override
+            public void onStateTransitionComplete(LauncherState finalState) {
+                stateManager.removeStateListener(this);
+                if (finalState == NORMAL) {
+                    maybeShowPendingCaddyResizeFrame();
+                }
+            }
+        });
+    }
+
+    /**
+     * Arms the reveal of the pending frame on the next UI pass.
+     *
+     * Posting (rather than showing inline) lets the empty-screen strip that follows a
+     * drop start its page transition first, so {@link #isPageInTransition()} is accurate.
+     * When a transition is running, {@link #onPageEndTransition()} retries the reveal.
+     */
+    private void maybeShowPendingCaddyResizeFrame() {
+        if (mPendingCaddyResizeFrame == null) {
+            return;
+        }
+        post(this::showPendingCaddyResizeFrameIfStable);
+    }
+
+    private void showPendingCaddyResizeFrameIfStable() {
+        FolderIcon folderIcon = mPendingCaddyResizeFrame;
+        StateManager<LauncherState, Launcher> stateManager = mLauncher.getStateManager();
+        if (!CaddyFolderResizeHandles.shouldRevealFrame(
+                folderIcon != null,
+                stateManager.getState() == NORMAL,
+                stateManager.isInTransition(),
+                isPageInTransition())) {
+            return;
+        }
+        mPendingCaddyResizeFrame = null;
+        CellLayout layout = getParentCellLayoutForView(folderIcon);
+        if (layout != null && folderIcon.getParent() != null) {
+            CaddyFolderResizeFrame.showForFolder(mLauncher, folderIcon, layout);
         }
     }
 
@@ -3282,9 +3352,17 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         // the category's apps. This runs before item inflation because the card drag
         // carries a gesture-only payload, not a persisted item type.
         if (CaddyFolderDragInfo.isCaddyFolderDrag(d.dragInfo)) {
-            createCaddyFolderIfNecessary(cellLayout, container, touchXY, d);
+            FolderIcon caddyFolder = createCaddyFolderIfNecessary(cellLayout, container, touchXY, d);
             if (!mLauncher.isInState(EDIT_MODE)) {
                 mLauncher.getStateManager().goToState(NORMAL, SPRING_LOADED_EXIT_DELAY);
+            }
+            if (caddyFolder != null) {
+                // A folder dropped in from the drawer lands as a single cell and has no
+                // visible resize entry point, unlike a folder moved on the workspace
+                // (whose frame is revealed by the droppedOnOriginalCell branch above).
+                // Reveal the frame once the launcher has settled, so the user can resize
+                // the new folder straight away.
+                scheduleCaddyResizeFrame(caddyFolder);
             }
             return;
         }
