@@ -165,12 +165,17 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         requestLayout()
     }
 
-    private fun handleTouchDown(ev: MotionEvent): Boolean {
+    /**
+     * Starts a resize gesture for a touch-down given in DragLayer coordinates.
+     *
+     * Both dispatch paths funnel through here so they can never disagree: the controller
+     * callbacks already hand over DragLayer coordinates, and the plain-view path converts
+     * its local point before calling (see [onTouchEvent]).
+     */
+    private fun handleTouchDownAt(x: Int, y: Int): Boolean {
         val hitRect = Rect()
         getHitRect(hitRect)
-        val x = ev.x.toInt()
-        val y = ev.y.toInt()
-        if (hitRect.contains(x, y) && beginResizeIfPointInRegion(x - left, y - top)) {
+        if (hitRect.contains(x, y) && beginResizeIfPointInRegion(x, y)) {
             // Each resize gesture starts from the folder's latest committed placement.
             // The frame can remain open for several gestures, so values captured in setup()
             // would otherwise make a second drag jump back to the original span.
@@ -196,7 +201,7 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         return false
     }
 
-    private fun beginResizeIfPointInRegion(x: Int, y: Int): Boolean {
+    private fun beginResizeIfPointInRegion(dragLayerX: Int, dragLayerY: Int): Boolean {
         // Cap the edge target so a single-cell folder keeps a free centre: otherwise 48dp per
         // side covers the whole folder and every tap reads as a resize grab.
         touchTargetWidth = CaddyFolderResizeHandles.effectiveTouchTarget(
@@ -205,7 +210,15 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
             desired = desiredTouchTarget,
             minTouchTarget = minTouchTarget,
         )
-        val borders = CaddyFolderResizeHandles.activeBorders(x, y, width, height, touchTargetWidth)
+        val borders = CaddyFolderResizeHandles.activeBordersForDragLayerPoint(
+            dragLayerX = dragLayerX,
+            dragLayerY = dragLayerY,
+            frameLeft = left,
+            frameTop = top,
+            frameWidth = width,
+            frameHeight = height,
+            touchTargetWidth = touchTargetWidth,
+        )
         leftActive = borders.left
         rightActive = borders.right
         topActive = borders.top
@@ -362,7 +375,7 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         // finger is lifted); closing on the trailing ACTION_UP/CANCEL of that same gesture
         // made the handles appear and vanish at once.
         if (ev.action == MotionEvent.ACTION_DOWN) {
-            if (handleTouchDown(ev)) {
+            if (handleTouchDownAt(ev.x.toInt(), ev.y.toInt())) {
                 return true
             }
             close(false)
@@ -374,7 +387,7 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         val x = ev.x.toInt()
         val y = ev.y.toInt()
         when (ev.action) {
-            MotionEvent.ACTION_DOWN -> return handleTouchDown(ev)
+            MotionEvent.ACTION_DOWN -> return handleTouchDownAt(x, y)
 
             MotionEvent.ACTION_MOVE -> {
                 visualizeResizeForDelta(x - xDown, y - yDown)
@@ -392,6 +405,56 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
                 // captured at ACTION_DOWN and do not write a partial gesture to the DB.
                 restoreResizeStart()
                 finishResizeGesture()
+            }
+        }
+        return true
+    }
+
+    /**
+     * Handles the touch events the launcher dispatches straight to this view.
+     *
+     * The launcher only consults its TouchControllers when a touch starts outside a
+     * mandatory system-gesture strip; inside the strip the event is delivered to this view
+     * as an ordinary child instead (see
+     * [com.android.launcher3.views.BaseDragLayer.canFindActiveController]). The frame's
+     * handles overhang the folder, so a grab routinely starts in that strip. Without this
+     * handler the inherited [AbstractFloatingView.onTouchEvent] simply consumed the gesture
+     * and the folder never resized. Points arrive in local coordinates here, so they are
+     * converted to the DragLayer space the resize maths expects.
+     */
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        if (!resizeInProgress && ev.action != MotionEvent.ACTION_DOWN) return true
+        val x = ev.x.toInt() + left
+        val y = ev.y.toInt() + top
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                if (handleTouchDownAt(x, y)) return true
+                // A tap that misses the handles asks to leave the frame. Defer the close so
+                // this view is not pulled out of the DragLayer mid-dispatch, and decline the
+                // event so the tap still reaches the folder underneath.
+                post { close(false) }
+                return false
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (!resizeInProgress) return false
+                visualizeResizeForDelta(x - xDown, y - yDown)
+                applyFrameDelta(x - xDown, y - yDown)
+            }
+
+            MotionEvent.ACTION_UP -> {
+                if (resizeInProgress) {
+                    visualizeResizeForDelta(x - xDown, y - yDown)
+                    onTouchUp()
+                    finishResizeGesture()
+                }
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                if (resizeInProgress) {
+                    restoreResizeStart()
+                    finishResizeGesture()
+                }
             }
         }
         return true

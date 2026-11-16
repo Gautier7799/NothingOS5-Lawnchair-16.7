@@ -51,6 +51,34 @@ object CaddyFolderResizeHandles {
     )
 
     /**
+     * Resolves the active borders for a touch expressed in the DragLayer's coordinate space.
+     *
+     * The two dispatch paths a floating view can receive touches on do not agree on the
+     * space the point arrives in: the TouchController callbacks
+     * ([com.android.launcher3.AbstractFloatingView.onControllerInterceptTouchEvent] and
+     * [com.android.launcher3.AbstractFloatingView.onControllerTouchEvent]) are handed
+     * DragLayer coordinates, whereas plain view dispatch delivers local ones. Routing both
+     * through this one function — with the frame's [frameLeft]/[frameTop] as the origin, or
+     * `0, 0` for the already-local case — means the two paths can never disagree about which
+     * handle a touch grabbed.
+     */
+    fun activeBordersForDragLayerPoint(
+        dragLayerX: Int,
+        dragLayerY: Int,
+        frameLeft: Int,
+        frameTop: Int,
+        frameWidth: Int,
+        frameHeight: Int,
+        touchTargetWidth: Int,
+    ): Borders = activeBorders(
+        x = dragLayerX - frameLeft,
+        y = dragLayerY - frameTop,
+        width = frameWidth,
+        height = frameHeight,
+        touchTargetWidth = touchTargetWidth,
+    )
+
+    /**
      * Clamps the edge touch target so a small frame keeps a usable centre.
      *
      * The native frame uses a fixed 2 x backgroundPadding (48dp) target, which is fine for a

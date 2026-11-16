@@ -190,4 +190,73 @@ class CaddyFolderResizeHandlesTest {
             ),
         ).isEqualTo(13)
     }
+
+    // --- activeBordersForDragLayerPoint: the two dispatch paths must agree -------------
+
+    @Test
+    fun dragLayerPoint_convertsToTheSameBordersAsALocalPoint() {
+        // The frame sits at (300, 200) in the DragLayer. A touch on its bottom-right
+        // corner must resolve to the same borders whether it arrives as a DragLayer point
+        // (controller dispatch) or as a local point (plain view dispatch).
+        val frameLeft = 300
+        val frameTop = 200
+
+        val fromDragLayer = CaddyFolderResizeHandles.activeBordersForDragLayerPoint(
+            dragLayerX = frameLeft + width - 5,
+            dragLayerY = frameTop + height - 5,
+            frameLeft = frameLeft,
+            frameTop = frameTop,
+            frameWidth = width,
+            frameHeight = height,
+            touchTargetWidth = target,
+        )
+        val fromLocal = CaddyFolderResizeHandles.activeBorders(
+            x = width - 5, y = height - 5, width = width, height = height,
+            touchTargetWidth = target,
+        )
+
+        assertThat(fromDragLayer).isEqualTo(fromLocal)
+        assertThat(fromDragLayer.right).isTrue()
+        assertThat(fromDragLayer.bottom).isTrue()
+    }
+
+    @Test
+    fun dragLayerPoint_topLeftCornerGrabsBothEdges() {
+        val frameLeft = 40
+        val frameTop = 90
+
+        val borders = CaddyFolderResizeHandles.activeBordersForDragLayerPoint(
+            dragLayerX = frameLeft + 1,
+            dragLayerY = frameTop + 1,
+            frameLeft = frameLeft,
+            frameTop = frameTop,
+            frameWidth = width,
+            frameHeight = height,
+            touchTargetWidth = target,
+        )
+
+        assertThat(borders.left).isTrue()
+        assertThat(borders.top).isTrue()
+        assertThat(borders.right).isFalse()
+        assertThat(borders.bottom).isFalse()
+    }
+
+    @Test
+    fun dragLayerPoint_middleOfTheFrameGrabsNothing() {
+        // A touch in the folder's centre must never read as a resize, on either path.
+        val frameLeft = 120
+        val frameTop = 60
+
+        val borders = CaddyFolderResizeHandles.activeBordersForDragLayerPoint(
+            dragLayerX = frameLeft + width / 2,
+            dragLayerY = frameTop + height / 2,
+            frameLeft = frameLeft,
+            frameTop = frameTop,
+            frameWidth = width,
+            frameHeight = height,
+            touchTargetWidth = target,
+        )
+
+        assertThat(borders.any).isFalse()
+    }
 }
