@@ -98,6 +98,8 @@ import com.android.launcher3.dragndrop.DragView;
 import com.android.launcher3.dragndrop.DraggableView;
 import com.android.launcher3.dragndrop.SpringLoadedDragController;
 import app.lawnchair.allapps.caddy.CaddyFolderDragInfo;
+import app.lawnchair.allapps.caddy.CaddyFolderResizeFrame;
+import app.lawnchair.allapps.caddy.CaddyFolderStyle;
 import com.android.launcher3.allapps.AllAppsStore;
 import com.android.launcher3.folder.Folder;
 import com.android.launcher3.folder.FolderIcon;
@@ -2562,6 +2564,20 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
                         // in its final location
                         onCompleteRunnable = getWidgetResizeFrameRunnable(options,
                                 (LauncherAppWidgetHostView) cell, dropTargetLayout, forceWidgetResize);
+                    } else if (container != CONTAINER_HOTSEAT && droppedOnOriginalCell
+                            && cell instanceof FolderIcon
+                            && CaddyFolderStyle.isCaddyFolder(((FolderIcon) cell).mInfo)) {
+                        // Mirror the widget behaviour for Caddy folders: a long-press that
+                        // drops the folder back in place reveals its resize frame. Hooking
+                        // the drop (instead of a drag-end listener) means the frame is shown
+                        // after the launcher has settled back into NORMAL, which is the same
+                        // contract AppWidgetResizeFrame relies on.
+                        final FolderIcon caddyIcon = (FolderIcon) cell;
+                        final CellLayout caddyLayout = getParentCellLayoutForView(caddyIcon);
+                        if (caddyLayout != null) {
+                            onCompleteRunnable = () -> CaddyFolderResizeFrame.showForFolder(
+                                    mLauncher, caddyIcon, caddyLayout);
+                        }
                     }
                     mLauncher.getModelWriter().modifyItemInDatabase(info, container, screenId,
                             lp.getCellX(), lp.getCellY(), item.spanX, item.spanY);

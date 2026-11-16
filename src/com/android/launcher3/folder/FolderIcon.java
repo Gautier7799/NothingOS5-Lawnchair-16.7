@@ -70,9 +70,7 @@ import com.android.launcher3.allapps.ActivityAllAppsContainerView;
 import com.android.launcher3.celllayout.CellLayoutLayoutParams;
 import com.android.launcher3.dot.FolderDotInfo;
 import com.android.launcher3.dragndrop.BaseItemDragListener;
-import com.android.launcher3.dragndrop.DragController;
 import com.android.launcher3.dragndrop.DragLayer;
-import com.android.launcher3.dragndrop.DragOptions;
 import com.android.launcher3.dragndrop.DragView;
 import com.android.launcher3.dragndrop.DraggableView;
 import com.android.launcher3.icons.DotRenderer;
@@ -610,9 +608,9 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     /**
      * Preserves the launcher's native workspace gesture contract:
      * - Caddy folder in EDIT_MODE: long-press opens the folder resize frame directly.
-     * - Caddy folder otherwise: long-press starts the native workspace drag; a plain
-     *   long-press (dropped on itself) then reveals the resize frame, matching how the
-     *   launcher reveals the resize frame after a widget long-press.
+     * - Caddy folder otherwise: long-press starts the native workspace drag. When that drag
+     *   ends back on the folder's own cell, {@link Workspace} shows the resize frame from its
+     *   drop hook, exactly like the launcher does for an app widget.
      * - Any other folder: identical to the native workspace long-click behaviour.
      */
     @Override
@@ -624,28 +622,7 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         if (launcher.isInState(LauncherState.EDIT_MODE)) {
             return showCaddyResizeFrame(launcher);
         }
-        boolean started = ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this);
-        if (started) {
-            DragController controller = launcher.getDragController();
-            controller.addDragListener(new DragController.DragListener() {
-                @Override
-                public void onDragStart(DragObject dragObject, DragOptions options) {
-                }
-
-                @Override
-                public void onDragEnd() {
-                    controller.removeDragListener(this);
-                    DragObject dragObject = controller.mDragObject;
-                    // Only when the folder itself was dropped (not dragged onto another
-                    // target) and the launcher is back to a stable state.
-                    if (dragObject != null && dragObject.dragInfo == mInfo
-                            && launcher.isInState(LauncherState.NORMAL)) {
-                        post(() -> showCaddyResizeFrame(launcher));
-                    }
-                }
-            });
-        }
-        return started;
+        return ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this);
     }
 
     private boolean showCaddyResizeFrame(Launcher launcher) {
