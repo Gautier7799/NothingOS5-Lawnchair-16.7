@@ -41,6 +41,7 @@ on:
       - openhands/caddy-card-to-folder-stage2
       - fix/caddy-folder-resize-cancel-2026-11-16
       - openhands/caddy-resize-corner-handles
+      - openhands/caddy-resize-touch-path
 
 permissions:
   contents: read
