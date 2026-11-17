@@ -1756,6 +1756,36 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         mFolderIcon.onItemsChanged(animate);
     }
 
+    /**
+     * Adds several items at once, mirroring the drag-into-folder path.
+     *
+     * Adding a card's apps one at a time ran the per-item database write, the folder-name
+     * suggestion lookup and a full icon re-layout for every icon, so a freshly dropped folder
+     * was still rewriting the model and re-laying out while it was settling. This performs the
+     * same per-item writes, then flushes the item locations and refreshes the icon once, which
+     * keeps the drop atomic and stops the icon flickering.
+     */
+    public void addFolderContents(List<ItemInfo> items) {
+        if (items.isEmpty()) return;
+        FolderGridOrganizer verifier = createFolderGridOrganizer(
+                mActivityContext.getDeviceProfile()).setFolderInfo(mInfo);
+        int rank = mInfo.getContents().size();
+        for (ItemInfo item : items) {
+            if (!willAcceptItemType(item.itemType)) {
+                throw new RuntimeException("tried to add an illegal type into a folder");
+            }
+            mInfo.getContents().add(item);
+            verifier.updateRankAndPos(item, rank);
+            mActivityContext.getModelWriter().addOrMoveItemInDatabase(item, mInfo.id, 0,
+                    item.cellX, item.cellY);
+            rank++;
+        }
+        updateItemLocationsInDatabaseBatch(false);
+        mActivityContext.getModelWriter().notifyItemModified(mInfo);
+        mItemsInvalidated = true;
+        mFolderIcon.onItemsChanged(true);
+    }
+
     /** Remove all matching app or shortcut. Does not change the DB. */
     public void removeFolderContent(boolean animate, ItemInfo... items) {
         List<ItemInfo> itemArray = Arrays.asList(items);

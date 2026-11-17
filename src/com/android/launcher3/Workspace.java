@@ -2321,9 +2321,13 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         folderIcon.applyCaddyFolderStyle();
 
         Folder folder = folderIcon.getFolder();
-        for (WorkspaceItemInfo item : folderItems) {
-            folder.addFolderContent(item);
-        }
+        // Add the card's apps in one batch. Adding them one at a time left the folder
+        // rewriting the model and re-laying out while it was still settling, which made the
+        // freshly dropped icon flicker. The label is set afterwards so the category title wins
+        // over auto-labelling.
+        folder.addFolderContents(new ArrayList<ItemInfo>(folderItems));
+        folderInfo.setTitle(spec.getTitle(), mLauncher.getModelWriter());
+        folderIcon.onTitleChanged(folderInfo.title);
         // Finalize the drop exactly like every other drop path
         // (createUserFolderIfNecessary / createDossierCardIfNecessary / onDropExternal):
         // onDropChild() marks the cell dropped and re-marks it occupied, and measureChild()
@@ -2331,17 +2335,19 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         // half-bound state where later app drops on its cell were not routed to it.
         target.onDropChild(folderIcon);
         target.getShortcutsAndWidgets().measureChild(folderIcon);
-        // Label the folder once its contents exist, so the category title wins over
-        // auto-labelling. An empty title is left unset, letting the folder auto-label.
-        folderInfo.setTitle(spec.getTitle(), mLauncher.getModelWriter());
-        folderIcon.onTitleChanged(folderInfo.title);
 
         mStatsLogManager.logger().withItemInfo(folderInfo).withInstanceId(d.logInstanceId)
                 .log(LauncherEvent.LAUNCHER_ITEM_DROP_FOLDER_CREATED);
 
         if (d.dragView != null) {
             d.deferDragViewCleanupPostAnimation = true;
+            // Every other drop path wraps this animation in the final transition transform, so
+            // the drag view lands where the icon actually is while the workspace is still
+            // spring-loaded. Without it the preview flies to the un-transformed cell and the
+            // freshly dropped folder appears to jump or settle in the wrong place.
+            setFinalTransitionTransform();
             mLauncher.getDragLayer().animateViewIntoPosition(d.dragView, folderIcon, this);
+            resetTransitionTransform();
         }
         return folderIcon;
     }
