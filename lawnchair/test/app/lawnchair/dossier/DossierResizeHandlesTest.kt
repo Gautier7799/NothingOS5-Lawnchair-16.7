@@ -81,4 +81,93 @@ class DossierResizeHandlesTest {
         val result = borders(target, target)
         assertThat(result.any).isFalse()
     }
+
+    // --- DragLayer-coordinate dispatch path ---
+
+    @Test
+    fun dragLayerPointResolvesRelativeToFrameOrigin() {
+        // Frame placed at (100, 200) in the DragLayer; a touch 5px inside its left edge must
+        // read as a left grab, exactly as the local-coordinate path would.
+        val result = DossierResizeHandles.activeBordersForDragLayerPoint(
+            dragLayerX = 105,
+            dragLayerY = 300,
+            frameLeft = 100,
+            frameTop = 200,
+            frameWidth = size,
+            frameHeight = size,
+            touchTargetWidth = target,
+        )
+        assertThat(result.left).isTrue()
+        assertThat(result.right).isFalse()
+        assertThat(result.any).isTrue()
+    }
+
+    @Test
+    fun dragLayerPointAndLocalPointAgree() {
+        val frameLeft = 40
+        val frameTop = 60
+        val localX = 195
+        val localY = 100
+        val viaLocal = borders(localX, localY)
+        val viaDragLayer = DossierResizeHandles.activeBordersForDragLayerPoint(
+            dragLayerX = frameLeft + localX,
+            dragLayerY = frameTop + localY,
+            frameLeft = frameLeft,
+            frameTop = frameTop,
+            frameWidth = size,
+            frameHeight = size,
+            touchTargetWidth = target,
+        )
+        assertThat(viaDragLayer).isEqualTo(viaLocal)
+    }
+
+    // --- Touch-target clamping for small (single-cell) cards ---
+
+    @Test
+    fun touchTargetKeepsAFreeCentreOnASmallCard() {
+        // A 100px card: the desired 48px target would leave only 4px of free centre, so it is
+        // capped at a third of the side.
+        val effective = DossierResizeHandles.effectiveTouchTarget(
+            width = 100,
+            height = 100,
+            desired = 48,
+            minTouchTarget = 12,
+        )
+        assertThat(effective).isEqualTo(33)
+        // The centre must not read as a grab.
+        assertThat(DossierResizeHandles.activeBorders(50, 50, 100, 100, effective).any).isFalse()
+    }
+
+    @Test
+    fun touchTargetNeverDropsBelowTheMinimum() {
+        val effective = DossierResizeHandles.effectiveTouchTarget(
+            width = 30,
+            height = 30,
+            desired = 48,
+            minTouchTarget = 12,
+        )
+        assertThat(effective).isAtLeast(12)
+    }
+
+    @Test
+    fun touchTargetUnchangedWhenCardIsLarge() {
+        val effective = DossierResizeHandles.effectiveTouchTarget(
+            width = 600,
+            height = 400,
+            desired = 48,
+            minTouchTarget = 12,
+        )
+        assertThat(effective).isEqualTo(48)
+    }
+
+    @Test
+    fun touchTargetFallsBackToMinimumForUnmeasuredCard() {
+        val effective = DossierResizeHandles.effectiveTouchTarget(
+            width = 0,
+            height = 0,
+            desired = 48,
+            minTouchTarget = 12,
+        )
+        assertThat(effective).isEqualTo(12)
+    }
 }
