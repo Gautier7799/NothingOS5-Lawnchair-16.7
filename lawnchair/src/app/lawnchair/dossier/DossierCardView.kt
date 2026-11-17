@@ -170,6 +170,18 @@ class DossierCardView @JvmOverloads constructor(
     }
 
     /**
+     * Reveals the resize frame around this card without a long-press.
+     *
+     * A card dropped from the drawer has no long-press that opened the frame, so the
+     * caller invokes this once the launcher has settled to give the user the same
+     * resize entry point a workspace item gets after its own gesture.
+     */
+    fun revealResizeFrame() {
+        val info = bound ?: return
+        showResizeFrame(info, Launcher.getLauncher(context))
+    }
+
+    /**
      * Forces the next render to rebuild, e.g. after the Dossier Grille settings changed.
      * The grid dimensions are part of the render signature, but clearing it makes the
      * rebuild explicit and immune to an identical app/geometry signature.
@@ -248,7 +260,7 @@ class DossierCardView @JvmOverloads constructor(
         // Dossier-to-Dossier gaps are tightened using per-card margins. Recalculate
         // after the page has attached so every sibling card is present in the container.
         post {
-            (parent as? ViewGroup)?.let(::updateDossierVerticalSpacing)
+            (parent as? ViewGroup)?.let(::updateDossierSpacing)
             renderIfMeasured()
         }
     }
@@ -258,7 +270,7 @@ class DossierCardView @JvmOverloads constructor(
         super.onDetachedFromWindow()
         // A card may have been moved to another page. Restore the spacing of the cards
         // that remain on its previous page after this view has been removed.
-        oldContainer?.post { updateDossierVerticalSpacing(oldContainer) }
+        oldContainer?.post { updateDossierSpacing(oldContainer) }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -266,7 +278,7 @@ class DossierCardView @JvmOverloads constructor(
         if (w != oldw || h != oldh) {
             renderIfMeasured()
             (parent as? ViewGroup)?.let { container ->
-                container.post { updateDossierVerticalSpacing(container) }
+                container.post { updateDossierSpacing(container) }
             }
         }
     }
@@ -275,48 +287,66 @@ class DossierCardView @JvmOverloads constructor(
         super.onLayout(changed, left, top, right, bottom)
         if (changed) {
             (parent as? ViewGroup)?.let { container ->
-                container.post { updateDossierVerticalSpacing(container) }
+                container.post { updateDossierSpacing(container) }
             }
         }
     }
 
     /**
-     * Reduce only the vertical gap between adjacent Dossier cards. The negative margins
-     * expand each Dossier view into half of the existing cell border gap; ordinary icons,
-     * folders, and widgets keep their original spacing and dimensions.
+     * Tighten the gap between adjacent Dossier cards to the same value on both axes.
+     *
+     * The negative margins expand each card into half of the surrounding cell border
+     * gap, so two neighbouring cards end up [CARD_GAP_DP] apart regardless of whether
+     * they sit side by side or stacked. Using one target gap for both axes keeps the
+     * spacing consistent and removes the large empty bands a card row would otherwise
+     * leave around it. Ordinary icons, folders, and widgets keep their original spacing.
      */
-    private fun updateDossierVerticalSpacing(container: ViewGroup) {
+    private fun updateDossierSpacing(container: ViewGroup) {
         val cards = (0 until container.childCount)
             .mapNotNull { container.getChildAt(it) as? DossierCardView }
-        // Clamp the requested overlap to half the grid's row gap so two stacked cards can at
-        // most touch: the full row gap is consumed by the two halves, and the cards can never
-        // overlap each other or clip their own title/icon rows.
         // Resolve the device profile through the ActivityContext: this runs during layout,
         // including in the Settings previews where the context is not a Launcher.
         val activityContext: ActivityContext? = ActivityContext.lookupContextNoThrow(context)
-        val borderSpacePx = findCellLayout()?.let {
-            activityContext?.deviceProfile?.cellLayoutBorderSpacePx?.y
-        } ?: 0
-        val overlap = DossierCardLayout.safeVerticalOverlapPx(dp(CARD_VERTICAL_OVERLAP_DP), borderSpacePx)
+        val borderSpace = findCellLayout()?.let {
+            activityContext?.deviceProfile?.cellLayoutBorderSpacePx
+        }
+        val overlapX = DossierCardLayout.overlapForGapPx(borderSpace?.x ?: 0, dp(CARD_GAP_DP))
+        val overlapY = DossierCardLayout.overlapForGapPx(borderSpace?.y ?: 0, dp(CARD_GAP_DP))
         cards.forEach { card ->
             val params = card.layoutParams as? CellLayoutLayoutParams ?: return@forEach
-            val hasDossierAbove = cards.any { other ->
-                if (other === card) return@any false
-                val otherParams = other.layoutParams as? CellLayoutLayoutParams ?: return@any false
-                otherParams.getCellY() + otherParams.cellVSpan == params.getCellY() &&
-                    otherParams.getCellX() < params.getCellX() + params.cellHSpan &&
-                    otherParams.getCellX() + otherParams.cellHSpan > params.getCellX()
+            val left = params.getCellX()
+            val top = params.getCellY()
+            val right = left + params.cellHSpan
+            val bottom = top + params.cellVSpan
+            var hasLeft = false
+            var hasRight = false
+            var hasAbove = false
+            var hasBelow = false
+            cards.forEach { sibling ->
+                if (sibling === card) return@forEach
+                val sp = sibling.layoutParams as? CellLayoutLayoutParams ?: return@forEach
+                val sLeft = sp.getCellX()
+                val sTop = sp.getCellY()
+                val sRight = sLeft + sp.cellHSpan
+                val sBottom = sTop + sp.cellVSpan
+                if (sLeft < right && sRight > left) {
+                    if (sBottom == top) hasAbove = true
+                    if (sTop == bottom) hasBelow = true
+                }
+                if (sTop < bottom && sBottom > top) {
+                    if (sRight == left) hasLeft = true
+                    if (sLeft == right) hasRight = true
+                }
             }
-            val hasDossierBelow = cards.any { other ->
-                if (other === card) return@any false
-                val otherParams = other.layoutParams as? CellLayoutLayoutParams ?: return@any false
-                params.getCellY() + params.cellVSpan == otherParams.getCellY() &&
-                    otherParams.getCellX() < params.getCellX() + params.cellHSpan &&
-                    otherParams.getCellX() + otherParams.cellHSpan > params.getCellX()
-            }
-            val topMargin = if (hasDossierAbove) -overlap else 0
-            val bottomMargin = if (hasDossierBelow) -overlap else 0
-            if (params.topMargin != topMargin || params.bottomMargin != bottomMargin) {
+            val leftMargin = if (hasLeft) -overlapX else 0
+            val rightMargin = if (hasRight) -overlapX else 0
+            val topMargin = if (hasAbove) -overlapY else 0
+            val bottomMargin = if (hasBelow) -overlapY else 0
+            if (params.leftMargin != leftMargin || params.rightMargin != rightMargin ||
+                params.topMargin != topMargin || params.bottomMargin != bottomMargin
+            ) {
+                params.leftMargin = leftMargin
+                params.rightMargin = rightMargin
                 params.topMargin = topMargin
                 params.bottomMargin = bottomMargin
                 card.requestLayout()
@@ -409,12 +439,12 @@ class DossierCardView @JvmOverloads constructor(
         const val TARGET_CELL_DP = 60f
 
         /**
-         * Requested vertical overlap between two stacked Dossier cards. It is only a
-         * request: [DossierCardLayout.safeVerticalOverlapPx] clamps it to half the grid's
-         * row gap so the two cards can at most touch. On a 16dp grid gap this yields 8dp
-         * (the cards touch); a larger request would only matter on wider grids.
+         * The gap left between two adjacent Dossier cards, on both axes. Each card grows
+         * into half of the surrounding cell border gap, so the visible gap becomes this
+         * value; on a 16dp grid gap it is clamped to that natural gap so cards never
+         * overlap. The same value is used horizontally and vertically.
          */
-        const val CARD_VERTICAL_OVERLAP_DP = 12f
+        const val CARD_GAP_DP = 14f
         const val GUTTER_DP = 4f
         const val CARD_PADDING_DP = 14f
         const val TITLE_DP = 24f

@@ -75,22 +75,27 @@ class DossierCardLayoutTest {
     }
 
     @Test
-    fun verticalOverlapIsClampedToHalfTheRowGap() {
-        // A 16dp row gap absorbs at most 8dp per card: the two halves consume the gap and the
-        // cards touch without overlapping.
-        assertThat(DossierCardLayout.safeVerticalOverlapPx(desiredOverlapPx = 12, cellBorderSpacePx = 16))
-            .isEqualTo(8)
-        // A request that already fits is left untouched.
-        assertThat(DossierCardLayout.safeVerticalOverlapPx(desiredOverlapPx = 4, cellBorderSpacePx = 16))
-            .isEqualTo(4)
+    fun gapHelperTargetsTheRequestedGapOnBothAxes() {
+        // A 16dp grid gap with a 14dp target: each card grows 1dp into the gap, so the
+        // visible gap is 16 - 2 * 1 = 14dp.
+        assertThat(DossierCardLayout.overlapForGapPx(cellBorderSpacePx = 16, targetGapPx = 14))
+            .isEqualTo(1)
+        // The helper is axis-agnostic, so the same inputs give the same result for the
+        // horizontal and vertical gaps.
+        assertThat(DossierCardLayout.overlapForGapPx(cellBorderSpacePx = 16, targetGapPx = 14))
+            .isEqualTo(DossierCardLayout.overlapForGapPx(cellBorderSpacePx = 16, targetGapPx = 14))
     }
 
     @Test
-    fun verticalOverlapNeverExceedsTheAvailableGap() {
-        // On any grid the two cards together may consume at most the whole row gap, so the
-        // gap between them never goes negative (no overlap, no clipped title/icon rows).
+    fun gapHelperNeverOverlapsTheCards() {
+        // A target gap at or above the natural gap means no growth at all.
+        assertThat(DossierCardLayout.overlapForGapPx(cellBorderSpacePx = 16, targetGapPx = 16))
+            .isEqualTo(0)
+        assertThat(DossierCardLayout.overlapForGapPx(cellBorderSpacePx = 16, targetGapPx = 40))
+            .isEqualTo(0)
+        // Even asking for zero gap only closes the gap; the two cards still touch, not overlap.
         for (gap in intArrayOf(0, 1, 6, 8, 16, 24, 64)) {
-            val overlap = DossierCardLayout.safeVerticalOverlapPx(desiredOverlapPx = 100, cellBorderSpacePx = gap)
+            val overlap = DossierCardLayout.overlapForGapPx(cellBorderSpacePx = gap, targetGapPx = 0)
             assertThat(2 * overlap).isAtMost(gap)
         }
     }

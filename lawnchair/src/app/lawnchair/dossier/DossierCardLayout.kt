@@ -58,14 +58,21 @@ object DossierCardLayout {
     }
 
     /**
-     * Clamps a requested vertical overlap between two stacked Dossier cards to what the
-     * grid can absorb without the cards overlapping each other.
+     * Extra size a Dossier card takes from an adjacent grid gap so the visible gap
+     * between two neighbouring cards becomes [targetGapPx].
      *
-     * Each card grows by the returned amount into the cell gap, so the two cards together
-     * consume `2 * overlap`. The gap between two rows is exactly [cellBorderSpacePx], so the
-     * largest overlap that keeps a non-negative gap is half of it: at that value the cards
-     * touch, which is the tightest safe spacing. Any larger request is clamped, which is what
-     * keeps cards from clipping their titles or icons on grids with a small border space.
+     * Two cards face each other across a single grid gap of [cellBorderSpacePx]. Each card
+     * grows by the returned amount into that gap, so the gap shrinks by twice it:
+     *
+     *     visible gap = cellBorderSpacePx - 2 * result
+     *
+     * The target is clamped to the natural gap so two cards can never overlap, and the
+     * result is never negative. The same value is used on the horizontal and vertical axes,
+     * which is what keeps the spacing between cards identical in both directions.
      */
-    fun safeVerticalOverlapPx(desiredOverlapPx: Int, cellBorderSpacePx: Int): Int = desiredOverlapPx.coerceAtMost((cellBorderSpacePx / 2).coerceAtLeast(0))
+    fun overlapForGapPx(cellBorderSpacePx: Int, targetGapPx: Int): Int {
+        val natural = cellBorderSpacePx.coerceAtLeast(0)
+        val target = targetGapPx.coerceIn(0, natural)
+        return (natural - target) / 2
+    }
 }

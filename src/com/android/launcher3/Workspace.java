@@ -2423,20 +2423,20 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         return folderIcon;
     }
 
-    /** Folder waiting for the launcher to settle before its resize frame is revealed. */
+    /** Item waiting for the launcher to settle before its resize frame is revealed. */
     @Nullable
-    private FolderIcon mPendingCaddyResizeFrame;
+    private View mPendingCaddyResizeFrame;
 
     /**
      * Reveals the Caddy resize frame once the launcher is back to a stable NORMAL state.
      *
-     * The frame snapshots the folder's window position, so it must not be created while
+     * The frame snapshots the item's window position, so it must not be created while
      * the workspace still has scale/translation from the spring-loaded exit. A page
      * transition (the empty-screen strip that follows a drop) also tears the frame down,
      * so the reveal is deferred until both have finished.
      */
-    private void scheduleCaddyResizeFrame(FolderIcon folderIcon) {
-        mPendingCaddyResizeFrame = folderIcon;
+    private void scheduleCaddyResizeFrame(View item) {
+        mPendingCaddyResizeFrame = item;
         StateManager<LauncherState, Launcher> stateManager = mLauncher.getStateManager();
         if (stateManager.getState() == NORMAL && !stateManager.isInTransition()) {
             maybeShowPendingCaddyResizeFrame();
@@ -2468,18 +2468,24 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
     }
 
     private void showPendingCaddyResizeFrameIfStable() {
-        FolderIcon folderIcon = mPendingCaddyResizeFrame;
+        View item = mPendingCaddyResizeFrame;
         StateManager<LauncherState, Launcher> stateManager = mLauncher.getStateManager();
         if (!CaddyFolderResizeHandles.shouldRevealFrame(
-                folderIcon != null,
+                item != null,
                 stateManager.getState() == NORMAL,
                 stateManager.isInTransition(),
                 isPageInTransition())) {
             return;
         }
         mPendingCaddyResizeFrame = null;
-        CellLayout layout = getParentCellLayoutForView(folderIcon);
-        if (layout != null && folderIcon.getParent() != null) {
+        CellLayout layout = getParentCellLayoutForView(item);
+        if (layout == null || item.getParent() == null) {
+            return;
+        }
+        // A Dossier card owns its own resize frame; a Caddy folder uses the folder frame.
+        if (item instanceof app.lawnchair.dossier.DossierCardView dossierCard) {
+            dossierCard.revealResizeFrame();
+        } else if (item instanceof FolderIcon folderIcon) {
             CaddyFolderResizeFrame.showForFolder(mLauncher, folderIcon, layout);
         }
     }
@@ -3433,7 +3439,12 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         // behaviour is kept as a fallback.
         if (CaddyFolderDragInfo.isCaddyFolderDrag(d.dragInfo)) {
             if (DossierCardCreator.isEnabled(getContext())) {
-                createCaddyCardIfNecessary(cellLayout, touchXY, d);
+                View dossierCard = createCaddyCardIfNecessary(cellLayout, touchXY, d);
+                if (dossierCard != null) {
+                    // A dropped card has no long-press that opened a resize frame; reveal
+                    // it once the launcher has settled, the same way a moved item does.
+                    scheduleCaddyResizeFrame(dossierCard);
+                }
             } else {
                 FolderIcon caddyFolder =
                         createCaddyFolderIfNecessary(cellLayout, container, touchXY, d);
