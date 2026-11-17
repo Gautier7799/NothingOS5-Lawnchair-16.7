@@ -43,6 +43,7 @@ on:
       - openhands/caddy-resize-corner-handles
       - openhands/caddy-resize-touch-path
       - openhands/dossier-resize-touch-path
+      - openhands/caddy-card-drop-to-dossier
 
 permissions:
   contents: read

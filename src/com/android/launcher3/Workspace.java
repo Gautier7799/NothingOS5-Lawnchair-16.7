@@ -153,6 +153,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import app.lawnchair.dossier.CaddyCardDrop;
 import app.lawnchair.dossier.DossierCardCreator;
 import app.lawnchair.dossier.DossierCreationResult;
 import app.lawnchair.dossier.DossierInfo;
@@ -2267,6 +2268,76 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
     }
 
     /**
+     * Creates a native Dossier card on the home screen from a Caddy category card dragged
+     * out of the app drawer.
+     *
+     * The card carries the category title and the component keys of its apps. Placing it as
+     * a Dossier — the launcher's resizable non-widget item — is what gives the dropped card
+     * the same move, resize-handle and add-app behaviour as the launcher's own items, so the
+     * card matches the drawer's category card instead of collapsing into a folder. The drawer
+     * card is left untouched: this is an independent record created once, at drop time.
+     *
+     * @return the created card view, or {@code null} when the card had no usable apps or no
+     *         vacant cell was found (the drop is then a no-op).
+     */
+    @Nullable
+    View createCaddyCardIfNecessary(CellLayout target, int[] touchXY, DragObject d) {
+        CaddyFolderDragInfo dragInfo = (CaddyFolderDragInfo) d.dragInfo;
+        app.lawnchair.allapps.caddy.CaddyFolderFactory.FolderSpec spec = dragInfo.getSpec();
+        if (spec == null || !CaddyCardDrop.canCreate(spec.getAppKeys().size())) {
+            return null;
+        }
+
+        // Find a vacant cell near the drop, then resolve the span the card can actually
+        // occupy there (prefers 2x2, shrinks toward 1x1 when the region is cramped).
+        if (touchXY != null) {
+            mTargetCell = target.performReorder(touchXY[0], touchXY[1], 1, 1, 1, 1,
+                    null, mTargetCell, null, CellLayout.MODE_ON_DROP_EXTERNAL);
+        } else {
+            target.findCellForSpan(mTargetCell, 1, 1);
+        }
+        if (mTargetCell[0] < 0 || mTargetCell[1] < 0) return null;
+
+        int[] span = CaddyCardDrop.resolveSpan(
+                mTargetCell[0], mTargetCell[1], target.getCountX(), target.getCountY(),
+                (x, y, sx, sy) -> target.isRegionVacant(x, y, sx, sy));
+        if (span == null) return null;
+
+        DossierInfo card = DossierCardCreator.fromCategory(
+                getContext(), spec.getTitle(), spec.getAppKeys(), span[0], span[1]);
+        if (card == null) return null;
+
+        final int screenId = getCellLayoutId(target);
+        card.container = CONTAINER_DESKTOP;
+        card.screenId = screenId;
+        card.cellX = mTargetCell[0];
+        card.cellY = mTargetCell[1];
+
+        // Build the view before writing anything, so a card that cannot be inflated does not
+        // leave an orphan database row behind.
+        View cardView = mLauncher.getItemInflater().inflateItem(card, target, CONTAINER_DESKTOP);
+        if (cardView == null) return null;
+
+        // addItemToDatabase assigns the id and writes the row; then the view is placed on the
+        // grid. onDropChild/measureChild finalize the drop exactly like the other drop paths,
+        // which is what lets later app drops be routed onto the card.
+        mLauncher.getModelWriter().addItemToDatabase(card, CONTAINER_DESKTOP, screenId,
+                mTargetCell[0], mTargetCell[1]);
+        addInScreen(cardView, CONTAINER_DESKTOP, screenId, mTargetCell[0], mTargetCell[1],
+                span[0], span[1]);
+        target.onDropChild(cardView);
+        target.getShortcutsAndWidgets().measureChild(cardView);
+
+        if (d != null && d.dragView != null) {
+            d.deferDragViewCleanupPostAnimation = true;
+            mLauncher.getDragLayer().animateViewIntoPosition(d.dragView, cardView, this);
+        }
+        mStatsLogManager.logger().withItemInfo(card).withInstanceId(d.logInstanceId)
+                .log(LauncherEvent.LAUNCHER_ITEM_DROP_COMPLETED);
+        return cardView;
+    }
+
+    /**
      * Creates a native folder on the home screen from a Caddy category card dragged out
      * of the app drawer.
      *
@@ -3354,21 +3425,24 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
             }
         }
 
-        // A Caddy category card dragged from the drawer becomes a native folder holding
-        // the category's apps. This runs before item inflation because the card drag
-        // carries a gesture-only payload, not a persisted item type.
+        // A Caddy category card dragged from the drawer becomes a native Dossier card on
+        // the workspace. This runs before item inflation because the card drag carries a
+        // gesture-only payload, not a persisted item type. Placing a Dossier (rather than
+        // a folder) is what gives the dropped card the launcher's own move, resize-handle
+        // and add-app behaviour. When the Dossier feature is off, the previous folder
+        // behaviour is kept as a fallback.
         if (CaddyFolderDragInfo.isCaddyFolderDrag(d.dragInfo)) {
-            FolderIcon caddyFolder = createCaddyFolderIfNecessary(cellLayout, container, touchXY, d);
+            if (DossierCardCreator.isEnabled(getContext())) {
+                createCaddyCardIfNecessary(cellLayout, touchXY, d);
+            } else {
+                FolderIcon caddyFolder =
+                        createCaddyFolderIfNecessary(cellLayout, container, touchXY, d);
+                if (caddyFolder != null) {
+                    scheduleCaddyResizeFrame(caddyFolder);
+                }
+            }
             if (!mLauncher.isInState(EDIT_MODE)) {
                 mLauncher.getStateManager().goToState(NORMAL, SPRING_LOADED_EXIT_DELAY);
-            }
-            if (caddyFolder != null) {
-                // A folder dropped in from the drawer lands as a single cell and has no
-                // visible resize entry point, unlike a folder moved on the workspace
-                // (whose frame is revealed by the droppedOnOriginalCell branch above).
-                // Reveal the frame once the launcher has settled, so the user can resize
-                // the new folder straight away.
-                scheduleCaddyResizeFrame(caddyFolder);
             }
             return;
         }

@@ -87,4 +87,47 @@ object DossierCardCreator {
             this.spanY = spanY.coerceAtLeast(1)
         }
     }
+
+    /**
+     * Builds a card from a Caddy category card dragged out of the drawer.
+     *
+     * The category already carries its title and the stable keys of its apps, so unlike
+     * [build] there is no target icon to pair with: the card is seeded directly. Blank
+     * keys are dropped and duplicates are removed keeping first-seen order. Returns null
+     * when no usable app remains, so the caller leaves the drop to the ordinary paths
+     * instead of placing an empty card.
+     */
+    @JvmStatic
+    fun fromCategory(
+        context: Context,
+        title: CharSequence?,
+        appKeys: List<String>?,
+        spanX: Int,
+        spanY: Int,
+    ): DossierInfo? {
+        if (appKeys == null) return null
+        val keys = LinkedHashSet<String>()
+        for (raw in appKeys) {
+            val key = raw.trim()
+            if (key.isNotEmpty()) keys.add(key)
+        }
+        if (keys.isEmpty()) return null
+
+        val preferences = PreferenceManager2.getInstance(context)
+        val columns = preferences.dossierGridColumns.firstCached()
+            .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE)
+        val rows = preferences.dossierGridRows.firstCached()
+            .coerceIn(DossierInfo.MIN_GRID_SIZE, DossierInfo.MAX_GRID_SIZE)
+        val name = title?.toString()?.trim().orEmpty()
+
+        return DossierInfo(
+            title = name.ifEmpty { DossierCreation.DEFAULT_TITLE },
+            appKeys = keys.toList(),
+            gridColumns = columns,
+            gridRows = rows,
+        ).apply {
+            this.spanX = spanX.coerceAtLeast(1)
+            this.spanY = spanY.coerceAtLeast(1)
+        }
+    }
 }
