@@ -684,7 +684,14 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 (icon, app) -> {
                     icon.setOnFocusChangeListener(mIconFocusListener);
                     icon.setOnClickListener(mOnIconClickListener);
-                    icon.setOnLongClickListener(mOnIconLongClickListener);
+                    // The preview icons cover most of the card, so a long-press usually
+                    // lands on one of them, not on the card surface. Each icon has its own
+                    // long-click handler, which would win and start a single-app drag. Try
+                    // the card drag first and only fall back to the per-app handler when the
+                    // card cannot be dragged, so pressing anywhere on the card moves the card.
+                    icon.setOnLongClickListener(v ->
+                            startCaddyCardDrag(host, item)
+                                    || mOnIconLongClickListener.onLongClick(v));
                     return kotlin.Unit.INSTANCE;
                 });
     }

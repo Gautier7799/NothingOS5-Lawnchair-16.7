@@ -2470,18 +2470,20 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
     private void showPendingCaddyResizeFrameIfStable() {
         View item = mPendingCaddyResizeFrame;
         StateManager<LauncherState, Launcher> stateManager = mLauncher.getStateManager();
-        if (!CaddyFolderResizeHandles.shouldRevealFrame(
+        boolean reveal = CaddyFolderResizeHandles.shouldRevealFrame(
                 item != null,
                 stateManager.getState() == NORMAL,
                 stateManager.isInTransition(),
-                isPageInTransition())) {
+                isPageInTransition());
+        CellLayout layout = item == null ? null : getParentCellLayoutForView(item);
+        boolean attached = item != null && item.getParent() != null;
+        // Consume the pending marker only when the frame is really shown. Clearing it while
+        // the item was not yet attached and laid out dropped the reveal for good, because
+        // the onPageEndTransition() retry only runs while an item is still pending.
+        if (!CaddyFolderResizeHandles.shouldConsumeReveal(reveal, layout != null, attached)) {
             return;
         }
         mPendingCaddyResizeFrame = null;
-        CellLayout layout = getParentCellLayoutForView(item);
-        if (layout == null || item.getParent() == null) {
-            return;
-        }
         // A Dossier card owns its own resize frame; a Caddy folder uses the folder frame.
         if (item instanceof app.lawnchair.dossier.DossierCardView dossierCard) {
             dossierCard.revealResizeFrame();

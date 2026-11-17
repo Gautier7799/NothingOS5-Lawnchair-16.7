@@ -133,6 +133,47 @@ class CaddyFolderResizeHandlesTest {
         ).isFalse()
     }
 
+    // --- shouldConsumeReveal: never drop a reveal before the frame can be shown ---------
+
+    @Test
+    fun consumeReveal_trueOnlyWhenRevealAllowedAndFolderAttachedAndLaidOut() {
+        assertThat(
+            CaddyFolderResizeHandles.shouldConsumeReveal(
+                shouldReveal = true, hasLayout = true, hasParent = true,
+            ),
+        ).isTrue()
+    }
+
+    @Test
+    fun consumeReveal_falseWhenFolderNotYetLaidOut_soRevealIsRetried() {
+        // A drawer drop arms the reveal on a posted pass; the folder may not have a
+        // CellLayout yet. Consuming here dropped the reveal for good, because the
+        // onPageEndTransition() retry only runs while a folder is still pending.
+        assertThat(
+            CaddyFolderResizeHandles.shouldConsumeReveal(
+                shouldReveal = true, hasLayout = false, hasParent = true,
+            ),
+        ).isFalse()
+    }
+
+    @Test
+    fun consumeReveal_falseWhenFolderNotYetAttached_soRevealIsRetried() {
+        assertThat(
+            CaddyFolderResizeHandles.shouldConsumeReveal(
+                shouldReveal = true, hasLayout = true, hasParent = false,
+            ),
+        ).isFalse()
+    }
+
+    @Test
+    fun consumeReveal_falseWhenRevealNotAllowed() {
+        assertThat(
+            CaddyFolderResizeHandles.shouldConsumeReveal(
+                shouldReveal = false, hasLayout = true, hasParent = true,
+            ),
+        ).isFalse()
+    }
+
     // --- effectiveTouchTarget: keeps a free centre on small folders ---------------------
 
     @Test
