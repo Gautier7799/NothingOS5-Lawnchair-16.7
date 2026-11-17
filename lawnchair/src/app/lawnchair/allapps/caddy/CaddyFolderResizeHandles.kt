@@ -115,4 +115,21 @@ object CaddyFolderResizeHandles {
         inStateTransition: Boolean,
         inPageTransition: Boolean,
     ): Boolean = hasPendingFolder && inNormalState && !inStateTransition && !inPageTransition
+
+    /**
+     * Whether the workspace may consume (clear) its pending reveal on this pass.
+     *
+     * [shouldRevealFrame] can pass before the folder is attached and laid out, because a
+     * drawer drop arms the reveal on a posted pass. Clearing the pending marker before the
+     * folder is actually reachable dropped the reveal for good: the retry from
+     * [com.android.launcher3.Workspace.onPageEndTransition] only fires while a folder is
+     * still pending, so the handles never appeared. Consume the marker only when the frame
+     * is really shown.
+     */
+    @JvmStatic
+    fun shouldConsumeReveal(
+        shouldReveal: Boolean,
+        hasLayout: Boolean,
+        hasParent: Boolean,
+    ): Boolean = shouldReveal && hasLayout && hasParent
 }
