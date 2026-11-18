@@ -26,6 +26,7 @@ import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import app.lawnchair.allapps.caddy.CaddyCategoryDialog
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
+import com.android.launcher3.BubbleTextView
 import com.android.launcher3.CellLayout
 import com.android.launcher3.DropTarget
 import com.android.launcher3.Launcher
@@ -34,8 +35,10 @@ import com.android.launcher3.celllayout.CellLayoutLayoutParams
 import com.android.launcher3.dragndrop.DragOptions
 import com.android.launcher3.dragndrop.DraggableView
 import com.android.launcher3.model.data.AppInfo
+import com.android.launcher3.model.data.ItemInfo
+import com.android.launcher3.model.data.WorkspaceItemInfo
+import com.android.launcher3.popup.PopupContainerWithArrow
 import com.android.launcher3.touch.ItemClickHandler
-import com.android.launcher3.util.ComponentKey
 import com.android.launcher3.views.ActivityContext
 
 /** Workspace view for a database-backed Dossier item. */
@@ -119,6 +122,11 @@ class DossierCardView @JvmOverloads constructor(
                     // Only when the card itself was dropped (not dragged onto another
                     // target) and the launcher is back to a stable state.
                     if (dragInfo === info && launcher.isInState(LauncherState.NORMAL)) {
+                        // startDrag() makes the card INVISIBLE. A drag that ends without a
+                        // successful drop (a long-press held in place) never runs the drop
+                        // animation that would restore it, so the card vanished while the
+                        // resize handles stayed. Restore visibility before revealing the frame.
+                        visibility = View.VISIBLE
                         post { showResizeFrame(info, launcher) }
                     }
                 }
@@ -202,20 +210,30 @@ class DossierCardView @JvmOverloads constructor(
         )
     }
 
+    /**
+     * Shows the launcher's standard item popup for an icon inside the card.
+     *
+     * The popup is anchored to the icon and offers App info plus the other system
+     * shortcuts, exactly as a workspace icon does. Returns false when no popup could
+     * be shown, so the caller can fall back to the card's own long-press behaviour.
+     */
+    private fun showIconPopup(icon: BubbleTextView): Boolean = PopupContainerWithArrow.showForIcon(icon) != null
+
     // ---------------------------------------------------------------------
     // DropTarget: accept an app icon dropped from the drawer onto this card.
     // ---------------------------------------------------------------------
 
     /**
-     * Dossier cards are drop targets only for app icons from All Apps. During a
-     * workspace-card drag, leaving this enabled lets the source/other Dossier
-     * views intercept DragController hit-testing before Workspace can resolve
-     * the destination page. That prevents page transfer and can make the drop
-     * fall through to an unrelated target.
+     * Dossier cards accept an app icon dragged from All Apps and an app shortcut
+     * dragged from the workspace. Both carry a resolvable component key, so either
+     * can be appended to the card. A Dossier card drag (or any other item) is left
+     * disabled: during a workspace-card drag, keeping this enabled lets the
+     * source/other Dossier views intercept DragController hit-testing before
+     * Workspace can resolve the destination page, which prevents page transfer.
      */
     override fun isDropEnabled(): Boolean {
         val dragInfo = Launcher.getLauncher(context).dragController.mDragObject?.dragInfo
-        return dragInfo is AppInfo
+        return dragInfo is AppInfo || dragInfo is WorkspaceItemInfo
     }
 
     override fun acceptDrop(dragObject: DropTarget.DragObject): Boolean = appKeyFor(dragObject) != null
@@ -235,7 +253,18 @@ class DossierCardView @JvmOverloads constructor(
         val info = bound ?: return
         val key = appKeyFor(dragObject) ?: return
         if (!info.addApp(key)) return
-        Launcher.getLauncher(context).modelWriter.updateItemInDatabase(info)
+        val launcher = Launcher.getLauncher(context)
+        launcher.modelWriter.updateItemInDatabase(info)
+        // A shortcut dragged from the workspace moves into the card, so its own row and
+        // view are removed; otherwise the same app would appear both on the workspace and
+        // inside the card. An All Apps icon has no workspace row and needs no cleanup.
+        val source = dragObject.dragInfo
+        if (source is WorkspaceItemInfo && source.container >= 0) {
+            val sourceView = dragObject.originalView as? View
+            if (sourceView != null) {
+                launcher.removeItem(sourceView, source, true, "moved into Dossier card")
+            }
+        }
         lastRenderSignature = null
         renderIfMeasured()
     }
@@ -250,9 +279,12 @@ class DossierCardView @JvmOverloads constructor(
 
     /** Returns the stable component key for the dragged app, or null for anything else. */
     private fun appKeyFor(dragObject: DropTarget.DragObject): String? {
-        val app = dragObject.dragInfo as? AppInfo ?: return null
-        val component = app.componentName ?: return null
-        return ComponentKey(component, app.user).toString()
+        // Accept both an All Apps icon (AppInfo) and a workspace shortcut
+        // (WorkspaceItemInfo). Both resolve to a canonical ComponentKey string, which is
+        // exactly the format the Dossier payload stores and ItemInflater parses back.
+        val info = dragObject.dragInfo as? ItemInfo ?: return null
+        val key = info.componentKey?.toString() ?: return null
+        return key.takeIf(DossierAppKeys::isCanonical)
     }
 
     override fun onAttachedToWindow() {
@@ -408,7 +440,14 @@ class DossierCardView @JvmOverloads constructor(
                 cardClick = { openCard() },
                 iconBinder = { icon, _ ->
                     icon.setOnClickListener(ItemClickHandler.INSTANCE)
-                    icon.setOnLongClickListener { performLongClick() }
+                    // Long-pressing an icon opens the launcher's own item popup, so the
+                    // card offers the same actions as a workspace icon: App info (the
+                    // explicitly requested behaviour) plus widgets, install and deep
+                    // shortcuts. When the popup cannot be shown the press falls back to
+                    // the card's own long-press (move / resize) so the gesture is never lost.
+                    icon.setOnLongClickListener { view ->
+                        showIconPopup(view as BubbleTextView) || performLongClick()
+                    }
                 },
                 fitGridToHost = true,
                 columns = columns,

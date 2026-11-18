@@ -255,6 +255,7 @@ import com.android.launcher3.util.WallpaperThemeManager;
 import com.android.launcher3.views.FloatingIconView;
 import com.android.launcher3.views.FloatingSurfaceView;
 import com.android.launcher3.views.OptionsPopupView;
+import app.lawnchair.dossier.DossierInfo;
 import app.lawnchair.views.EditModePageStrip;
 import com.android.launcher3.views.ScrimView;
 import com.android.launcher3.widget.LauncherAppWidgetHostView;
@@ -2073,6 +2074,14 @@ public class Launcher extends StatefulActivity<LauncherState>
             mWorkspace.removeWorkspaceItem(v);
             if (deleteFromDb) {
                 getModelWriter().deleteWidgetInfo(widgetInfo, getAppWidgetHolder(), reason);
+            }
+        } else if (itemInfo instanceof DossierInfo) {
+            // Dossier cards are a native workspace item. Without this branch removeItem()
+            // returned false and the Favorites row survived, so the card reappeared after
+            // the launcher restarted.
+            mWorkspace.removeWorkspaceItem(v);
+            if (deleteFromDb) {
+                getModelWriter().deleteItemFromDatabase(itemInfo, reason);
             }
         } else {
             return false;

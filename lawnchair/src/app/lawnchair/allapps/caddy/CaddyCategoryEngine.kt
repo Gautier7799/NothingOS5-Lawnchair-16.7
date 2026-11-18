@@ -45,9 +45,16 @@ object CaddyCategoryEngine {
         return true
     }
 
-    /** Stable component key for a launcher app, independent of object identity. */
-    fun appKey(app: com.android.launcher3.model.data.AppInfo): String = app.componentName?.let { "${app.user.hashCode()}:${it.flattenToString()}" }
-        ?: "${app.user.hashCode()}:${app.targetPackage}"
+    /**
+     * Stable component key for a launcher app, independent of object identity.
+     *
+     * Uses the canonical `ComponentKey.toString()` shape (`<flattenedComponent>#<userId>`)
+     * so the same value can be persisted in a Dossier payload and parsed back with
+     * `ComponentKey.fromString`.
+     */
+    fun appKey(app: com.android.launcher3.model.data.AppInfo): String = app.componentName?.let { component ->
+        com.android.launcher3.util.ComponentKey(component, app.user).toString()
+    } ?: "${app.user.hashCode()}:${app.targetPackage}"
 
     fun <T, K : Any> buildGroups(
         allApps: List<T>,

@@ -37,9 +37,10 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.R
+import com.android.launcher3.Utilities
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
-import com.android.launcher3.touch.ItemLongClickListener
+import com.android.launcher3.util.PackageManagerHelper
 
 /**
  * The panel shown when a Caddy category card is opened.
@@ -143,7 +144,19 @@ object CaddyCategoryDialog {
                 ItemClickHandler.INSTANCE.onClick(view)
                 dialog.dismiss()
             }
-            appIcon.setOnLongClickListener(ItemLongClickListener.INSTANCE_ALL_APPS)
+            // Long-pressing an app opens its system "App info" screen. The launcher popup
+            // is anchored to a DragLayer view and cannot attach to this dialog's window, so
+            // route straight to the details activity instead.
+            appIcon.setOnLongClickListener { view ->
+                PackageManagerHelper.startDetailsActivityForInfo(
+                    view.context,
+                    app,
+                    Utilities.getViewBounds(view),
+                    null,
+                )
+                dialog.dismiss()
+                true
+            }
             appIcon.setCenterVertically(false)
             val inset = Math.max(0, (dp(context, 68f) - appIcon.iconSize) / 2)
             appIcon.setPadding(appIcon.paddingLeft, inset, appIcon.paddingRight, 0)

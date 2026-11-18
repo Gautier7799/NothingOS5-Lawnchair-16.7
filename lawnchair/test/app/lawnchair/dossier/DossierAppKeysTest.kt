@@ -53,4 +53,28 @@ class DossierAppKeysTest {
         assertThat(DossierAppKeys.add(keys, null)).isFalse()
         assertThat(keys).containsExactly("0:com.a/.A")
     }
+
+    @Test
+    fun isCanonical_acceptsComponentHashUserId() {
+        // The exact shape ComponentKey.toString() produces and fromString() parses back.
+        assertThat(DossierAppKeys.isCanonical("com.a/.A#0")).isTrue()
+        assertThat(DossierAppKeys.isCanonical("com.example.app/com.example.app.Main#10")).isTrue()
+    }
+
+    @Test
+    fun isCanonical_rejectsUserIdColonComponent() {
+        // The previous, reversed order never parsed, so the dropped icon silently vanished.
+        assertThat(DossierAppKeys.isCanonical("0:com.a/.A")).isFalse()
+    }
+
+    @Test
+    fun isCanonical_rejectsMissingOrMalformedParts() {
+        assertThat(DossierAppKeys.isCanonical(null)).isFalse()
+        assertThat(DossierAppKeys.isCanonical("")).isFalse()
+        assertThat(DossierAppKeys.isCanonical("com.a/.A")).isFalse() // no separator
+        assertThat(DossierAppKeys.isCanonical("com.a/.A#")).isFalse() // empty user id
+        assertThat(DossierAppKeys.isCanonical("#0")).isFalse() // empty component
+        assertThat(DossierAppKeys.isCanonical("com.a#0")).isFalse() // component not flattened
+        assertThat(DossierAppKeys.isCanonical("com.a/.A#abc")).isFalse() // non-numeric user id
+    }
 }

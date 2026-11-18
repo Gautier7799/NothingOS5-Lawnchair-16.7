@@ -38,4 +38,22 @@ object DossierAppKeys {
         keys.add(normalized)
         return true
     }
+
+    /**
+     * True when [key] is a canonical `ComponentKey.toString()` value of the form
+     * `<flattenedComponent>#<userId>`.
+     *
+     * The Dossier payload is parsed back with `ComponentKey.fromString`, which only
+     * accepts this exact shape. A key written in any other order (for example
+     * `<userId>:<flattenedComponent>`) parses to null, so the app never resolves and the
+     * dropped icon silently fails to appear. Rejecting non-canonical keys here keeps that
+     * failure at the drop site instead of the render site.
+     */
+    fun isCanonical(key: String?): Boolean {
+        val value = key?.trim().orEmpty()
+        val separator = value.indexOf('#')
+        if (separator <= 0 || separator == value.lastIndex) return false
+        if (!value.substring(0, separator).contains('/')) return false
+        return value.substring(separator + 1).toIntOrNull() != null
+    }
 }
