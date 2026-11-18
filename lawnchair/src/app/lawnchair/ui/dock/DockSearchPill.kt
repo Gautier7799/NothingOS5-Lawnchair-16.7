@@ -9,6 +9,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import app.lawnchair.qsb.LauncherSearch
 import com.android.launcher3.Hotseat
 import com.android.launcher3.Launcher
 import com.android.launcher3.R
@@ -57,7 +58,7 @@ class DockSearchPill private constructor(private val host: Hotseat) {
         pill.addView(icon)
         pill.addView(label)
         pill.setOnClickListener {
-            Launcher.getLauncher(context).startSearch("", false, null, true)
+            LauncherSearch.open(Launcher.getLauncher(context))
         }
     }
 
@@ -90,6 +91,9 @@ class DockSearchPill private constructor(private val host: Hotseat) {
         container.post(position)
     }
 
+    /** The pill view, so the host can hide and show it with the rest of the search bar. */
+    val view: View get() = pill
+
     companion object {
         private const val PILL_HORIZONTAL_PADDING_DP = 12
         private const val ICON_SIZE_DP = 14
@@ -97,13 +101,13 @@ class DockSearchPill private constructor(private val host: Hotseat) {
         private const val LABEL_TEXT_SIZE_SP = 12f
         private val EDGE_COLOR = Color.argb(90, 255, 255, 255)
 
-        /** Adds the floating search pill above the dock. */
+        /** Adds the floating search pill above the dock and returns it. */
         @JvmStatic
-        fun apply(host: Hotseat) {
-            DockSearchPill(host).apply {
-                build()
-                attach()
-            }
+        fun apply(host: Hotseat): View {
+            val pill = DockSearchPill(host)
+            pill.build()
+            pill.attach()
+            return pill.view
         }
     }
 }

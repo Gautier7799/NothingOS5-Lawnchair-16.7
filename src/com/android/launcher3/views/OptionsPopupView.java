@@ -213,8 +213,16 @@ public class OptionsPopupView<T extends Context & ActivityContext> extends Arrow
             OptionsPopupView::enterAllApps,
             OptionsPopupView::startWallpaperPicker,
             OptionsPopupView::onWidgetsClicked,
-            OptionsPopupView::startSettings
+            OptionsPopupView::startSettings,
+            OptionsPopupView::openAppLibrary
         );
+    }
+
+    /** Opens the full-screen Caddy App Library page. */
+    public static boolean openAppLibrary(View view) {
+        Launcher launcher = Launcher.getLauncher(view.getContext());
+        app.lawnchair.homecards.CaddyAppLibraryPage.show(launcher);
+        return true;
     }
 
     /**

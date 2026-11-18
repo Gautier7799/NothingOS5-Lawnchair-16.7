@@ -317,6 +317,15 @@ class PreferenceManager2 @Inject constructor(
     )
 
     /**
+     * Whether the home search bar is hidden on the workspace side pages, so it only shows on the
+     * main page. Off by default so the search bar behaves as before until the user opts in.
+     */
+    val searchBarDynamic = preference(
+        key = booleanPreferencesKey(name = "search_bar_dynamic"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_search_bar_dynamic),
+    )
+
+    /**
      * Master switch for the Dossier workspace cards. A Dossier is an independent,
      * resizable card that groups apps on the home screen. Off by default so the
      * standard home screen is unchanged until the user opts in.

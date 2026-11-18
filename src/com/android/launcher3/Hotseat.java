@@ -74,11 +74,14 @@ public class Hotseat extends FrameLayout implements Insettable {
     public static final int ALPHA_CHANNEL_PREVIEW_RENDERER = 1;
     public static final int ALPHA_CHANNEL_TASKBAR_STASH = 2;
     public static final int ALPHA_CHANNEL_ASSISTANT_VISIBILITY = 3;
-    public static final int ALPHA_CHANNEL_CHANNELS_COUNT = 4;
+    /** Owns the hide/show of the home search bar as the workspace moves between pages. */
+    public static final int ALPHA_CHANNEL_SEARCH_BAR_DYNAMIC = 4;
+    public static final int ALPHA_CHANNEL_CHANNELS_COUNT = 5;
 
     @Retention(RetentionPolicy.RUNTIME)
     @IntDef({ALPHA_CHANNEL_TASKBAR_ALIGNMENT, ALPHA_CHANNEL_PREVIEW_RENDERER,
-            ALPHA_CHANNEL_TASKBAR_STASH, ALPHA_CHANNEL_ASSISTANT_VISIBILITY})
+            ALPHA_CHANNEL_TASKBAR_STASH, ALPHA_CHANNEL_ASSISTANT_VISIBILITY,
+            ALPHA_CHANNEL_SEARCH_BAR_DYNAMIC})
     public @interface HotseatQsbAlphaId {
     }
 
@@ -94,6 +97,7 @@ public class Hotseat extends FrameLayout implements Insettable {
     public static final float QSB_CENTER_FACTOR = .325f;
     private static final int BUBBLE_BAR_ADJUSTMENT_ANIMATION_DURATION_MS = 250;
     private static final int DOCK_PAGE_INDICATOR_HEIGHT_DP = 8;
+    private static final int SEARCH_BAR_DYNAMIC_FADE_MS = 150;
     // iOS Dock geometry (side margin, inner padding, panel height, corner radius) lives in
     // app.lawnchair.ui.dock.DockCapsuleGeometry, which also draws the background.
 
@@ -114,6 +118,9 @@ public class Hotseat extends FrameLayout implements Insettable {
     private final HotseatPagedView mPagedView;
     private final PageIndicatorDots mPageIndicator;
     private final int mPageIndicatorHeight;
+
+    /** The floating glass search pill, when the dock search bar is off. May be null. */
+    private View mSearchPill;
 
     private final ActivityContext mActivity;
 
@@ -219,9 +226,24 @@ public class Hotseat extends FrameLayout implements Insettable {
         if (!DockSearchBar.isEnabled(PreferenceCacheExtensionsKt.firstCached(
                         preferenceManager2.getHotseatMode()),
                 PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()))) {
-            app.lawnchair.ui.dock.DockSearchPill.apply(this);
+            mSearchPill = app.lawnchair.ui.dock.DockSearchPill.apply(this);
         }
         setBackground(null);
+    }
+
+    /** Applies the dynamic search bar visibility, fading the bar (or pill) in or out. */
+    public void setSearchBarDynamicAlpha(float alpha) {
+        setQsbAlpha(alpha, ALPHA_CHANNEL_SEARCH_BAR_DYNAMIC);
+        if (mSearchPill != null) {
+            mSearchPill.animate().cancel();
+            mSearchPill.animate().alpha(alpha).setDuration(SEARCH_BAR_DYNAMIC_FADE_MS).start();
+        }
+    }
+
+    /** Returns the floating search pill, or null when the dock search bar is shown instead. */
+    @Nullable
+    public View getSearchPill() {
+        return mSearchPill;
     }
 
     /** Provides translation X for hotseat icons for the channel. */

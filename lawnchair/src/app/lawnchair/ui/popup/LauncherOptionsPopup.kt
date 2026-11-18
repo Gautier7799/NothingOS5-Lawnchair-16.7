@@ -22,6 +22,7 @@ object LauncherOptionsPopup {
         LauncherOptionPopupItem("wallpaper", true),
         LauncherOptionPopupItem("widgets", true),
         LauncherOptionPopupItem("all_apps", true),
+        LauncherOptionPopupItem("app_library", false),
         LauncherOptionPopupItem("home_settings", true),
         LauncherOptionPopupItem("sys_settings", false),
         LauncherOptionPopupItem("default_page", false),
@@ -59,6 +60,7 @@ object LauncherOptionsPopup {
         onStartWallpaperPicker: (View) -> Boolean,
         onStartWidgetsMenu: (View) -> Boolean,
         onStartHomeSettings: (View) -> Boolean,
+        onStartAppLibrary: (View) -> Boolean,
     ): ArrayList<OptionItem> {
         val prefs2 = getInstance(launcher!!)
         val lockHomeScreen = prefs2.lockHomeScreen.firstCached()
@@ -119,6 +121,13 @@ object LauncherOptionsPopup {
                 R.drawable.ic_apps,
                 LauncherEvent.LAUNCHER_ALL_APPS_TAP_OR_LONGPRESS,
                 onStartAllApps,
+            ),
+            "app_library" to OptionItem(
+                launcher,
+                R.string.caddy_app_library_title,
+                R.drawable.ic_apps,
+                LauncherEvent.IGNORE,
+                onStartAppLibrary,
             ),
             "home_settings" to OptionItem(
                 launcher,
@@ -198,6 +207,11 @@ object LauncherOptionsPopup {
 
             "all_apps" -> LauncherOptionMetadata(
                 label = R.string.all_apps_button_label,
+                icon = R.drawable.ic_apps,
+            )
+
+            "app_library" -> LauncherOptionMetadata(
+                label = R.string.caddy_app_library_title,
                 icon = R.drawable.ic_apps,
             )
 

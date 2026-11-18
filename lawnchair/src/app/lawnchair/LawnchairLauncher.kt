@@ -45,6 +45,7 @@ import app.lawnchair.nexuslauncher.OverlayCallbackImpl
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
+import app.lawnchair.qsb.SearchBarDynamicsController
 import app.lawnchair.root.RootHelperManager
 import app.lawnchair.root.RootNotAvailableException
 import app.lawnchair.theme.ThemeProvider
@@ -111,6 +112,7 @@ class LawnchairLauncher : QuickstepLauncher() {
 
     private val dossierCards by unsafeLazy { DossierCardCoordinator(this) }
     private val caddyHomeCards by unsafeLazy { CaddyHomeCardCoordinator(this) }
+    private val searchBarDynamics by unsafeLazy { SearchBarDynamicsController(this) }
 
     private val noStatusBarStateListener = object : StateManager.StateListener<LauncherState> {
         override fun onStateTransitionStart(toState: LauncherState) {
@@ -481,6 +483,7 @@ class LawnchairLauncher : QuickstepLauncher() {
         super.onResume()
         restartIfPending()
         refreshPredictionContainersFromModel()
+        searchBarDynamics.refresh()
 
         dragLayer.viewTreeObserver.addOnDrawListener(
             object : ViewTreeObserver.OnDrawListener {
@@ -505,6 +508,12 @@ class LawnchairLauncher : QuickstepLauncher() {
     override fun onStateSetEnd(state: LauncherState) {
         super.onStateSetEnd(state)
         refreshPredictionContainersFromModel()
+        searchBarDynamics.refresh()
+    }
+
+    override fun onPageEndTransition() {
+        super.onPageEndTransition()
+        searchBarDynamics.refresh()
     }
 
     override fun onDestroy() {
