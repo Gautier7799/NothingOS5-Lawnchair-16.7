@@ -106,11 +106,7 @@ object DossierCardCreator {
         spanY: Int,
     ): DossierInfo? {
         if (appKeys == null) return null
-        val keys = LinkedHashSet<String>()
-        for (raw in appKeys) {
-            val key = raw.trim()
-            if (key.isNotEmpty()) keys.add(key)
-        }
+        val keys = DossierAppKeys.sanitize(appKeys)
         if (keys.isEmpty()) return null
 
         val preferences = PreferenceManager2.getInstance(context)

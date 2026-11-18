@@ -56,4 +56,22 @@ object DossierAppKeys {
         if (!value.substring(0, separator).contains('/')) return false
         return value.substring(separator + 1).toIntOrNull() != null
     }
+
+    /**
+     * Trims [rawKeys], drops blanks, drops non-canonical keys and removes duplicates,
+     * keeping first-seen order.
+     *
+     * A key that is not canonical can never be resolved by `ComponentKey.fromString`,
+     * so keeping it would leave an app slot that renders as empty. Filtering here means
+     * a card built from a mixed batch of keys only ever holds resolvable apps.
+     */
+    fun sanitize(rawKeys: List<String>?): List<String> {
+        if (rawKeys == null) return emptyList()
+        val keys = LinkedHashSet<String>()
+        for (raw in rawKeys) {
+            val key = raw?.trim().orEmpty()
+            if (isCanonical(key)) keys.add(key)
+        }
+        return keys.toList()
+    }
 }

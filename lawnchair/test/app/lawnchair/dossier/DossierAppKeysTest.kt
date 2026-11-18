@@ -77,4 +77,24 @@ class DossierAppKeysTest {
         assertThat(DossierAppKeys.isCanonical("com.a#0")).isFalse() // component not flattened
         assertThat(DossierAppKeys.isCanonical("com.a/.A#abc")).isFalse() // non-numeric user id
     }
+
+    @Test
+    fun sanitize_trimsDropsNonCanonicalAndDedupes() {
+        val keys = DossierAppKeys.sanitize(
+            listOf(
+                "  com.a/.A#0  ",
+                "0:com.b/.B", // legacy reversed key, never resolves
+                "com.a/.A#0", // duplicate of the first after trim
+                "",
+                "com.c/.C#10",
+            ),
+        )
+        assertThat(keys).containsExactly("com.a/.A#0", "com.c/.C#10").inOrder()
+    }
+
+    @Test
+    fun sanitize_nullAndAllInvalidYieldEmpty() {
+        assertThat(DossierAppKeys.sanitize(null)).isEmpty()
+        assertThat(DossierAppKeys.sanitize(listOf("0:com.a/.A", "", "com.a"))).isEmpty()
+    }
 }

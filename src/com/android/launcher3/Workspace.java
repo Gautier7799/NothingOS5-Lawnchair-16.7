@@ -2260,7 +2260,12 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         }
         if (d != null && d.dragView != null) {
             d.deferDragViewCleanupPostAnimation = true;
+            // Wrap the animation in the temporary final transform, exactly like the other
+            // drop paths (see onDropExternal). Without it the drag view flies to the
+            // untransformed cell and visibly jumps while the workspace is spring-loaded.
+            setFinalTransitionTransform();
             mLauncher.getDragLayer().animateViewIntoPosition(d.dragView, cardView, this);
+            resetTransitionTransform();
         }
         mStatsLogManager.logger().withItemInfo(card).withInstanceId(d.logInstanceId)
                 .log(LauncherEvent.LAUNCHER_ITEM_DROP_FOLDER_CREATED);
@@ -2330,7 +2335,9 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
 
         if (d != null && d.dragView != null) {
             d.deferDragViewCleanupPostAnimation = true;
+            setFinalTransitionTransform();
             mLauncher.getDragLayer().animateViewIntoPosition(d.dragView, cardView, this);
+            resetTransitionTransform();
         }
         mStatsLogManager.logger().withItemInfo(card).withInstanceId(d.logInstanceId)
                 .log(LauncherEvent.LAUNCHER_ITEM_DROP_COMPLETED);
