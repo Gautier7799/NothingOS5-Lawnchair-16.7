@@ -80,7 +80,8 @@ public class QsbWidgetHostView extends NavigableAppWidgetHostView {
     protected View getDefaultView() {
         View v = super.getDefaultView();
         v.setOnClickListener((v2) ->
-                Launcher.getLauncher(getContext()).startSearch("", false, null, true));
+                app.lawnchair.qsb.LauncherSearch.INSTANCE.open(
+                        Launcher.getLauncher(getContext())));
         return v;
     }
 
@@ -88,7 +89,8 @@ public class QsbWidgetHostView extends NavigableAppWidgetHostView {
         View v = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.qsb_default_view, parent, false);
         v.findViewById(R.id.btn_qsb_search).setOnClickListener((v2) ->
-                Launcher.getLauncher(v2.getContext()).startSearch("", false, null, true));
+                app.lawnchair.qsb.LauncherSearch.INSTANCE.open(
+                        Launcher.getLauncher(v2.getContext())));
         v.findViewById(R.id.qsb_background).setClipToOutline(true);
         return v;
     }

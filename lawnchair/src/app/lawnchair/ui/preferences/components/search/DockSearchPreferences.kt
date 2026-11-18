@@ -85,6 +85,10 @@ fun DockSearchPreference(
                         adapter = showDockSearchBarAdapter,
                         label = stringResource(id = R.string.dock_search_bar_toggle_label),
                     )
+                    SwitchPreference(
+                        adapter = prefs2.searchBarDynamic.getAdapter(),
+                        label = stringResource(id = R.string.search_bar_dynamic_label),
+                    )
                 }
                 ExpandAndShrink(
                     visible = hotseatModeAdapter.state.value != DisabledHotseat && showDockSearchBar,

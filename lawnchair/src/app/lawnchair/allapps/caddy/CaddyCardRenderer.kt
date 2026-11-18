@@ -17,6 +17,7 @@
 package app.lawnchair.allapps.caddy
 
 import android.content.Context
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.Typeface
@@ -30,6 +31,7 @@ import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import app.lawnchair.homecards.CaddyHomeCardLayout
 import app.lawnchair.util.resolveFolderPreviewColor
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.R
@@ -54,7 +56,7 @@ object CaddyCardRenderer {
     @JvmOverloads
     fun renderCategoryCard(
         host: FrameLayout,
-        title: String?,
+        title: String,
         apps: List<AppInfo>,
         isAddCategory: Boolean = false,
         cardClick: (() -> Unit)? = null,
@@ -70,27 +72,37 @@ object CaddyCardRenderer {
         host.removeAllViews()
         host.clipToPadding = false
         host.clipChildren = false
-        // Small gutter so neighboring cards stay visually distinct without wasting
-        // the workspace cell on empty margin.
-        host.setPadding(dp(context, 2f), dp(context, 2f), dp(context, 2f), dp(context, 2f))
+        // Add a small gutter between neighboring Caddy cards without changing
+        // the RecyclerView's grid sizing or the normal app drawer.
+        host.setPadding(dp(context, 4f), dp(context, 4f), dp(context, 4f), dp(context, 4f))
 
         val densityPadding = dp(context, 14f)
         val themeColor = resolveDynamicColor(context)
-        // Translucent Nothing-style glass, tinted by Lawnchair's existing folder /
-        // preview color so the user's selected and dynamic colors remain visible.
-        val glassRed = Math.round(Color.red(themeColor) * 0.30f + 28 * 0.70f)
-        val glassGreen = Math.round(Color.green(themeColor) * 0.30f + 31 * 0.70f)
-        val glassBlue = Math.round(Color.blue(themeColor) * 0.30f + 38 * 0.70f)
-        val topGlass = Color.argb(184, glassRed, glassGreen, glassBlue)
+        val nightMode = (
+            context.resources.configuration.uiMode and
+                Configuration.UI_MODE_NIGHT_MASK
+            ) == Configuration.UI_MODE_NIGHT_YES
+        // A lighter, wallpaper-visible glass surface for workspace cards. The base
+        // surface follows the current system appearance while Monet supplies its tint.
+        // Lower alpha is intentional: the wallpaper must remain visible through Caddy.
+        val baseRed = if (nightMode) 24 else 246
+        val baseGreen = if (nightMode) 29 else 250
+        val baseBlue = if (nightMode) 35 else 252
+        val tintWeight = 0.22f
+        val glassRed = Math.round(baseRed * (1f - tintWeight) + Color.red(themeColor) * tintWeight)
+        val glassGreen = Math.round(baseGreen * (1f - tintWeight) + Color.green(themeColor) * tintWeight)
+        val glassBlue = Math.round(baseBlue * (1f - tintWeight) + Color.blue(themeColor) * tintWeight)
+        val surfaceAlpha = if (nightMode) 142 else 164
+        val topGlass = Color.argb(surfaceAlpha, glassRed, glassGreen, glassBlue)
         val bottomGlass = Color.argb(
-            148,
-            Math.max(12, glassRed - 10),
-            Math.max(14, glassGreen - 10),
-            Math.max(18, glassBlue - 10),
+            if (nightMode) 104 else 126,
+            Math.max(8, glassRed - 12),
+            Math.max(10, glassGreen - 12),
+            Math.max(12, glassBlue - 12),
         )
-        val foreground = Color.WHITE
+        val foreground = if (nightMode) Color.WHITE else Color.rgb(26, 31, 38)
         val accentStroke = Color.argb(
-            116,
+            156,
             Color.red(themeColor),
             Color.green(themeColor),
             Color.blue(themeColor),
@@ -98,12 +110,7 @@ object CaddyCardRenderer {
 
         val card = LinearLayout(context)
         card.orientation = LinearLayout.VERTICAL
-        // The title is the first child and must always stay inside the card. With a
-        // vertically centred column, any content taller than the card is split evenly
-        // above and below, which pushed the title out of the card and clipped it.
-        // Anchor the column to the top so the title keeps its own row and the icon
-        // grid only takes what is left.
-        card.gravity = Gravity.TOP
+        card.gravity = if (fitGridToHost) Gravity.TOP else Gravity.CENTER_VERTICAL
         card.setPadding(
             densityPadding,
             dp(context, if (fitGridToHost) 8f else 12f),
@@ -120,15 +127,15 @@ object CaddyCardRenderer {
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(topGlass, bottomGlass),
         )
-        background.cornerRadius = dp(context, 28f).toFloat()
-        background.setStroke(dp(context, 1f), accentStroke)
+        background.cornerRadius = dp(context, if (fitGridToHost) 30f else 28f).toFloat()
+        background.setStroke(dp(context, if (fitGridToHost) 1.25f else 1f), accentStroke)
         card.background = background
         // Drawer previews stay clipped to their rounded outline. Workspace previews use
         // native-size BubbleTextView children scaled into smaller cells; clipping those
         // transformed children to the rounded outline crops adaptive-icon edges. Keep the
         // rounded background, but do not use it as a content clip on workspace cards.
         card.clipToOutline = !fitGridToHost
-        card.elevation = dp(context, 1f).toFloat()
+        card.elevation = dp(context, if (fitGridToHost) 3f else 1f).toFloat()
         host.addView(
             card,
             FrameLayout.LayoutParams(
@@ -141,7 +148,7 @@ object CaddyCardRenderer {
             val titleView = TextView(context)
             titleView.text = if (isAddCategory) "+  Add category" else title
             titleView.setTextColor(foreground)
-            titleView.textSize = 14f
+            titleView.textSize = if (fitGridToHost) 17f else 14f
             titleView.typeface = Typeface.DEFAULT_BOLD
             titleView.maxLines = 1
             titleView.ellipsize = TextUtils.TruncateAt.END
@@ -172,6 +179,13 @@ object CaddyCardRenderer {
             return
         }
 
+        if (fitGridToHost && cellSizePx <= 0) {
+            // The workspace card has not been measured yet, or has no usable icon area.
+            // Never fall back to fixed-size drawer icons: they overflow compact cards.
+            host.contentDescription = title
+            return
+        }
+
         val grid = GridLayout(context)
         grid.columnCount = columns
         grid.rowCount = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
@@ -180,22 +194,27 @@ object CaddyCardRenderer {
         // exceed the cell; never let the grid or the card crop them.
         grid.clipChildren = false
         grid.clipToPadding = false
+        // Drawer cards have a known preview height. Workspace cards are measured
+        // from a 2x2 CellLayout span, which varies with the active grid/device profile.
+        // Let the workspace grid consume the remaining measured height instead of
+        // forcing 128dp and clipping the second icon row on compact home-screen cells.
+        // A workspace card is measured from a CellLayout span whose cell height varies with
+        // the active grid. Size the rows from the real cell size the host reports so icons
+        // never overflow their row (which made them overlap and look distorted), and let the
+        // grid wrap its content instead of being stretched by a layout weight.
+        val rows = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
         val explicitCell = fitGridToHost && cellSizePx > 0
-        // Workspace cards: the title owns its own row and the grid takes only the
-        // space that is left (weighted), so it can never push the title out of the
-        // card. This also lets the card render immediately on boot instead of
-        // waiting for a measured cell size (which left the card blank until the
-        // first layout pass).
         val gridHeight = when {
+            explicitCell -> cellSizePx * rows
             fitGridToHost -> 0
             else -> dp(context, 128f)
         }
         val gridLp = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             gridHeight,
-            if (fitGridToHost) 1f else 0f,
+            if (fitGridToHost && !explicitCell) 1f else 0f,
         )
-        gridLp.topMargin = dp(context, if (fitGridToHost) 2f else 8f)
+        gridLp.topMargin = dp(context, if (fitGridToHost) 6f else 8f)
         card.addView(grid, gridLp)
 
         // Keep the category preview visually balanced: equal icon slots in a
@@ -205,23 +224,20 @@ object CaddyCardRenderer {
             val cell = FrameLayout(context)
             val cellLp = GridLayout.LayoutParams()
             cellLp.width = 0
-            // Workspace rows fill the grid's real (remaining) height equally, so a card
-            // can never overflow its own bounds no matter the span. The drawer keeps its
-            // fixed preview height.
             cellLp.height = when {
+                explicitCell -> cellSizePx
                 fitGridToHost -> 0
                 else -> dp(context, 64f)
             }
             cellLp.columnSpec = GridLayout.spec(index % columns, 1f)
-            cellLp.rowSpec = if (fitGridToHost) {
+            cellLp.rowSpec = if (fitGridToHost && !explicitCell) {
                 GridLayout.spec(index / columns, 1f)
             } else {
                 GridLayout.spec(index / columns)
             }
             grid.addView(cell, cellLp)
             // Keep the icon strictly inside its cell so it can never spill into the
-            // neighbouring row. For workspace cards the final size is set from the real
-            // measured cell in addCaddyAppIcon's layout listener.
+            // neighbouring row.
             val iconSize = if (explicitCell) {
                 (cellSizePx * ICON_FILL_RATIO).toInt()
             } else {
@@ -247,9 +263,6 @@ object CaddyCardRenderer {
             .inflate(R.layout.all_apps_icon, cell, false) as BubbleTextView
         icon.applyFromApplicationInfo(app)
         icon.setTextVisibility(false)
-        // Home cards are icon-only. Removing the invisible label lets TextView's
-        // CENTER gravity center the actual drawable in the available cell.
-        if (fitGridToHost) icon.text = ""
         icon.setLongPressTimeoutFactor(1f)
         icon.contentDescription = app.title
         iconBinder(icon, app)
@@ -270,28 +283,30 @@ object CaddyCardRenderer {
             icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
         }
         icon.gravity = Gravity.CENTER
-        // Laying the icon out at a smaller view size clips the drawable, because
-        // BubbleTextView sizes its compound drawable from the device profile at inflation.
-        // Instead change the drawable's real bounds to fit the measured cell: this measures
-        // and draws the icon completely inside its viewport without cropping adaptive edges.
+        // BubbleTextView's icon size is final, set from the device profile at inflation and
+        // never changeable at runtime. Laying it out at a smaller size therefore clips the
+        // drawable (which is what distorted the workspace cards). Instead lay the icon out at
+        // its own native size and scale the whole view down to the slot we want; with clipping
+        // disabled on the cell this never crops the icon.
+        val nativeSize = icon.iconSize.takeIf { it > 0 } ?: iconSize
+        val scale = if (fitGridToHost) {
+            CaddyHomeCardLayout.iconScale(iconSize, nativeSize)
+        } else {
+            1f
+        }
         val iconParams = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT,
+            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
+            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
             Gravity.CENTER,
         )
         cell.clipChildren = false
         cell.clipToPadding = false
         icon.clipToOutline = false
-        cell.addView(icon, iconParams)
-        if (fitGridToHost) {
-            cell.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
-                val available = (minOf(view.width, view.height) - dp(context, 8f))
-                    .coerceAtLeast(dp(context, 16f))
-                icon.setIconSizeOverride(available)
-                icon.scaleX = 1f
-                icon.scaleY = 1f
-            }
+        if (scale < 1f) {
+            icon.scaleX = scale
+            icon.scaleY = scale
         }
+        cell.addView(icon, iconParams)
     }
 
     /**
@@ -341,5 +356,5 @@ object CaddyCardRenderer {
     private fun dp(context: Context, value: Float): Int = Utilities.dpToPx(value, context)
 
     private const val MAX_PREVIEW_ICONS = 4
-    private const val ICON_FILL_RATIO = 0.82f
+    private const val ICON_FILL_RATIO = 0.84f
 }
