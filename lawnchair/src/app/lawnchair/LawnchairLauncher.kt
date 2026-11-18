@@ -40,6 +40,7 @@ import app.lawnchair.gestures.GestureController
 import app.lawnchair.gestures.VerticalSwipeTouchController
 import app.lawnchair.gestures.config.GestureHandlerConfig
 import app.lawnchair.gestures.ui.LawnchairShortcutActivity
+import app.lawnchair.homecards.CaddyHomeCardCoordinator
 import app.lawnchair.nexuslauncher.OverlayCallbackImpl
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
@@ -109,6 +110,7 @@ class LawnchairLauncher : QuickstepLauncher() {
     private val themeProvider by unsafeLazy { ThemeProvider.INSTANCE.get(this) }
 
     private val dossierCards by unsafeLazy { DossierCardCoordinator(this) }
+    private val caddyHomeCards by unsafeLazy { CaddyHomeCardCoordinator(this) }
 
     private val noStatusBarStateListener = object : StateManager.StateListener<LauncherState> {
         override fun onStateTransitionStart(toState: LauncherState) {
@@ -167,6 +169,7 @@ class LawnchairLauncher : QuickstepLauncher() {
         super.onCreate(savedInstanceState)
 
         dossierCards.start()
+        caddyHomeCards.start()
 
         prefs.launcherTheme.subscribeChanges(this, ::updateTheme)
         prefs.feedProvider.subscribeChanges(this, defaultOverlay::reconnect)
@@ -507,6 +510,7 @@ class LawnchairLauncher : QuickstepLauncher() {
     override fun onDestroy() {
         super.onDestroy()
         dossierCards.stop()
+        caddyHomeCards.stop()
         // Only actually closes if required, safe to call if not enabled
         SmartspacerClient.close()
     }
@@ -514,6 +518,7 @@ class LawnchairLauncher : QuickstepLauncher() {
     override fun finishBindingItems(pagesBoundFirst: IntSet?) {
         super.finishBindingItems(pagesBoundFirst)
         dossierCards.onWorkspaceBound()
+        caddyHomeCards.onWorkspaceBound()
     }
 
     /** Re-renders bound Dossier cards after a Grille settings change, without a full rebind. */

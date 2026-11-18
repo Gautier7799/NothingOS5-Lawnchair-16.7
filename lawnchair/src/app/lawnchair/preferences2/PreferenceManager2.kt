@@ -33,6 +33,7 @@ import app.lawnchair.font.FontCache
 import app.lawnchair.gestures.config.GestureHandlerConfig
 import app.lawnchair.gestures.handlers.SleepMode
 import app.lawnchair.gestures.type.GestureType
+import app.lawnchair.homecards.CaddyHomeCardGrouping
 import app.lawnchair.hotseat.HotseatMode
 import app.lawnchair.icons.CustomAdaptiveIconDrawable
 import app.lawnchair.icons.shape.IconShape
@@ -337,6 +338,36 @@ class PreferenceManager2 @Inject constructor(
         key = intPreferencesKey(name = "dossier_grid_rows"),
         defaultValue = 3,
         onSet = { reloadHelper.refreshDossierGrid() },
+    )
+
+    /**
+     * How two Caddy Home cards merge when one is dropped on another. [CaddyHomeCardGrouping.MODE_STACK]
+     * keeps both cards' apps and lets the user cycle them (iOS-style); MODE_COMBINE folds them into one.
+     */
+    val caddyMergeMode = preference(
+        key = stringPreferencesKey(name = "caddy_merge_mode"),
+        defaultValue = CaddyHomeCardGrouping.MODE_STACK,
+    )
+
+    /** Master switch for the Caddy category cards on the workspace. */
+    val caddyHomeEnabled = preference(
+        key = booleanPreferencesKey(name = "caddy_home_enabled"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_caddy_home_enabled),
+        onSet = { reloadHelper.restart() },
+    )
+
+    /** Shows the card title on workspace cards. */
+    val caddyHomeShowTitles = preference(
+        key = booleanPreferencesKey(name = "caddy_home_show_titles"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_caddy_home_show_titles),
+        onSet = { reloadHelper.restart() },
+    )
+
+    /** Icons per row on a workspace card; the card's height decides how many rows fit. */
+    val caddyHomeColumns = preference(
+        key = intPreferencesKey(name = "caddy_home_columns"),
+        defaultValue = context.resources.getInteger(R.integer.config_default_caddy_home_columns),
+        onSet = { reloadHelper.restart() },
     )
 
     val hotseatQsbProvider = preference(

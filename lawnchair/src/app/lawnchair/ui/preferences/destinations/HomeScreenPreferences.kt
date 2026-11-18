@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.lawnchair.LawnchairApp
 import app.lawnchair.data.iconoverride.IconOverrideRepository
+import app.lawnchair.homecards.CaddyHomeCardGrouping
 import app.lawnchair.nexuslauncher.OverlayCallbackImpl
 import app.lawnchair.preferences.getAdapter
 import app.lawnchair.preferences.preferenceManager
@@ -38,6 +39,7 @@ import app.lawnchair.ui.preferences.components.NavigationActionPreference
 import app.lawnchair.ui.preferences.components.OverlayHandlerPreference
 import app.lawnchair.ui.preferences.components.controls.ClickablePreference
 import app.lawnchair.ui.preferences.components.controls.ListPreference
+import app.lawnchair.ui.preferences.components.controls.ListPreferenceEntry
 import app.lawnchair.ui.preferences.components.controls.SliderPreference
 import app.lawnchair.ui.preferences.components.controls.SwitchPreference
 import app.lawnchair.ui.preferences.components.layout.ExpandAndShrink
@@ -103,6 +105,28 @@ fun HomeScreenPreferences(
             )
         }
         val dossierEnabledAdapter = prefs2.dossierEnabled.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.caddy)) {
+            SwitchPreference(
+                adapter = prefs2.caddyHomeEnabled.getAdapter(),
+                label = stringResource(R.string.caddy_home_enabled_label),
+                description = stringResource(R.string.caddy_home_enabled_description),
+            )
+            SwitchPreference(
+                adapter = prefs2.caddyHomeShowTitles.getAdapter(),
+                label = stringResource(R.string.caddy_home_show_titles_label),
+            )
+            SliderPreference(
+                adapter = prefs2.caddyHomeColumns.getAdapter(),
+                label = stringResource(R.string.caddy_home_columns_label),
+                step = 1,
+                valueRange = 1..5,
+            )
+            ListPreference(
+                adapter = prefs2.caddyMergeMode.getAdapter(),
+                entries = caddyMergeModeEntries(),
+                label = stringResource(R.string.caddy_merge_mode_label),
+            )
+        }
         PreferenceGroup(heading = stringResource(id = R.string.dossier)) {
             SwitchPreference(
                 adapter = dossierEnabledAdapter,
@@ -287,3 +311,13 @@ fun HomeScreenTextColorPreference(
         modifier = modifier,
     )
 }
+
+@Composable
+private fun caddyMergeModeEntries(): List<ListPreferenceEntry<String>> = listOf(
+    ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_STACK) {
+        stringResource(R.string.caddy_merge_mode_stack)
+    },
+    ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_COMBINE) {
+        stringResource(R.string.caddy_merge_mode_combine)
+    },
+)
