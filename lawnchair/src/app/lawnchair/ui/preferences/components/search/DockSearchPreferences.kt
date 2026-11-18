@@ -64,6 +64,7 @@ fun DockSearchPreference(
 
     val isHotseatEnabled = prefs2.isHotseatEnabled.getAdapter()
     val hotseatModeAdapter = prefs2.hotseatMode.getAdapter()
+    val showDockSearchBarAdapter = prefs2.showDockSearchBar.getAdapter()
     val themeQsbAdapter = prefs2.themedHotseatQsb.getAdapter()
     val qsbCornerAdapter = prefs.hotseatQsbCornerRadius.getAdapter()
     val qsbAlphaAdapter = prefs.hotseatQsbAlpha.getAdapter()
@@ -73,14 +74,21 @@ fun DockSearchPreference(
 
     Crossfade(isHotseatEnabled.state.value, label = "transition", modifier = modifier) { hotseatEnabled ->
         val isLawnchairHotseat = hotseatModeAdapter.state.value == LawnchairHotseat
+        val showDockSearchBar = showDockSearchBarAdapter.state.value
         if (hotseatEnabled) {
             Column {
                 PreferenceGroup {
                     HotseatModePreference(
                         adapter = hotseatModeAdapter,
                     )
+                    SwitchPreference(
+                        adapter = showDockSearchBarAdapter,
+                        label = stringResource(id = R.string.dock_search_bar_toggle_label),
+                    )
                 }
-                ExpandAndShrink(visible = hotseatModeAdapter.state.value != DisabledHotseat) {
+                ExpandAndShrink(
+                    visible = hotseatModeAdapter.state.value != DisabledHotseat && showDockSearchBar,
+                ) {
                     Column {
                         DockSearchBarPreview(
                             provider = hotseatQsbProviderAdapter,
@@ -92,7 +100,7 @@ fun DockSearchPreference(
                         )
                     }
                 }
-                ExpandAndShrink(visible = isLawnchairHotseat) {
+                ExpandAndShrink(visible = isLawnchairHotseat && showDockSearchBar) {
                     Column {
                         PreferenceGroup(
                             heading = stringResource(R.string.search_bar_settings),

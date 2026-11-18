@@ -228,6 +228,7 @@ public class DeviceProfile {
     private int mHotseatWidthPx; // not used in vertical bar layout
     // In portrait: size = height, in landscape: size = width
     public int hotseatBarSizePx;
+    private boolean mIsQsbEnabled = true;
     public int hotseatBarBottomSpacePx;
     public int hotseatQsbSpace;
     public int hotseatQsbWidth; // only used when isQsbInline
@@ -516,7 +517,9 @@ public class DeviceProfile {
         workspaceCellPaddingXPx = res.getDimensionPixelSize(R.dimen.dynamic_grid_cell_padding_x);
 
         HotseatMode hotseatMode = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatMode());
-        boolean isQsbEnable = hotseatMode.getLayoutResourceId() != R.layout.empty_view;
+        boolean isQsbEnable = app.lawnchair.hotseat.DockSearchBar.isEnabled(hotseatMode,
+                PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()));
+        mIsQsbEnabled = isQsbEnable;
 
         numShownHotseatIcons = displayOptionSpec.numShownHotseatIcons;
         numHotseatRows = Math.max(1, Math.min(2, PreferenceManager.getInstance(context).getHotseatRows().get()));
@@ -565,7 +568,7 @@ public class DeviceProfile {
                 isVerticalBarLayout(),
                 mResponsiveHotseatSpec,
                 workspacePageIndicatorHeight,
-                hotseatMode
+                isQsbEnable
         );
 
         // Whether QSB might be inline in appropriate orientation (e.g. landscape).
@@ -577,8 +580,13 @@ public class DeviceProfile {
         );
 
         if (!isVerticalBarLayout()) {
-            // Have a little space between the inset and the QSB
-            if (!isQsbEnable && mInsets.bottom + minQsbMargin > hotseatBarBottomSpace) {
+            if (!isQsbEnable) {
+                // iOS dock: keep a fixed gap above the navigation bar.
+                hotseatBarBottomSpacePx = mInsets.bottom
+                        + app.lawnchair.ui.dock.DockCapsuleGeometry.INSTANCE
+                                .bottomMarginPx(mMetrics.density);
+            } else if (mInsets.bottom + minQsbMargin > hotseatBarBottomSpace) {
+                // Have a little space between the inset and the QSB
                 int availableSpace = hotseatQsbSpace - (mInsets.bottom - hotseatBarBottomSpace);
 
                 // Only change the spaces if there is space
@@ -899,7 +907,9 @@ public class DeviceProfile {
         int iconTextHeight = Utilities.calculateTextHeight(iconTextSizePx);
         boolean isLabelInDock = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getEnableLabelInDock());
         HotseatMode hotseatMode = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatMode());
-        boolean isQsbEnable = hotseatMode.getLayoutResourceId() != R.layout.empty_view;
+        boolean isQsbEnable = app.lawnchair.hotseat.DockSearchBar.isEnabled(hotseatMode,
+                PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()));
+        mIsQsbEnabled = isQsbEnable;
         // LC-Note: Hidden dock labels need no text space; keep the minimum touch target.
         hotseatCellHeightPx = app.lawnchair.util.DockCellSize.calculate(
                 hotseatIconSizePx, iconTextHeight, isLabelInDock, pxFromDp(48, mMetrics));
@@ -918,6 +928,11 @@ public class DeviceProfile {
             hotseatBarSizePx = hotseatIconSizePx + getHotseatProfile().getBarEdgePaddingPx()
                     + getHotseatProfile().getBarWorkspaceSpacePx()
                     + space;
+        } else if (!isQsbEnable) {
+            // No search bar in the dock: reserve the full iOS panel height plus the bottom margin.
+            // The icon container is then exactly the panel height, so the capsule fills it and the
+            // dock reads taller than the plain icon row.
+            hotseatBarSizePx = dockPanelHeightPx() + hotseatBarBottomSpacePx;
         } else if (isQsbInline) {
             hotseatBarSizePx = Math.max(hotseatIconSizePx, getHotseatProfile().getQsbVisualHeight())
                     + hotseatBarBottomSpacePx
@@ -939,6 +954,11 @@ public class DeviceProfile {
         var isHotseatEnabled = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.isHotseatEnabled());
         if (!isHotseatEnabled) {
             hotseatBarSizePx = 0;
+        } else if (!isVerticalBarLayout() && isQsbEnable) {
+            // LC-Note: give the iOS-style dock panel a little more height than the icon row, so
+            // the capsule is taller than the icons while the workspace keeps its top alignment.
+            hotseatBarSizePx += pxFromDp(
+                    app.lawnchair.ui.dock.DockCapsuleGeometry.EXTRA_HEIGHT_DP, mMetrics);
         }
     }
 
@@ -2046,10 +2066,25 @@ public class DeviceProfile {
         }
     }
 
+    /** Returns the preferred iOS dock panel height, in px. */
+    private int dockPanelHeightPx() {
+        return app.lawnchair.ui.dock.DockCapsuleGeometry.INSTANCE.preferredHeightPx(mMetrics.density);
+    }
+
+    /** Whether the dock shows a search bar. */
+    public boolean isQsbEnabled() {
+        return mIsQsbEnabled;
+    }
+
     /**
      * Returns the number of pixels the hotseat is translated from the bottom of the screen.
      */
     private int getHotseatBarBottomPadding() {
+        if (!mIsQsbEnabled) {
+            // Without a search bar the icon container is the full panel height and rests on the
+            // bottom margin, so the capsule fills the panel with the icons centred inside it.
+            return hotseatBarBottomSpacePx;
+        }
         if (isQsbOnTop() || isQsbInline) { // LC-Note: isQsbOnTop
             return hotseatBarBottomSpacePx - (Math.abs(hotseatCellHeightPx - iconSizePx) / 2);
         } else {

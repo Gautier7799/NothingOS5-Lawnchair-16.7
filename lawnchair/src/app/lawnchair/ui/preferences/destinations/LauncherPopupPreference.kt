@@ -40,6 +40,8 @@ import app.lawnchair.ui.popup.toOptionOrderString
 import app.lawnchair.ui.preferences.LocalIsExpandedScreen
 import app.lawnchair.ui.preferences.LocalNavController
 import app.lawnchair.ui.preferences.components.controls.ClickablePreference
+import app.lawnchair.ui.preferences.components.controls.SwitchPreference
+import app.lawnchair.ui.preferences.components.layout.PreferenceGroup
 import app.lawnchair.ui.preferences.components.layout.PreferenceGroupHeading
 import app.lawnchair.ui.preferences.components.layout.PreferenceLayout
 import app.lawnchair.ui.preferences.components.reorderable.ReorderableDragHandle
@@ -83,6 +85,14 @@ fun LauncherPopupPreference(
         Column {
             PreferenceGroupHeading(stringResource(R.string.preview_label))
             LauncherPopupPreview(optionsList)
+        }
+
+        PreferenceGroup {
+            SwitchPreference(
+                adapter = prefs2.blurBehindPopup.getAdapter(),
+                label = stringResource(R.string.blur_behind_popup_label),
+                description = stringResource(R.string.blur_behind_popup_description),
+            )
         }
 
         ReorderablePreferenceGroup(

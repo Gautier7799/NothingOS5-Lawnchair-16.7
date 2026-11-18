@@ -66,6 +66,7 @@ import com.android.launcher3.celllayout.ReorderAlgorithm;
 import com.android.launcher3.celllayout.ReorderParameters;
 import com.android.launcher3.celllayout.ReorderPreviewAnimation;
 import com.android.launcher3.config.FeatureFlags;
+import com.android.launcher3.dragndrop.DragController;
 import com.android.launcher3.dragndrop.DraggableView;
 import com.android.launcher3.folder.PreviewBackground;
 import com.android.launcher3.model.data.ItemInfo;
@@ -840,28 +841,50 @@ public class CellLayout extends ViewGroup {
         }
     }
 
+    /**
+     * LC-Note: A workspace child that implements {@link DropTarget} is registered with the drag
+     * controller when it is added (see {@code WorkspaceLayoutManager#addInScreen}). Removing the
+     * view from the CellLayout did not unregister it, so moving an item to another page left the
+     * old registration behind. The drag controller then hit-tests a view that is no longer on the
+     * workspace and can resolve the wrong drop target. Unregister on every removal path.
+     */
+    private void unregisterDropTarget(View view) {
+        if (view instanceof DropTarget) {
+            DragController controller = mActivity.getDragController();
+            if (controller != null) {
+                controller.removeDropTarget((DropTarget) view);
+            }
+        }
+    }
+
     @Override
     public void removeView(View view) {
         markCellsAsUnoccupiedForView(view);
+        unregisterDropTarget(view);
         mShortcutsAndWidgets.removeView(view);
     }
 
     @Override
     public void removeViewAt(int index) {
-        markCellsAsUnoccupiedForView(mShortcutsAndWidgets.getChildAt(index));
+        View view = mShortcutsAndWidgets.getChildAt(index);
+        markCellsAsUnoccupiedForView(view);
+        unregisterDropTarget(view);
         mShortcutsAndWidgets.removeViewAt(index);
     }
 
     @Override
     public void removeViewInLayout(View view) {
         markCellsAsUnoccupiedForView(view);
+        unregisterDropTarget(view);
         mShortcutsAndWidgets.removeViewInLayout(view);
     }
 
     @Override
     public void removeViews(int start, int count) {
         for (int i = start; i < start + count; i++) {
-            markCellsAsUnoccupiedForView(mShortcutsAndWidgets.getChildAt(i));
+            View child = mShortcutsAndWidgets.getChildAt(i);
+            markCellsAsUnoccupiedForView(child);
+            unregisterDropTarget(child);
         }
         mShortcutsAndWidgets.removeViews(start, count);
     }
@@ -869,7 +892,9 @@ public class CellLayout extends ViewGroup {
     @Override
     public void removeViewsInLayout(int start, int count) {
         for (int i = start; i < start + count; i++) {
-            markCellsAsUnoccupiedForView(mShortcutsAndWidgets.getChildAt(i));
+            View child = mShortcutsAndWidgets.getChildAt(i);
+            markCellsAsUnoccupiedForView(child);
+            unregisterDropTarget(child);
         }
         mShortcutsAndWidgets.removeViewsInLayout(start, count);
     }

@@ -16,8 +16,6 @@
 
 package app.lawnchair.ui.preferences.destinations
 
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -47,11 +45,8 @@ import app.lawnchair.ui.preferences.components.layout.PreferenceGroup
 import app.lawnchair.ui.preferences.components.layout.PreferenceLayout
 import app.lawnchair.ui.preferences.navigation.HomeScreenGrid
 import app.lawnchair.util.collectAsStateBlocking
-import com.android.launcher3.LauncherAppState
-import com.android.launcher3.LauncherSettings
 import com.android.launcher3.R
 import com.android.launcher3.Utilities
-import com.android.launcher3.celllayout.CellPosMapper
 import kotlinx.coroutines.launch
 
 object HomeScreenRoutes {
@@ -66,7 +61,6 @@ fun HomeScreenPreferences(
     val prefs = preferenceManager()
     val prefs2 = preferenceManager2()
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     PreferenceLayout(
         label = stringResource(id = R.string.home_screen_label),
         backArrowVisible = !LocalIsExpandedScreen.current,
@@ -102,15 +96,33 @@ fun HomeScreenPreferences(
             )
         }
         PreferenceGroup(heading = stringResource(id = R.string.home_screen_actions)) {
-            ClickablePreference(
-                label = stringResource(id = R.string.remove_all_views_from_home_screen),
-                confirmationText = stringResource(id = R.string.remove_all_views_from_home_screen_desc),
-                onClick = {
-                    scope.launch {
-                        clearAllViewsFromHomeScreen(context, LauncherSettings.Favorites.CONTAINER_DESKTOP)
-                    }
-                },
+            SwitchPreference(
+                adapter = prefs2.hideWorkspaceSmartspace.getAdapter(),
+                label = stringResource(R.string.hide_workspace_smartspace_label),
+                description = stringResource(R.string.hide_workspace_smartspace_description),
             )
+        }
+        val dossierEnabledAdapter = prefs2.dossierEnabled.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.dossier)) {
+            SwitchPreference(
+                adapter = dossierEnabledAdapter,
+                label = stringResource(R.string.dossier_enabled_label),
+                description = stringResource(R.string.dossier_enabled_description),
+            )
+            ExpandAndShrink(visible = dossierEnabledAdapter.state.value) {
+                SliderPreference(
+                    label = stringResource(id = R.string.columns),
+                    adapter = prefs2.dossierGridColumns.getAdapter(),
+                    step = 1,
+                    valueRange = 1..8,
+                )
+                SliderPreference(
+                    label = stringResource(id = R.string.rows),
+                    adapter = prefs2.dossierGridRows.getAdapter(),
+                    step = 1,
+                    valueRange = 1..8,
+                )
+            }
         }
         val feedAvailable = OverlayCallbackImpl.minusOneAvailable(LocalContext.current)
         val enableFeedAdapter = prefs2.enableFeed.getAdapter()
@@ -261,24 +273,6 @@ fun HomeScreenPreferences(
                 showAsPercentage = true,
             )
         }
-    }
-}
-
-private fun clearAllViewsFromHomeScreen(context: Context, type: Int) {
-    val launcherModel = LauncherAppState.getInstance(context).model
-    val modelWriter = launcherModel.getWriter(
-        verifyChanges = false,
-        cellPosMapper = CellPosMapper.DEFAULT,
-        owner = null,
-    )
-    val isViewsRemoved = modelWriter.clearAllHomeScreenViewsByType(type)
-    if (isViewsRemoved) {
-        launcherModel.forceReload()
-        Toast.makeText(
-            context,
-            R.string.home_screen_all_views_removed_msg,
-            Toast.LENGTH_SHORT,
-        ).show()
     }
 }
 

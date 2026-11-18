@@ -77,6 +77,11 @@ public class PredictionRowView<T extends Context & ActivityContext>
 
     private boolean mPredictionUiUpdatePaused = false;
 
+    // Component keys of the predictions currently bound. Used to skip rebinding (and therefore
+    // restarting icon animations) when the model dispatches an identical set again, which is the
+    // cause of the suggestion tray icons flickering.
+    private List<String> mAppliedPredictionKeys = new ArrayList<>();
+
     private final PreferenceManager2 prefs2 = PreferenceManager2.getInstance(getContext());
 
     public PredictionRowView(@NonNull Context context) {
@@ -208,6 +213,8 @@ public class PredictionRowView<T extends Context & ActivityContext>
     public void onDeviceProfileChanged(DeviceProfile dp) {
         mNumPredictedAppsPerRow = dp.numShownAllAppsColumns;
         removeAllViews();
+        // Views were removed, so the next bind must rebuild and is never considered redundant.
+        mAppliedPredictionKeys = new ArrayList<>();
         applyPredictionApps();
     }
 
@@ -215,14 +222,34 @@ public class PredictionRowView<T extends Context & ActivityContext>
     public void setPredictionUiUpdatePaused(boolean predictionUiUpdatePaused) {
         mPredictionUiUpdatePaused = predictionUiUpdatePaused;
         if (!mPredictionUiUpdatePaused) {
-            applyPredictionApps();
+            applyPredictionApps(true /* force */);
         }
     }
 
     private void applyPredictionApps() {
+        applyPredictionApps(false /* force */);
+    }
+
+    private void applyPredictionApps(boolean force) {
         if (mPredictionUiUpdatePaused) {
             return;
         }
+
+        // The prediction model re-dispatches the same set on every drawer refresh (e.g. each
+        // onResume / state change via bindPredictedContainerInfo). Rebinding unconditionally resets
+        // every icon, restarting its load/draw animation, which is what makes the suggestion tray
+        // icons appear to flicker. Skip the rebind when the predicted set is unchanged.
+        List<String> newKeys = new ArrayList<>(mPredictedApps.size());
+        for (WorkspaceItemInfo info : mPredictedApps) {
+            newKeys.add(info.getTargetComponent() == null
+                    ? String.valueOf(info.getTargetPackage())
+                    : info.getTargetComponent().flattenToString() + "@" + info.user.hashCode());
+        }
+        if (!force && newKeys.equals(mAppliedPredictionKeys) && getChildCount() == mNumPredictedAppsPerRow) {
+            return;
+        }
+        mAppliedPredictionKeys = newKeys;
+
         if (getChildCount() != mNumPredictedAppsPerRow) {
             while (getChildCount() > mNumPredictedAppsPerRow) {
                 removeViewAt(0);

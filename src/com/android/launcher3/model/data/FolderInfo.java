@@ -59,6 +59,13 @@ public class FolderInfo extends CollectionInfo {
     public static final int FLAG_MANUAL_FOLDER_NAME = 0x00000008;
 
     /**
+     * Folder materialised from a Caddy category card. Only affects the closed-icon
+     * presentation (rounded square instead of the theme folder shape) and the
+     * resize entry point; contents, opening, storage and restore stay native.
+     */
+    public static final int FLAG_CADDY_FOLDER = 0x00000010;
+
+    /**
      * Different states of folder label.
      */
     public enum LabelState {

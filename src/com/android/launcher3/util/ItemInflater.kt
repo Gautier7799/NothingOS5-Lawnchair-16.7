@@ -23,6 +23,8 @@ import android.view.View
 import android.view.View.OnClickListener
 import android.view.View.OnFocusChangeListener
 import android.view.ViewGroup
+import app.lawnchair.dossier.DossierCardView
+import app.lawnchair.dossier.DossierInfo
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.LauncherAppState
 import com.android.launcher3.LauncherSettings.Favorites
@@ -78,6 +80,12 @@ class ItemInflater<T>(
                 }
                 return createShortcut(info, parent, container)
             }
+            Favorites.ITEM_TYPE_DOSSIER -> {
+                val dossier = item as DossierInfo
+                return DossierCardView(context).apply {
+                    bind(dossier, ::resolveDossierApp)
+                }
+            }
             Favorites.ITEM_TYPE_FOLDER ->
                 return FolderIcon.inflateFolderAndIcon(
                         R.layout.folder_icon,
@@ -121,6 +129,14 @@ class ItemInflater<T>(
 
         if (container == Favorites.CONTAINER_HOTSEAT_PREDICTION) favorite.verifyHighRes()
         return favorite
+    }
+
+    private fun resolveDossierApp(key: String): com.android.launcher3.model.data.AppInfo? {
+        val componentKey = com.android.launcher3.util.ComponentKey.fromString(key) ?: return null
+        // `context` is already an ActivityContext (see the class bound). Resolving through it
+        // works for both the Launcher and the non-Launcher renderer used by the Settings
+        // previews; Launcher.getLauncher() throws there.
+        return context.appsView?.appsStore?.getApp(componentKey)
     }
 
     private fun inflateAppWidget(item: LauncherAppWidgetInfo, writer: ModelWriter): View? {

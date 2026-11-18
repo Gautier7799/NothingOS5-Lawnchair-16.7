@@ -29,10 +29,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.InsetDrawable;
 import android.util.AttributeSet;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -58,6 +55,7 @@ import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
+import app.lawnchair.hotseat.DockSearchBar;
 import app.lawnchair.hotseat.DisabledHotseat;
 import app.lawnchair.hotseat.HotseatMode;
 import app.lawnchair.hotseat.HotseatPagedView;
@@ -96,6 +94,8 @@ public class Hotseat extends FrameLayout implements Insettable {
     public static final float QSB_CENTER_FACTOR = .325f;
     private static final int BUBBLE_BAR_ADJUSTMENT_ANIMATION_DURATION_MS = 250;
     private static final int DOCK_PAGE_INDICATOR_HEIGHT_DP = 8;
+    // iOS Dock geometry (side margin, inner padding, panel height, corner radius) lives in
+    // app.lawnchair.ui.dock.DockCapsuleGeometry, which also draws the background.
 
     @ViewDebug.ExportedProperty(category = "launcher")
     private boolean mHasVerticalHotseat;
@@ -148,12 +148,22 @@ public class Hotseat extends FrameLayout implements Insettable {
             com.patrykmichalik.opto.core.PreferenceExtensionsKt.setBlocking(preferenceManager2.getHotseatMode(), hotseatMode);
         }
         int layoutId = hotseatMode.getLayoutResourceId();
+        boolean showDockSearchBar = app.lawnchair.hotseat.DockSearchBar.isEnabled(hotseatMode,
+                PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()));
+        if (!showDockSearchBar) {
+            layoutId = R.layout.empty_view;
+        }
 
         mIconsContainer = new FrameLayout(context);
         mIconsContainer.setLayoutParams(new LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         mIconsContainer.setClipChildren(false);
         mIconsContainer.setClipToPadding(false);
+        // The capsule geometry lives in DockCapsuleGeometry so the same code can render the plain
+        // iPhone dock and the iPad-style split variant.
+        int dockSidePadding = app.lawnchair.ui.dock.DockCapsuleGeometry.INSTANCE
+                .containerPaddingPx(getResources().getDisplayMetrics().density);
+        mIconsContainer.setPaddingRelative(dockSidePadding, 0, dockSidePadding, 0);
         addView(mIconsContainer);
 
         mPagedView = new HotseatPagedView(context);
@@ -202,29 +212,16 @@ public class Hotseat extends FrameLayout implements Insettable {
     }
 
     private void setUpBackground() {
-        if(!preferenceManager.getHotseatBG().get()) return;
-
-        var bgColor = PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getHotseatBackgroundColor());
-        var transparency = preferenceManager.getHotseatBGAlpha().get();
-        var alphaValue = (transparency * 255) / 100;
-        var baseColor = bgColor.getColorPreferenceEntry().getLightColor().invoke(getContext());
-        var finalColor = Color.argb(alphaValue, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor));
-        int insetHorizontalLeft = preferenceManager.getHotseatBGHorizontalInsetLeft().get();
-        int insetHorizontalRight = preferenceManager.getHotseatBGHorizontalInsetRight().get();
-        int insetVerticalTop = preferenceManager.getHotseatBGVerticalInsetTop().get();
-        int insetVerticalBottom = preferenceManager.getHotseatBGVerticalInsetBottom().get();
-        float cornerRadiusDp = PreferenceCacheExtensionsKt.firstCached(
-                preferenceManager2.getHotseatBackgroundCornerRadius());
-        float cornerRadius = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                cornerRadiusDp,
-                getResources().getDisplayMetrics());
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(finalColor);
-        background.setCornerRadius(cornerRadius);
-        InsetDrawable bg = new InsetDrawable(background,
-                insetHorizontalLeft, insetVerticalTop, insetHorizontalRight, insetVerticalBottom);
-        setBackground(bg);
+        // The capsule geometry lives in DockCapsule so the same code can render the plain
+        // iPhone dock and the iPad-style split variant.
+        app.lawnchair.ui.dock.DockCapsule.apply(this);
+        // Without the dock search bar, float a small glass search pill just above the dock.
+        if (!DockSearchBar.isEnabled(PreferenceCacheExtensionsKt.firstCached(
+                        preferenceManager2.getHotseatMode()),
+                PreferenceCacheExtensionsKt.firstCached(preferenceManager2.getShowDockSearchBar()))) {
+            app.lawnchair.ui.dock.DockSearchPill.apply(this);
+        }
+        setBackground(null);
     }
 
     /** Provides translation X for hotseat icons for the channel. */
@@ -240,6 +237,11 @@ public class Hotseat extends FrameLayout implements Insettable {
 
     public HotseatPagedView getPagedView() {
         return mPagedView;
+    }
+
+    /** Returns the container that holds the dock icons and the capsule background. */
+    public FrameLayout getIconsContainer() {
+        return mIconsContainer;
     }
 
     /** Returns the CellLayout for the given dock page. */
@@ -502,6 +504,23 @@ public class Hotseat extends FrameLayout implements Insettable {
         return false;
     }
 
+    /**
+     * Centres the dock icon row vertically inside the panel by padding the icon container. Only
+     * applies to the plain phone dock without a search bar; other layouts keep their own spacing.
+     */
+    private void applyDockVerticalPadding(DeviceProfile dp, int containerHeight) {
+        if (dp.isQsbEnabled() || dp.isVerticalBarLayout()) {
+            return;
+        }
+        int iconRowHeight = dp.hotseatCellHeightPx * dp.numHotseatRows;
+        int verticalPadding = Math.max(0, (containerHeight - iconRowHeight) / 2);
+        if (mIconsContainer.getPaddingTop() != verticalPadding
+                || mIconsContainer.getPaddingBottom() != verticalPadding) {
+            mIconsContainer.setPaddingRelative(mIconsContainer.getPaddingLeft(), verticalPadding,
+                    mIconsContainer.getPaddingRight(), verticalPadding);
+        }
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int widthSize = MeasureSpec.getSize(widthMeasureSpec);
@@ -519,13 +538,20 @@ public class Hotseat extends FrameLayout implements Insettable {
 
         int pagerWidth = widthSize - paddingLeft - paddingRight;
         int pagerHeight = heightSize - paddingTop - paddingBottom;
+        applyDockVerticalPadding(dp, pagerHeight);
         mIconsContainer.measure(
                 makeMeasureSpec(Math.max(0, pagerWidth), MeasureSpec.EXACTLY),
                 makeMeasureSpec(Math.max(0, pagerHeight), MeasureSpec.EXACTLY));
 
         int pageHeight = Math.max(0, pagerHeight - indicatorSpace);
+        // Measure the paged view inside the container padding so the icon grid (and the cell
+        // spacing derived from it) stays within the dock capsule instead of spanning the full
+        // screen width, which pushed the last icon past the capsule edge.
+        int iconsPaddingLeft = mIconsContainer.getPaddingLeft();
+        int iconsPaddingRight = mIconsContainer.getPaddingRight();
+        int pagedWidth = Math.max(0, pagerWidth - iconsPaddingLeft - iconsPaddingRight);
         mPagedView.measure(
-                makeMeasureSpec(Math.max(0, pagerWidth), MeasureSpec.EXACTLY),
+                makeMeasureSpec(pagedWidth, MeasureSpec.EXACTLY),
                 makeMeasureSpec(pageHeight, MeasureSpec.EXACTLY));
 
         if (showIndicator) {
@@ -563,7 +589,14 @@ public class Hotseat extends FrameLayout implements Insettable {
         boolean showIndicator = mPagedView.isPagingEnabled() && !dp.isVerticalBarLayout();
         int indicatorSpace = showIndicator ? mPageIndicatorHeight : 0;
 
-        mPagedView.layout(0, 0, containerWidth, Math.max(0, containerHeight - indicatorSpace));
+        // Honor the container's horizontal padding so the dock icons stay inside the panel
+        // rather than spreading across the full screen width.
+        int iconsPaddingLeft = mIconsContainer.getPaddingLeft();
+        int iconsPaddingRight = mIconsContainer.getPaddingRight();
+        mPagedView.layout(iconsPaddingLeft, mIconsContainer.getPaddingTop(),
+                containerWidth - iconsPaddingRight,
+                Math.max(0, containerHeight - mIconsContainer.getPaddingBottom()
+                        - indicatorSpace));
 
         if (showIndicator) {
             int indicatorTop = containerHeight - mPageIndicatorHeight;

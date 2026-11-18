@@ -59,16 +59,20 @@ import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.DropTarget.DragObject;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherSettings;
+import com.android.launcher3.LauncherState;
 import com.android.launcher3.OnAlarmListener;
 import com.android.launcher3.R;
 import com.android.launcher3.Reorderable;
+import com.android.launcher3.ShortcutAndWidgetContainer;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.Workspace;
 import com.android.launcher3.allapps.ActivityAllAppsContainerView;
 import com.android.launcher3.celllayout.CellLayoutLayoutParams;
 import com.android.launcher3.dot.FolderDotInfo;
 import com.android.launcher3.dragndrop.BaseItemDragListener;
+import com.android.launcher3.dragndrop.DragController;
 import com.android.launcher3.dragndrop.DragLayer;
+import com.android.launcher3.dragndrop.DragOptions;
 import com.android.launcher3.dragndrop.DragView;
 import com.android.launcher3.dragndrop.DraggableView;
 import com.android.launcher3.icons.DotRenderer;
@@ -82,11 +86,15 @@ import com.android.launcher3.model.data.FolderInfo.LabelState;
 import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.model.data.WorkspaceItemFactory;
 import com.android.launcher3.model.data.WorkspaceItemInfo;
+import com.android.launcher3.statemanager.StateManager;
 import com.android.launcher3.util.MultiTranslateDelegate;
 import com.android.launcher3.util.Thunk;
 import com.android.launcher3.views.ActivityContext;
 import com.android.launcher3.views.FloatingIconViewCompanion;
 import com.android.launcher3.widget.PendingAddShortcutInfo;
+import com.android.launcher3.touch.ItemLongClickListener;
+import app.lawnchair.allapps.caddy.CaddyFolderResizeFrame;
+import app.lawnchair.allapps.caddy.CaddyFolderStyle;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -96,7 +104,8 @@ import java.util.function.Predicate;
  * An icon that can appear on in the workspace representing an {@link Folder}.
  */
 public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion,
-        DraggableView, Reorderable {
+        DraggableView, Reorderable,
+        com.android.launcher3.WorkspaceLayoutManager.WorkspaceChildLongClickListener {
 
     private final MultiTranslateDelegate mTranslateDelegate = new MultiTranslateDelegate(this);
     @Thunk ActivityContext mActivity;
@@ -125,6 +134,10 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     private List<ItemInfo> mCurrentPreviewItems = new ArrayList<>();
 
     boolean mAnimating = false;
+
+    // True only for Caddy category cards hosted by the app drawer.
+    // Their native folder preview and label are intentionally hidden.
+    private boolean mIsCaddyCard;
 
     private Alarm mOpenAlarm = new Alarm(Looper.getMainLooper());
 
@@ -222,6 +235,7 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         icon.mInfo = folderInfo;
         icon.mActivity = activity;
         icon.mDotRenderer = grid.mDotRendererWorkSpace;
+        icon.applyCaddyFolderStyle();
 
         icon.setContentDescription(icon.getAccessiblityTitle(folderInfo.title));
         icon.updateDotInfo();
@@ -574,7 +588,101 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         mBackground.setInvalidateDelegate(this);
     }
 
+    public void setCaddyCard(boolean isCaddyCard) {
+        mIsCaddyCard = isCaddyCard;
+        if (isCaddyCard) {
+            // Caddy cards live in the app drawer rather than a CellLayout, so refresh
+            // the folder color/preview opacity explicitly instead of relying on the
+            // normal workspace folder setup path.
+            mBackground.refreshFolderPreviewColor();
+        }
+    }
+
+    /**
+     * Applies the rounded-square presentation when this folder was created from a Caddy
+     * category card. Ordinary folders are left untouched, so their configured shape and
+     * behaviour are preserved.
+     */
+    public void applyCaddyFolderStyle() {
+        if (!CaddyFolderStyle.isCaddyFolder(mInfo)) return;
+        mBackground.setShapeOverride(CaddyFolderStyle.getShape());
+    }
+
+    /**
+     * Preserves the launcher's native workspace gesture contract:
+     * - Caddy folder in EDIT_MODE: long-press opens the folder resize frame directly.
+     * - Caddy folder otherwise: long-press starts the native workspace drag; a plain long-press
+     *   (dropped back on the folder itself) then reveals the resize frame. This mirrors
+     *   {@code DossierCardView}, the launcher's own resizable non-widget item: a folder is not an
+     *   {@link LauncherAppWidgetHostView}, so the widget-only drop hook cannot be relied on.
+     * - Any other folder: identical to the native workspace long-click behaviour.
+     */
     @Override
+    public boolean onWorkspaceChildLongClick() {
+        if (!CaddyFolderStyle.isCaddyFolder(mInfo)) {
+            return ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this);
+        }
+        Launcher launcher = Launcher.getLauncher(getContext());
+        if (launcher.isInState(LauncherState.EDIT_MODE)) {
+            return showCaddyResizeFrame(launcher);
+        }
+        boolean started = ItemLongClickListener.INSTANCE_WORKSPACE.onLongClick(this);
+        if (started) {
+            final int startCellX = mInfo.cellX;
+            final int startCellY = mInfo.cellY;
+            DragController controller = launcher.getDragController();
+            controller.addDragListener(new DragController.DragListener() {
+                @Override
+                public void onDragStart(DragObject dragObject, DragOptions options) {
+                }
+
+                @Override
+                public void onDragEnd() {
+                    controller.removeDragListener(this);
+                    DragObject dragObject = controller.mDragObject;
+                    // A plain long-press drops the folder back on its own cell. The drop hook in
+                    // Workspace cannot be trusted for this: while the spring-loaded exit is still
+                    // running, returnToOriginalCellToPreventShuffling clears the target cell and
+                    // the frame is skipped. Compare the folder's own cell instead, which is the
+                    // same "dropped on original cell" test the widget path uses.
+                    if (dragObject != null && dragObject.dragInfo == mInfo && !dragObject.cancelled
+                            && mInfo.cellX == startCellX && mInfo.cellY == startCellY) {
+                        post(() -> showCaddyResizeFrame(launcher));
+                    }
+                }
+            });
+        }
+        return started;
+    }
+
+    private boolean showCaddyResizeFrame(Launcher launcher) {
+        if (!(getParent() instanceof ShortcutAndWidgetContainer)) return false;
+        CellLayout cellLayout = (CellLayout) getParent().getParent();
+        if (cellLayout == null) return false;
+        // AppWidgetResizeFrame snapshots the view's location in window, so the frame must be
+        // created only once the workspace has no scale/translation left. In EDIT_MODE the
+        // state is already stable, so show at once; right after a drag the launcher is still
+        // spring-loaded, so wait for the transition to settle before showing.
+        StateManager<LauncherState, Launcher> sm = launcher.getStateManager();
+        if (launcher.isInState(LauncherState.EDIT_MODE)
+                || (launcher.isInState(LauncherState.NORMAL) && !sm.isInTransition())) {
+            CaddyFolderResizeFrame.showForFolder(launcher, this, cellLayout);
+        } else {
+            sm.addStateListener(new StateManager.StateListener<LauncherState>() {
+                @Override
+                public void onStateTransitionComplete(LauncherState finalState) {
+                    sm.removeStateListener(this);
+                    CaddyFolderResizeFrame.showForFolder(launcher, FolderIcon.this, cellLayout);
+                }
+            });
+        }
+        return true;
+    }
+
+    public boolean isCaddyCard() {
+        return mIsCaddyCard;
+    }
+
     public void setIconVisible(boolean visible) {
         mBackgroundIsVisible = visible;
         invalidate();

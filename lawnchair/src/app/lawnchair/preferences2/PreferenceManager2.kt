@@ -237,8 +237,7 @@ class PreferenceManager2 @Inject constructor(
 
     val hotseatBackgroundCornerRadius = preference(
         key = floatPreferencesKey(name = "hotseat_bg_corner_radius"),
-        defaultValue = context.resources.getDimension(R.dimen.bg_round_rect_radius) /
-            context.resources.displayMetrics.density, // This should hopefully match corner of all devices
+        defaultValue = app.lawnchair.ui.dock.DockCapsuleGeometry.CORNER_RADIUS_DP.toFloat(),
         onSet = { reloadHelper.recreate() },
     )
 
@@ -308,6 +307,36 @@ class PreferenceManager2 @Inject constructor(
     val isHotseatEnabled = preference(
         key = booleanPreferencesKey(name = "pref_show_hotseat"),
         defaultValue = context.resources.getBoolean(R.bool.config_default_show_hotseat),
+    )
+
+    /** Whether the search bar capsule is shown inside the dock. */
+    val showDockSearchBar = preference(
+        key = booleanPreferencesKey(name = "show_dock_search_bar"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_show_dock_search_bar),
+    )
+
+    /**
+     * Master switch for the Dossier workspace cards. A Dossier is an independent,
+     * resizable card that groups apps on the home screen. Off by default so the
+     * standard home screen is unchanged until the user opts in.
+     */
+    val dossierEnabled = preference(
+        key = booleanPreferencesKey(name = "dossier_enabled"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_dossier_enabled),
+        onSet = { reloadHelper.restart() },
+    )
+
+    /** Independent icon-grid limits for Dossier cards; folder grid preferences remain untouched. */
+    val dossierGridColumns = preference(
+        key = intPreferencesKey(name = "dossier_grid_columns"),
+        defaultValue = 3,
+        onSet = { reloadHelper.refreshDossierGrid() },
+    )
+
+    val dossierGridRows = preference(
+        key = intPreferencesKey(name = "dossier_grid_rows"),
+        defaultValue = 3,
+        onSet = { reloadHelper.refreshDossierGrid() },
     )
 
     val hotseatQsbProvider = preference(
@@ -447,6 +476,22 @@ class PreferenceManager2 @Inject constructor(
         key = booleanPreferencesKey(name = "hide_app_drawer_search_bar"),
         defaultValue = context.resources.getBoolean(R.bool.config_default_hide_app_drawer_search_bar),
         onSet = { reloadHelper.recreate() },
+    )
+
+    /**
+     * Blurs the surface behind the App Info / shortcut popup. Applies to both the app
+     * drawer and workspace, which share the same [com.android.launcher3.popup.PopupContainerWithArrow].
+     */
+    val blurBehindPopup = preference(
+        key = booleanPreferencesKey(name = "blur_behind_popup"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_blur_behind_popup),
+    )
+
+    /** Hides the workspace Smartspace / Google search widget without touching the dock. */
+    val hideWorkspaceSmartspace = preference(
+        key = booleanPreferencesKey(name = "hide_workspace_smartspace"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_hide_workspace_smartspace),
+        onSet = { reloadHelper.restart() },
     )
 
     val appDrawerHapticFeedback = preference(
@@ -918,6 +963,15 @@ class PreferenceManager2 @Inject constructor(
             .launchIn(scope)
 
         isHotseatEnabled.get()
+            .drop(1)
+            .distinctUntilChanged()
+            .onEach {
+                reloadHelper.recreate()
+                reloadHelper.reloadGrid()
+            }
+            .launchIn(scope)
+
+        showDockSearchBar.get()
             .drop(1)
             .distinctUntilChanged()
             .onEach {

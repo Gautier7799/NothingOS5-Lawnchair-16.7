@@ -141,6 +141,10 @@
     <string name="caddy_beta">Caddy (beta)</string>
     <string name="caddy">Caddy</string>
 
+    <string name="dossier">Dossier</string>
+    <string name="dossier_enabled_label">Dossier workspace cards</string>
+    <string name="dossier_enabled_description">Show resizable cards that group your apps on the home screen. Long-press a card to resize it.</string>
+
     <string name="app_drawer_folder">App drawer folders</string>
     <string name="selected_apps">Selected apps</string>
     <string name="add_apps">Add apps</string>
@@ -774,6 +778,10 @@
     <string name="popup_menu">Pop-up menu</string>
     <string name="popup_menu_items">Pop-up menu items</string>
     <string name="edit_menu_items">Edit pop-up menu items</string>
+    <string name="blur_behind_popup_label">Blur behind pop-up</string>
+    <string name="blur_behind_popup_description">Blur and dim the background when an app info pop-up opens</string>
+    <string name="hide_workspace_smartspace_label">Hide search bar</string>
+    <string name="hide_workspace_smartspace_description">Hide the Google search bar from the home screen. The dock stays visible.</string>
 
     <string name="wallpaper_quick_picker">Wallpaper quick picker</string>
 
@@ -803,6 +811,7 @@
 
     <string name="search_bar_label">Search bar</string>
     <string name="search_bar_settings">Search bar settings</string>
+    <string name="dock_search_bar_toggle_label">Show search bar in dock</string>
     <string name="hotseat_mode_label">Search bar widget</string>
     <string name="hotseat_mode_disabled">Disabled</string>
     <string name="hotseat_mode_lawnchair" translatable="false">Lawnchair</string>

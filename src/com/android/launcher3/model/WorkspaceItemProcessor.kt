@@ -40,6 +40,7 @@ import com.android.launcher3.icons.IconCache
 import com.android.launcher3.icons.cache.CacheLookupFlag.Companion.DEFAULT_LOOKUP_FLAG
 import com.android.launcher3.logging.FileLog
 import com.android.launcher3.model.data.AppInfo
+import app.lawnchair.dossier.DossierInfo
 import com.android.launcher3.model.data.AppPairInfo
 import com.android.launcher3.model.data.FolderInfo
 import com.android.launcher3.model.data.IconRequestInfo
@@ -117,6 +118,7 @@ class WorkspaceItemProcessor(
                 Favorites.ITEM_TYPE_SHORTCUT -> processLegacyShortcut()
                 Favorites.ITEM_TYPE_FOLDER,
                 Favorites.ITEM_TYPE_APP_PAIR -> processFolderOrAppPair()
+                Favorites.ITEM_TYPE_DOSSIER -> processDossier()
                 Favorites.ITEM_TYPE_APPWIDGET,
                 Favorites.ITEM_TYPE_CUSTOM_APPWIDGET -> processWidget()
             }
@@ -498,6 +500,32 @@ class WorkspaceItemProcessor(
             ?.firstOrNull()
     }
 
+    /** Loads a Dossier card from the existing Favorites row without treating it as a folder. */
+    private fun processDossier() {
+        if (c.container != Favorites.CONTAINER_DESKTOP) {
+            c.markDeleted(
+                "Dossier item must be stored on the workspace. id=${c.id}, container=${c.container}",
+                RestoreError.INVALID_WIDGET_CONTAINER,
+            )
+            return
+        }
+        val info = DossierInfo.fromDatabase(c.getTitle(), c.getIntentDescription())
+        if (info == null || c.spanX <= 0 || c.spanY <= 0) {
+            c.markDeleted(
+                "Dossier item has invalid payload or size. id=${c.id}, span=${c.spanX}x${c.spanY}",
+                RestoreError.INVALID_WIDGET_SIZE,
+            )
+            return
+        }
+        c.applyCommonProperties(info)
+        info.user = c.user
+        info.spanX = c.spanX
+        info.spanY = c.spanY
+        info.title = c.getTitle()
+        c.markRestored()
+        c.checkAndAddItem(info, loadedItems, memoryLogger)
+    }
+
     /**
      * Loads CollectionInfo information from the database and formats it. This function runs while
      * LoaderTask is still active; some of the processing for folder content items is done after all
@@ -518,11 +546,19 @@ class WorkspaceItemProcessor(
         c.applyCommonProperties(collection)
         // Do not trim the folder label, as is was set by the user.
         collection.title = c.getString(c.mTitleIndex)
-        collection.spanX = 1
-        collection.spanY = 1
         if (collection is FolderInfo) {
             collection.options = c.options
+            if (collection.hasOption(FolderInfo.FLAG_CADDY_FOLDER)) {
+                // A Caddy folder can be resized, so restore the span saved on the workspace.
+                collection.spanX = c.spanX
+                collection.spanY = c.spanY
+            } else {
+                collection.spanX = 1
+                collection.spanY = 1
+            }
         } else {
+            collection.spanX = 1
+            collection.spanY = 1
             // An app pair may be inside another folder, so it needs to preserve rank information.
             collection.rank = c.rank
         }

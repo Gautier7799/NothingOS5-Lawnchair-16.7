@@ -35,6 +35,7 @@ import app.lawnchair.LawnchairApp.Companion.showQuickstepWarningIfNecessary
 import app.lawnchair.compat.LawnchairQuickstepCompat
 import app.lawnchair.data.AppDatabase
 import app.lawnchair.data.wallpaper.service.WallpaperService
+import app.lawnchair.dossier.DossierCardCoordinator
 import app.lawnchair.gestures.GestureController
 import app.lawnchair.gestures.VerticalSwipeTouchController
 import app.lawnchair.gestures.config.GestureHandlerConfig
@@ -75,6 +76,7 @@ import com.android.launcher3.uioverrides.states.BackgroundAppState
 import com.android.launcher3.uioverrides.states.OverviewState
 import com.android.launcher3.util.ActivityOptionsWrapper
 import com.android.launcher3.util.Executors
+import com.android.launcher3.util.IntSet
 import com.android.launcher3.util.RunnableList
 import com.android.launcher3.util.SystemUiController.UI_STATE_BASE_WINDOW
 import com.android.launcher3.util.Themes
@@ -105,6 +107,9 @@ class LawnchairLauncher : QuickstepLauncher() {
         WindowInsetsControllerCompat(window, rootView)
     }
     private val themeProvider by unsafeLazy { ThemeProvider.INSTANCE.get(this) }
+
+    private val dossierCards by unsafeLazy { DossierCardCoordinator(this) }
+
     private val noStatusBarStateListener = object : StateManager.StateListener<LauncherState> {
         override fun onStateTransitionStart(toState: LauncherState) {
             if (toState is OverviewState) {
@@ -160,6 +165,8 @@ class LawnchairLauncher : QuickstepLauncher() {
     override fun onCreate(savedInstanceState: Bundle?) {
         layoutInflater.factory2 = LawnchairLayoutFactory(this)
         super.onCreate(savedInstanceState)
+
+        dossierCards.start()
 
         prefs.launcherTheme.subscribeChanges(this, ::updateTheme)
         prefs.feedProvider.subscribeChanges(this, defaultOverlay::reconnect)
@@ -499,8 +506,19 @@ class LawnchairLauncher : QuickstepLauncher() {
 
     override fun onDestroy() {
         super.onDestroy()
+        dossierCards.stop()
         // Only actually closes if required, safe to call if not enabled
         SmartspacerClient.close()
+    }
+
+    override fun finishBindingItems(pagesBoundFirst: IntSet?) {
+        super.finishBindingItems(pagesBoundFirst)
+        dossierCards.onWorkspaceBound()
+    }
+
+    /** Re-renders bound Dossier cards after a Grille settings change, without a full rebind. */
+    fun refreshDossierCards() {
+        dossierCards.refreshCards()
     }
 
     override fun getDefaultOverlay(): LauncherOverlayManager = defaultOverlay

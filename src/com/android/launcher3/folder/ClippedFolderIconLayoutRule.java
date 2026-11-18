@@ -41,7 +41,9 @@ public class ClippedFolderIconLayoutRule {
         mIconSize = intrinsicIconSize;
         mIsRtl = rtl;
         mBaselineIconScale = availableSpace / intrinsicIconSize;
-        mNumFolderColumns = numFolderColumns;
+        // Caddy's drawer FolderIcon can be measured before DeviceProfile has a valid
+        // folder column count. Keep the spring-animation grid divisor valid.
+        mNumFolderColumns = Math.max(1, numFolderColumns);
     }
 
     /**
@@ -100,7 +102,9 @@ public class ClippedFolderIconLayoutRule {
         if (numItemsInPage <= MAX_NUM_ITEMS_IN_PREVIEW) {
             getPosition(index, numItemsInPage, mTmpPoint);
         } else {
-            getGridPosition(index / mNumFolderColumns, index % mNumFolderColumns, mTmpPoint);
+            // Never divide by zero if a transient/uninitialized profile reaches this rule.
+            int safeFolderColumns = Math.max(1, mNumFolderColumns);
+            getGridPosition(index / safeFolderColumns, index % safeFolderColumns, mTmpPoint);
         }
 
         transX = mTmpPoint[0];

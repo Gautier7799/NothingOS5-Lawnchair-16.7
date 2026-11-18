@@ -33,8 +33,9 @@ import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.model.data.LauncherAppWidgetInfo;
 import com.android.launcher3.model.data.WorkspaceItemInfo;
 import com.android.launcher3.util.Preconditions;
-import app.lawnchair.preferences2.PreferenceCacheExtensionsKt;
 
+import app.lawnchair.dossier.DossierInfo;
+import app.lawnchair.preferences2.PreferenceCacheExtensionsKt;
 import app.lawnchair.preferences2.PreferenceManager2;
 
 public class DeleteDropTarget extends ButtonDropTarget {
@@ -63,6 +64,26 @@ public class DeleteDropTarget extends ButtonDropTarget {
     protected void onFinishInflate() {
         super.onFinishInflate();
         setDrawable(R.drawable.ic_remove_no_shadow);
+    }
+
+    /**
+     * Keep the delete target's generous touch extension for normal launcher items,
+     * but do not let that invisible extension overlap a Dossier card while the user
+     * is moving it between workspace pages. A Dossier is deleted only when the drop
+     * lands inside the visible Remove target itself.
+     */
+    @Override
+    public void getHitRectRelativeToDragLayer(android.graphics.Rect outRect) {
+        DropTarget.DragObject dragObject = mActivityContext.getDragController().mDragObject;
+        if (dragObject == null || !(dragObject.dragInfo instanceof DossierInfo)) {
+            super.getHitRectRelativeToDragLayer(outRect);
+            return;
+        }
+
+        super.getHitRect(outRect);
+        int[] coordinates = new int[] {0, 0};
+        mActivityContext.getDragLayer().getDescendantCoordRelativeToSelf(this, coordinates);
+        outRect.offsetTo(coordinates[0], coordinates[1]);
     }
 
     @Override

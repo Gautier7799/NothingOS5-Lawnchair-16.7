@@ -183,7 +183,13 @@ public class HotseatEduController {
             return v != null && v.getTag() != null && ((ItemInfo) v.getTag()).container
                     != LauncherSettings.Favorites.CONTAINER_HOTSEAT_PREDICTION;
         });
-        boolean canMigrateToFirstPage = cellLayout.makeSpaceForHotseatMigration(false);
+        // The first workspace page may not be bound yet when onboarding is resumed
+        // through Launcher.onNewIntent(). Do not dereference a missing CellLayout.
+        boolean canMigrateToFirstPage = cellLayout != null
+                && cellLayout.makeSpaceForHotseatMigration(false);
+        if (cellLayout == null) {
+            Log.w(TAG, "Skipping hotseat migration education: first workspace page is unavailable");
+        }
         if (requiresMigration && canMigrateToFirstPage) {
             showDialog();
         } else {
