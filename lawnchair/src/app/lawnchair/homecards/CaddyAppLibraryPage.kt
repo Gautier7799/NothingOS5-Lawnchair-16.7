@@ -149,7 +149,7 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         )
         applyBackground()
         setOnApplyWindowInsetsListener { _, insets ->
-            applyBottomInset(insets)
+            applyContentInsets(insets)
             insets
         }
     }
@@ -218,16 +218,25 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         }
     }
 
-    /** Keeps the content above the navigation bar so the last row is never cut off. */
-    private fun applyBottomInset(insets: WindowInsets) {
-        val bottom = if (Utilities.ATLEAST_R) {
-            insets.getInsets(WindowInsets.Type.navigationBars() or WindowInsets.Type.systemGestures()).bottom
+    /**
+     * Keeps the content clear of the system bars: the title row is pushed below the status bar and
+     * the last row of cards is lifted above the navigation bar, so neither is cut off.
+     */
+    private fun applyContentInsets(insets: WindowInsets) {
+        val top: Int
+        val bottom: Int
+        if (Utilities.ATLEAST_R) {
+            top = insets.getInsets(WindowInsets.Type.statusBars()).top
+            bottom = insets.getInsets(
+                WindowInsets.Type.navigationBars() or WindowInsets.Type.systemGestures(),
+            ).bottom
         } else {
             @Suppress("DEPRECATION")
-            insets.systemWindowInsetBottom
+            top = insets.systemWindowInsetTop
+            @Suppress("DEPRECATION")
+            bottom = insets.systemWindowInsetBottom
         }
-        val base = dp(32f)
-        column.setPadding(0, 0, 0, Math.max(base, bottom + dp(12f)))
+        column.setPadding(0, top, 0, Math.max(dp(32f), bottom + dp(12f)))
     }
 
     fun bind(launcher: Launcher) {
