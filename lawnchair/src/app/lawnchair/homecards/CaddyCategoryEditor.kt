@@ -16,6 +16,7 @@
 
 package app.lawnchair.homecards
 
+import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
 import android.view.ViewGroup
@@ -24,7 +25,6 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import com.android.launcher3.R
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.util.ComponentKey
