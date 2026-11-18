@@ -88,44 +88,6 @@ object CaddyHomeCardLayout {
         return (areaHeightPx / cellPx).coerceIn(1, requestedRows)
     }
 
-    /** The icon slot size and the number of icons a preview card of [widthPx] x [heightPx] shows. */
-    data class PreviewGeometry(val cellPx: Int, val maxIcons: Int)
-
-    /**
-     * The width of one card cell on a screen [screenWidthPx] wide holding [columns] cards.
-     *
-     * Each cell carries a [spacingPx]/2 margin on both sides, so the gap between two cards is
-     * [spacingPx] and the outer gap is [sidePaddingPx] + [spacingPx]/2. Subtracting [spacingPx] per
-     * column (not per gap) is what keeps the row exactly as wide as the screen, so the outer cards
-     * never reach the screen edge and the inner gap is exact.
-     */
-    fun cardWidthPx(screenWidthPx: Int, sidePaddingPx: Int, spacingPx: Int, columns: Int): Int {
-        val safeColumns = columns.coerceAtLeast(1)
-        val usable = screenWidthPx - 2 * sidePaddingPx - spacingPx * safeColumns
-        return (usable / safeColumns).coerceAtLeast(1)
-    }
-
-    /**
-     * The icon grid geometry for a preview card measured [widthPx] x [heightPx] px, holding
-     * [columns] icons per row and up to [requestedRows] rows below a [titleReservePx]-tall header.
-     *
-     * A renderer that is handed no cell size draws no icons, so callers that own a fixed card
-     * size must derive the slot here and pass it on.
-     */
-    fun previewGeometry(
-        widthPx: Int,
-        heightPx: Int,
-        columns: Int,
-        requestedRows: Int,
-        sideInsetPx: Int,
-        titleReservePx: Int,
-    ): PreviewGeometry {
-        val area = (heightPx - titleReservePx).coerceAtLeast(0)
-        val cell = cellSizePx(widthPx, heightPx, columns, requestedRows, sideInsetPx, titleReservePx)
-        val rows = visibleRows(area, cell, requestedRows)
-        return PreviewGeometry(cellPx = cell, maxIcons = columns.coerceAtLeast(1) * rows)
-    }
-
     /**
      * Resolves a horizontal move of [deltaCellsX] cells from [cellX] on a page that is
      * [columns] cells wide into a page offset plus an in-page column.

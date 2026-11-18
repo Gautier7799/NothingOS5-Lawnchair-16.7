@@ -17,22 +17,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools" xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="generic_smartspace_concatenated_desc">%1$s، %2$s</string>
     <string name="accessibility_smartspace_page">الصفحة %1$d من %2$d</string>
-    <string name="caddy_app_library_title">مكتبة التطبيقات</string>
-    <string name="caddy_app_library_suggestions">اقتراحات</string>
-    <string name="caddy_app_library_group">مكتبة التطبيقات</string>
-    <string name="caddy_app_library_enabled_label">فتح مكتبة التطبيقات</string>
-    <string name="caddy_app_library_enabled_description">اسحب بعد آخر صفحة لفتح مكتبة التطبيقات بملء الشاشة.</string>
-    <string name="caddy_app_library_icon_scale_label">حجم الأيقونات</string>
-    <string name="caddy_app_library_columns_label">عدد الأعمدة</string>
-    <string name="caddy_app_library_opacity_label">شفافية الخلفية</string>
-    <string name="caddy_app_library_show_titles_label">إظهار عناوين البطاقات</string>
-    <string name="caddy_app_library_background_label">نمط الخلفية</string>
-    <string name="caddy_app_library_background_blurred">ورق حائط مموّه</string>
-    <string name="caddy_app_library_background_opaque">معتم (صلب)</string>
-    <string name="caddy_app_library_background_tinted">ورق حائط ملوّن</string>
-    <string name="caddy_app_library_card_height_label">ارتفاع البطاقة</string>
-    <string name="caddy_app_library_spacing_label">تباعد البطاقات</string>
-    <string name="caddy_category_delete_title">حذف البطاقة</string>
-    <string name="caddy_category_delete_message">إزالة بطاقة \"%1$s\" من مكتبة التطبيقات؟</string>
-    <string name="caddy_category_delete">حذف</string>
 </resources>

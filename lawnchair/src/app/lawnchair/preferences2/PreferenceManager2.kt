@@ -365,45 +365,6 @@ class PreferenceManager2 @Inject constructor(
         onSet = { reloadHelper.restart() },
     )
 
-    /** Opens the full-screen Caddy App Library when the user swipes right past the first page. */
-    val caddyAppLibraryEnabled = preference(
-        key = booleanPreferencesKey(name = "caddy_app_library_enabled"),
-        defaultValue = context.resources.getBoolean(R.bool.config_default_caddy_app_library_enabled),
-    )
-
-    /**
-     * Icon size on the App Library cards, in percent of the default. Also scales the strength of
-     * the page's background blur, so one control tunes both.
-     */
-    val appLibraryIconScale = preference(
-        key = intPreferencesKey(name = "app_library_icon_scale"),
-        defaultValue = 100,
-    )
-
-    /** Number of card columns on the App Library page. */
-    val appLibraryColumns = preference(
-        key = intPreferencesKey(name = "app_library_columns"),
-        defaultValue = 2,
-    )
-
-    /** Shows the category title on the App Library cards. */
-    val appLibraryShowTitles = preference(
-        key = booleanPreferencesKey(name = "app_library_show_titles"),
-        defaultValue = true,
-    )
-
-    /** Height of each App Library card, in dp. */
-    val appLibraryCardHeight = preference(
-        key = intPreferencesKey(name = "app_library_card_height"),
-        defaultValue = 168,
-    )
-
-    /** Spacing between App Library cards, in dp. */
-    val appLibraryGridSpacing = preference(
-        key = intPreferencesKey(name = "app_library_grid_spacing"),
-        defaultValue = 12,
-    )
-
     /** Shows the card title on workspace cards. */
     val caddyHomeShowTitles = preference(
         key = booleanPreferencesKey(name = "caddy_home_show_titles"),
