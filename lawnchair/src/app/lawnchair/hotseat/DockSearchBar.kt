@@ -9,6 +9,5 @@ package app.lawnchair.hotseat
 object DockSearchBar {
 
     @JvmStatic
-    fun isEnabled(mode: HotseatMode, showDockSearchBar: Boolean): Boolean =
-        showDockSearchBar && mode.hasSearchBar
+    fun isEnabled(mode: HotseatMode, showDockSearchBar: Boolean): Boolean = showDockSearchBar && mode.hasSearchBar
 }

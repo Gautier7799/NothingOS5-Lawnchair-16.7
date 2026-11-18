@@ -12,6 +12,7 @@ sealed class HotseatMode(
     companion object {
         fun fromString(value: String): HotseatMode = when (value) {
             "disabled" -> DisabledHotseat
+
             // The Google search bar capsule was removed; any stored preference now uses the
             // Lawnchair (iOS-style) dock instead.
             else -> LawnchairHotseat
