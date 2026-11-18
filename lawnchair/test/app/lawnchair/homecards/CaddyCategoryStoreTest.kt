@@ -71,4 +71,32 @@ class CaddyCategoryStoreTest {
         assertThat(CaddyCategoryStore.titles(null)).isEmpty()
         assertThat(CaddyCategoryStore.titles("garbage")).isEmpty()
     }
+
+    @Test
+    fun removeCategory_dropsTheMatchingTitleOnly() {
+        val stored = CaddyCategoryStore.addCategory(null, "Games", listOf("com.a#0"))
+        val withWork = CaddyCategoryStore.addCategory(stored, "Work", listOf("com.b#0"))
+        val removed = CaddyCategoryStore.removeCategory(withWork, "Games")
+        assertThat(CaddyCategoryStore.titles(removed)).containsExactly("Work")
+    }
+
+    @Test
+    fun removeCategory_trimsTheTitle() {
+        val stored = CaddyCategoryStore.addCategory(null, "Games", listOf("com.a#0"))
+        assertThat(CaddyCategoryStore.titles(CaddyCategoryStore.removeCategory(stored, "  Games  ")))
+            .isEmpty()
+    }
+
+    @Test
+    fun removeCategory_blankTitleIsNoOp() {
+        val existing = CaddyCategoryStore.addCategory(null, "Games", listOf("com.a#0"))
+        assertThat(CaddyCategoryStore.removeCategory(existing, "   ")).isEqualTo(existing)
+    }
+
+    @Test
+    fun removeCategory_missingTitleLeavesTheListIntact() {
+        val existing = CaddyCategoryStore.addCategory(null, "Games", listOf("com.a#0"))
+        assertThat(CaddyCategoryStore.titles(CaddyCategoryStore.removeCategory(existing, "Work")))
+            .containsExactly("Games")
+    }
 }

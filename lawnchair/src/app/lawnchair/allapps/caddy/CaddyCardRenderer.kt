@@ -31,7 +31,6 @@ import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import app.lawnchair.homecards.CaddyHomeCardLayout
 import app.lawnchair.util.resolveFolderPreviewColor
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.R
@@ -243,7 +242,15 @@ object CaddyCardRenderer {
             } else {
                 dp(context, if (fitGridToHost) 54f else 56f)
             }
-            addCaddyAppIcon(context, cell, app, iconSize, iconBinder, fitGridToHost)
+            addCaddyAppIcon(
+                context,
+                cell,
+                app,
+                iconSize,
+                iconBinder,
+                fitGridToHost,
+                if (explicitCell) cellSizePx else 0,
+            )
         }
         host.contentDescription = title
     }
@@ -255,6 +262,7 @@ object CaddyCardRenderer {
         iconSize: Int,
         iconBinder: (BubbleTextView, AppInfo) -> Unit,
         fitGridToHost: Boolean,
+        cellSizePx: Int,
     ) {
         // Use the same launcher icon widget as the default drawer. Its tag,
         // popup anchor, and long-press lifecycle are understood by Lawnchair's
@@ -272,41 +280,36 @@ object CaddyCardRenderer {
         // clips adaptive icons into a flat-bottom shape. Disable that mode and
         // center only the actual drawable using BubbleTextView's native icon size.
         icon.setCenterVertically(false)
-        // A workspace card's preview row is dynamically measured. Give its
-        // BubbleTextView a square, centered viewport so its drawable cannot be
-        // laid out against a full-height cell and then clipped by the card edge.
-        // The drawer retains its original full-cell layout.
-        if (fitGridToHost) {
-            icon.setPadding(0, 0, 0, 0)
-        } else {
-            val topInset = Math.max(0, (cell.layoutParams?.height ?: 0) - icon.iconSize) / 2
-            icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
-        }
         icon.gravity = Gravity.CENTER
-        // BubbleTextView's icon size is final, set from the device profile at inflation and
-        // never changeable at runtime. Laying it out at a smaller size therefore clips the
-        // drawable (which is what distorted the workspace cards). Instead lay the icon out at
-        // its own native size and scale the whole view down to the slot we want; with clipping
-        // disabled on the cell this never crops the icon.
-        val nativeSize = icon.iconSize.takeIf { it > 0 } ?: iconSize
-        val scale = if (fitGridToHost) {
-            CaddyHomeCardLayout.iconScale(iconSize, nativeSize)
-        } else {
-            1f
-        }
-        val iconParams = FrameLayout.LayoutParams(
-            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
-            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
-            Gravity.CENTER,
-        )
         cell.clipChildren = false
         cell.clipToPadding = false
         icon.clipToOutline = false
-        if (scale < 1f) {
-            icon.scaleX = scale
-            icon.scaleY = scale
+
+        if (fitGridToHost && cellSizePx > 0) {
+            // Shrink the drawable itself with setIconSizeOverride and give the icon a viewport
+            // exactly its own size, centered in the cell. Scaling the whole view instead left it
+            // laid out at the native (larger) size, so neighbouring cells' icons overlapped in the
+            // middle of the card; overriding the drawable bounds keeps every icon inside its cell.
+            icon.setIconSizeOverride(iconSize)
+            icon.setPadding(0, 0, 0, 0)
+            cell.addView(
+                icon,
+                FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER),
+            )
+            return
         }
-        cell.addView(icon, iconParams)
+
+        // Drawer card: keep the original full-cell layout with a vertical inset.
+        val topInset = Math.max(0, (cell.layoutParams?.height ?: 0) - icon.iconSize) / 2
+        icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
+        cell.addView(
+            icon,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER,
+            ),
+        )
     }
 
     /**

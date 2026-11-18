@@ -829,6 +829,9 @@
     <string name="caddy_category_editor_validation">Enter a name and select at least one app</string>
     <string name="caddy_category_created">Category created</string>
     <string name="caddy_category_save_failed">Could not save category</string>
+    <string name="caddy_category_delete_title">Delete card</string>
+    <string name="caddy_category_delete_message">Remove the \"%1$s\" card from the App Library?</string>
+    <string name="caddy_category_delete">Delete</string>
     <string name="hotseat_mode_label">Search bar widget</string>
     <string name="hotseat_mode_disabled">Disabled</string>
     <string name="hotseat_mode_lawnchair" translatable="false">Lawnchair</string>

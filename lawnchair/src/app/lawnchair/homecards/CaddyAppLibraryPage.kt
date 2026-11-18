@@ -16,7 +16,9 @@
 
 package app.lawnchair.homecards
 
+import android.app.AlertDialog
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.util.AttributeSet
@@ -40,6 +42,7 @@ import com.android.launcher3.Launcher
 import com.android.launcher3.LauncherAppState
 import com.android.launcher3.LauncherSettings.Favorites.CONTAINER_ALL_APPS_PREDICTION
 import com.android.launcher3.R
+import com.android.launcher3.allapps.AllAppsStore
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.model.data.PredictedContainerInfo
 import com.android.launcher3.touch.ItemClickHandler
@@ -50,9 +53,9 @@ import com.android.launcher3.util.Executors
  * The full-screen Caddy App Library.
  *
  * This is the whole library as a single page rather than cards scattered across the workspace:
- * a Google search field, a suggestions row, the category cards the drawer uses, and a trailing
- * "+ Add category" card. It is opened by swiping right past the last workspace page and covers
- * the screen until it is closed.
+ * a title header, a suggestions row, the category cards the drawer uses, and a trailing
+ * "+ Add category" card. It is opened by swiping past the last workspace page and covers the
+ * screen until it is closed. Long-pressing a card deletes it.
  *
  * Everything visual is delegated to the shared pieces the drawer already uses
  * ([CaddyCardRenderer] for the cards, [CaddyCategoryDialog] for a category's apps), so this page
@@ -66,9 +69,13 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     private val column = LinearLayout(context)
 
+    private var launcher: Launcher? = null
+
+    /** Rebuilds the page when the app list changes, so new categories appear without reopening. */
+    private val appsListener = AllAppsStore.OnUpdateListener { launcher?.let(::bind) }
+
     init {
         orientation = VERTICAL
-        setBackgroundColor(Color.argb(245, 10, 12, 14))
         isClickable = true
         isFocusable = true
         val scroll = ScrollView(context)
@@ -78,13 +85,43 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
             scroll,
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT),
         )
+        applyBackground()
+    }
+
+    /**
+     * A translucent scrim tinted by the wallpaper's Monet accent, so the page reads as part of the
+     * system surface instead of a fixed black slab. It is recomputed on bind because the accent can
+     * change with the wallpaper.
+     */
+    private fun applyBackground() {
+        val accent = CaddyCardRenderer.resolveDynamicColor(context)
+        val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        val base = if (night) 16 else 244
+        val weight = 0.10f
+        val r = Math.round(base * (1f - weight) + Color.red(accent) * weight)
+        val g = Math.round(base * (1f - weight) + Color.green(accent) * weight)
+        val b = Math.round(base * (1f - weight) + Color.blue(accent) * weight)
+        setBackgroundColor(Color.argb(if (night) 246 else 240, r, g, b))
     }
 
     fun bind(launcher: Launcher) {
+        this.launcher = launcher
+        applyBackground()
         column.removeAllViews()
         column.addView(buildHeader())
         column.addView(buildSuggestions(launcher))
         column.addView(buildCards(launcher))
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        launcher?.appsView?.appsStore?.addUpdateListener(appsListener)
+    }
+
+    override fun onDetachedFromWindow() {
+        launcher?.appsView?.appsStore?.removeUpdateListener(appsListener)
+        super.onDetachedFromWindow()
     }
 
     /** Marks the page open. Split out so the companion can set the protected flag. */
@@ -190,36 +227,51 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     }
 
     private fun buildCards(launcher: Launcher): View {
-        val apps = launcher.appsView?.appsStore?.apps?.toList().orEmpty()
         val grid = GridLayout(context)
         grid.columnCount = COLUMN_COUNT
         grid.useDefaultMargins = false
-        grid.setPadding(dp(12f), dp(8f), dp(12f), dp(32f))
+        grid.setPadding(dp(6f), dp(8f), dp(6f), dp(32f))
 
+        val apps = launcher.appsView?.appsStore?.apps?.toList().orEmpty()
+        // Render nothing until the app list is loaded. Rendering a lone "+ Add category" card
+        // first made it stretch across the page and then jump when the category cards arrived;
+        // the app store listener rebuilds this view once the apps are ready.
+        if (apps.isEmpty()) return grid
+
+        val hidden = SharedPreferencesCaddyHomeCardHiddenStore(context).load()
         val byKey = apps.associateBy { CaddyHomeCardSource.appKeyOf(it) }
         var index = 0
-        CaddyHomeCardSource.build(context, apps).forEach { card ->
-            val cardApps = card.appKeys.mapNotNull { byKey[it] }
-            if (cardApps.isEmpty()) return@forEach
-            grid.addView(
-                buildCardCell(card.title, cardApps, isAddCategory = false),
-                gridCellParams(index++),
-            )
-        }
+        CaddyHomeCardSource.build(context, apps)
+            .filterNot { it.id in hidden }
+            .forEach { card ->
+                val cardApps = card.appKeys.mapNotNull { byKey[it] }
+                if (cardApps.isEmpty()) return@forEach
+                grid.addView(
+                    buildCardCell(launcher, card.id, card.title, cardApps, isAddCategory = false),
+                    gridCellParams(index++),
+                )
+            }
         // Trailing card that opens the category editor, mirroring the drawer's "+ Add category".
-        grid.addView(buildCardCell("", emptyList(), isAddCategory = true), gridCellParams(index))
+        grid.addView(
+            buildCardCell(launcher, ADD_CARD_ID, "", emptyList(), isAddCategory = true),
+            gridCellParams(index),
+        )
         return grid
     }
 
-    private fun buildCardCell(title: String, apps: List<AppInfo>, isAddCategory: Boolean): View {
+    private fun buildCardCell(
+        launcher: Launcher,
+        cardId: Int,
+        title: String,
+        apps: List<AppInfo>,
+        isAddCategory: Boolean,
+    ): View {
         val cell = FrameLayout(context)
         val cardHeightPx = dp(CARD_HEIGHT_DP)
-        val widthPx = resources.displayMetrics.widthPixels - dp(24f)
-        val cellWidthPx = (widthPx - dp(12f) * (COLUMN_COUNT - 1)) / COLUMN_COUNT
         // A renderer handed no cell size draws no icons, so derive the slot from the fixed card
         // size here and pass it on.
         val geometry = CaddyHomeCardLayout.previewGeometry(
-            widthPx = cellWidthPx,
+            widthPx = cardCellWidthPx(),
             heightPx = cardHeightPx,
             columns = COLUMN_COUNT,
             requestedRows = ROWS_PER_CARD,
@@ -238,6 +290,14 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
                     CaddyCategoryDialog.show(context, title, apps)
                 }
             },
+            cardLongClick = if (isAddCategory) {
+                null
+            } else {
+                {
+                    confirmDelete(launcher, cardId, title)
+                    true
+                }
+            },
             iconBinder = { icon, app ->
                 icon.applyFromApplicationInfo(app)
                 icon.contentDescription = app.title
@@ -253,14 +313,53 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         return cell
     }
 
-    private fun allApps(): List<AppInfo> = (context as? Launcher)?.appsView?.appsStore?.apps?.toList().orEmpty()
+    /** Asks before deleting a card; the drawer's automatic categories cannot be rebuilt by hand. */
+    private fun confirmDelete(launcher: Launcher, cardId: Int, title: String) {
+        AlertDialog.Builder(context)
+            .setTitle(R.string.caddy_category_delete_title)
+            .setMessage(context.getString(R.string.caddy_category_delete_message, title))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.caddy_category_delete) { _, _ ->
+                deleteCard(cardId, title)
+                bind(launcher)
+            }
+            .show()
+    }
+
+    /**
+     * Deletes a card. A user-created category is removed from the shared custom-category store, and
+     * the card id is hidden in the same store the workspace uses, so the card does not return on
+     * the next rebuild. Automatic categories are only hidden, since they are regenerated.
+     */
+    private fun deleteCard(cardId: Int, title: String) {
+        SharedPreferencesCaddyHomeCardHiddenStore(context).hide(cardId)
+        val prefs = context.getSharedPreferences(
+            CaddyHomeCardSource.CUSTOM_CATEGORIES_PREFS,
+            Context.MODE_PRIVATE,
+        )
+        val updated = CaddyCategoryStore.removeCategory(
+            existing = prefs.getString(CaddyHomeCardSource.CUSTOM_CATEGORIES_KEY, null),
+            title = title,
+        )
+        prefs.edit().putString(CaddyHomeCardSource.CUSTOM_CATEGORIES_KEY, updated).commit()
+    }
+
+    private fun allApps(): List<AppInfo> = launcher?.appsView?.appsStore?.apps?.toList().orEmpty()
+
+    /** The width of one card cell, used so every card is measured at the size it is laid out in. */
+    private fun cardCellWidthPx(): Int = (resources.displayMetrics.widthPixels - dp(12f) - dp(CELL_GAP_DP) * (COLUMN_COUNT - 1)) / COLUMN_COUNT
 
     private fun gridCellParams(index: Int): GridLayout.LayoutParams {
         val params = GridLayout.LayoutParams()
-        params.width = 0
+        // A fixed width keeps every card the same size. A weighted column lets a card stretch to
+        // the full row while it is the only child, which is the oversized card seen before the
+        // category cards load.
+        params.width = cardCellWidthPx()
         params.height = dp(CARD_HEIGHT_DP)
-        params.columnSpec = GridLayout.spec(index % COLUMN_COUNT, 1f)
-        params.setMargins(dp(6f), dp(6f), dp(6f), dp(6f))
+        params.columnSpec = GridLayout.spec(index % COLUMN_COUNT)
+        params.rowSpec = GridLayout.spec(index / COLUMN_COUNT)
+        val gap = dp(CELL_GAP_DP) / 2
+        params.setMargins(gap, dp(6f), gap, dp(6f))
         return params
     }
 
@@ -281,10 +380,14 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         private const val COLUMN_COUNT = 2
         private const val ROWS_PER_CARD = 2
         private const val CARD_HEIGHT_DP = 168f
+        private const val CELL_GAP_DP = 12f
         private const val GRID_SIDE_INSET_DP = 36f
         private const val TITLE_RESERVE_DP = 72f
         private const val CLOSE_DURATION_MS = 150L
         private const val OPEN_DURATION_MS = 180L
+
+        /** Id used for the trailing "+ Add category" card; it is not a real category. */
+        private const val ADD_CARD_ID = Int.MIN_VALUE
 
         /** Whether the App Library is currently open. */
         @JvmStatic

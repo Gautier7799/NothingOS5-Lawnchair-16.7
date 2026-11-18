@@ -63,6 +63,17 @@ object CaddyCategoryStore {
     /** The titles currently stored in [existing], in order. */
     fun titles(existing: String?): List<String> = parse(existing).mapNotNull { it["title"]?.jsonPrimitive?.content }
 
+    /**
+     * Removes every category whose title equals [title] and returns the new JSON array as a string.
+     * A blank title or unparsable [existing] input leaves the stored value unchanged.
+     */
+    fun removeCategory(existing: String?, title: String): String {
+        val cleanTitle = title.trim()
+        if (cleanTitle.isEmpty()) return existing ?: EMPTY_ARRAY
+        val remaining = parse(existing).filterNot { it["title"]?.jsonPrimitive?.content == cleanTitle }
+        return JsonArray(remaining).toString()
+    }
+
     private fun parse(existing: String?): List<JsonObject> {
         if (existing.isNullOrBlank()) return emptyList()
         return runCatching { json.parseToJsonElement(existing).jsonArray }
