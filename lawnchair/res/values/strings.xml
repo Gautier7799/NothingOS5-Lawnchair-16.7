@@ -836,6 +836,9 @@
     <string name="caddy_app_library_enabled_label">Open App Library</string>
     <string name="caddy_app_library_enabled_description">Swipe past the last page to open the full-screen App Library.</string>
     <string name="caddy_app_library_icon_scale_label">Icon size</string>
+    <string name="caddy_app_library_columns_label">Columns</string>
+    <string name="caddy_app_library_opacity_label">Background opacity</string>
+    <string name="caddy_app_library_show_titles_label">Show card titles</string>
     <string name="hotseat_mode_label">Search bar widget</string>
     <string name="hotseat_mode_disabled">Disabled</string>
     <string name="hotseat_mode_lawnchair" translatable="false">Lawnchair</string>

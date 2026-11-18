@@ -380,6 +380,27 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = 100,
     )
 
+    /** Number of card columns on the App Library page. */
+    val appLibraryColumns = preference(
+        key = intPreferencesKey(name = "app_library_columns"),
+        defaultValue = 2,
+    )
+
+    /**
+     * Opacity of the App Library backdrop, in percent. Lower values let more of the wallpaper show
+     * through; higher values make the page a more solid surface.
+     */
+    val appLibraryBackgroundOpacity = preference(
+        key = intPreferencesKey(name = "app_library_background_opacity"),
+        defaultValue = 78,
+    )
+
+    /** Shows the category title on the App Library cards. */
+    val appLibraryShowTitles = preference(
+        key = booleanPreferencesKey(name = "app_library_show_titles"),
+        defaultValue = true,
+    )
+
     /** Shows the card title on workspace cards. */
     val caddyHomeShowTitles = preference(
         key = booleanPreferencesKey(name = "caddy_home_show_titles"),

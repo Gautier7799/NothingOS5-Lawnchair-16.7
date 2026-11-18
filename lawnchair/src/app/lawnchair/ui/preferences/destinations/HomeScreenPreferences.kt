@@ -120,6 +120,23 @@ fun HomeScreenPreferences(
                     valueRange = 60..140,
                     showAsPercentage = true,
                 )
+                SliderPreference(
+                    adapter = prefs2.appLibraryColumns.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_columns_label),
+                    step = 1,
+                    valueRange = 1..4,
+                )
+                SliderPreference(
+                    adapter = prefs2.appLibraryBackgroundOpacity.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_opacity_label),
+                    step = 5,
+                    valueRange = 0..100,
+                    showAsPercentage = true,
+                )
+                SwitchPreference(
+                    adapter = prefs2.appLibraryShowTitles.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_show_titles_label),
+                )
             }
         }
         PreferenceGroup(heading = stringResource(id = R.string.caddy)) {

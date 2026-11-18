@@ -24,6 +24,9 @@
     <string name="caddy_app_library_enabled_label">فتح مكتبة التطبيقات</string>
     <string name="caddy_app_library_enabled_description">اسحب بعد آخر صفحة لفتح مكتبة التطبيقات بملء الشاشة.</string>
     <string name="caddy_app_library_icon_scale_label">حجم الأيقونات</string>
+    <string name="caddy_app_library_columns_label">عدد الأعمدة</string>
+    <string name="caddy_app_library_opacity_label">شفافية الخلفية</string>
+    <string name="caddy_app_library_show_titles_label">إظهار عناوين البطاقات</string>
     <string name="caddy_category_delete_title">حذف البطاقة</string>
     <string name="caddy_category_delete_message">إزالة بطاقة \"%1$s\" من مكتبة التطبيقات؟</string>
     <string name="caddy_category_delete">حذف</string>
