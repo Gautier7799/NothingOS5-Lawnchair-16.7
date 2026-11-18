@@ -401,6 +401,27 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = true,
     )
 
+    /**
+     * Background style of the App Library page: `blurred` (blurred wallpaper), `opaque` (solid
+     * themed surface) or `tinted` (wallpaper visible with a light accent tint, no blur).
+     */
+    val appLibraryBackgroundStyle = preference(
+        key = stringPreferencesKey(name = "app_library_background_style"),
+        defaultValue = BACKGROUND_STYLE_BLURRED,
+    )
+
+    /** Height of each App Library card, in dp. */
+    val appLibraryCardHeight = preference(
+        key = intPreferencesKey(name = "app_library_card_height"),
+        defaultValue = 168,
+    )
+
+    /** Spacing between App Library cards, in dp. */
+    val appLibraryGridSpacing = preference(
+        key = intPreferencesKey(name = "app_library_grid_spacing"),
+        defaultValue = 12,
+    )
+
     /** Shows the card title on workspace cards. */
     val caddyHomeShowTitles = preference(
         key = booleanPreferencesKey(name = "caddy_home_show_titles"),
@@ -1134,6 +1155,10 @@ class PreferenceManager2 @Inject constructor(
 
         @JvmStatic
         fun getInstance(context: Context) = INSTANCE.get(context)!!
+
+        const val BACKGROUND_STYLE_BLURRED = "blurred"
+        const val BACKGROUND_STYLE_OPAQUE = "opaque"
+        const val BACKGROUND_STYLE_TINTED = "tinted"
 
         private const val TAG = "PreferenceManager2"
     }

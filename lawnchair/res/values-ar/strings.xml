@@ -27,6 +27,12 @@
     <string name="caddy_app_library_columns_label">عدد الأعمدة</string>
     <string name="caddy_app_library_opacity_label">شفافية الخلفية</string>
     <string name="caddy_app_library_show_titles_label">إظهار عناوين البطاقات</string>
+    <string name="caddy_app_library_background_label">نمط الخلفية</string>
+    <string name="caddy_app_library_background_blurred">ورق حائط مموّه</string>
+    <string name="caddy_app_library_background_opaque">معتم (صلب)</string>
+    <string name="caddy_app_library_background_tinted">ورق حائط ملوّن</string>
+    <string name="caddy_app_library_card_height_label">ارتفاع البطاقة</string>
+    <string name="caddy_app_library_spacing_label">تباعد البطاقات</string>
     <string name="caddy_category_delete_title">حذف البطاقة</string>
     <string name="caddy_category_delete_message">إزالة بطاقة \"%1$s\" من مكتبة التطبيقات؟</string>
     <string name="caddy_category_delete">حذف</string>

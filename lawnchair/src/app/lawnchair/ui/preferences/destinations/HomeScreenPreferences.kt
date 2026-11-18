@@ -29,6 +29,7 @@ import app.lawnchair.homecards.CaddyHomeCardGrouping
 import app.lawnchair.nexuslauncher.OverlayCallbackImpl
 import app.lawnchair.preferences.getAdapter
 import app.lawnchair.preferences.preferenceManager
+import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.preferenceManager2
 import app.lawnchair.theme.color.ColorMode
 import app.lawnchair.ui.preferences.LocalIsExpandedScreen
@@ -106,39 +107,6 @@ fun HomeScreenPreferences(
         }
         val dossierEnabledAdapter = prefs2.dossierEnabled.getAdapter()
         val appLibraryEnabledAdapter = prefs2.caddyAppLibraryEnabled.getAdapter()
-        PreferenceGroup(heading = stringResource(id = R.string.caddy_app_library_group)) {
-            SwitchPreference(
-                adapter = appLibraryEnabledAdapter,
-                label = stringResource(R.string.caddy_app_library_enabled_label),
-                description = stringResource(R.string.caddy_app_library_enabled_description),
-            )
-            ExpandAndShrink(visible = appLibraryEnabledAdapter.state.value) {
-                SliderPreference(
-                    adapter = prefs2.appLibraryIconScale.getAdapter(),
-                    label = stringResource(R.string.caddy_app_library_icon_scale_label),
-                    step = 5,
-                    valueRange = 60..140,
-                    showAsPercentage = true,
-                )
-                SliderPreference(
-                    adapter = prefs2.appLibraryColumns.getAdapter(),
-                    label = stringResource(R.string.caddy_app_library_columns_label),
-                    step = 1,
-                    valueRange = 1..4,
-                )
-                SliderPreference(
-                    adapter = prefs2.appLibraryBackgroundOpacity.getAdapter(),
-                    label = stringResource(R.string.caddy_app_library_opacity_label),
-                    step = 5,
-                    valueRange = 0..100,
-                    showAsPercentage = true,
-                )
-                SwitchPreference(
-                    adapter = prefs2.appLibraryShowTitles.getAdapter(),
-                    label = stringResource(R.string.caddy_app_library_show_titles_label),
-                )
-            }
-        }
         PreferenceGroup(heading = stringResource(id = R.string.caddy)) {
             SwitchPreference(
                 adapter = prefs2.caddyHomeEnabled.getAdapter(),
@@ -160,6 +128,54 @@ fun HomeScreenPreferences(
                 entries = caddyMergeModeEntries(),
                 label = stringResource(R.string.caddy_merge_mode_label),
             )
+            SwitchPreference(
+                adapter = appLibraryEnabledAdapter,
+                label = stringResource(R.string.caddy_app_library_enabled_label),
+                description = stringResource(R.string.caddy_app_library_enabled_description),
+            )
+            ExpandAndShrink(visible = appLibraryEnabledAdapter.state.value) {
+                SliderPreference(
+                    adapter = prefs2.appLibraryIconScale.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_icon_scale_label),
+                    step = 5,
+                    valueRange = 60..140,
+                    showAsPercentage = true,
+                )
+                SliderPreference(
+                    adapter = prefs2.appLibraryColumns.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_columns_label),
+                    step = 1,
+                    valueRange = 1..4,
+                )
+                SliderPreference(
+                    adapter = prefs2.appLibraryCardHeight.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_card_height_label),
+                    step = 4,
+                    valueRange = 120..240,
+                )
+                SliderPreference(
+                    adapter = prefs2.appLibraryGridSpacing.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_spacing_label),
+                    step = 2,
+                    valueRange = 0..24,
+                )
+                ListPreference(
+                    adapter = prefs2.appLibraryBackgroundStyle.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_background_label),
+                    entries = appLibraryBackgroundEntries(),
+                )
+                SliderPreference(
+                    adapter = prefs2.appLibraryBackgroundOpacity.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_opacity_label),
+                    step = 5,
+                    valueRange = 0..100,
+                    showAsPercentage = true,
+                )
+                SwitchPreference(
+                    adapter = prefs2.appLibraryShowTitles.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_show_titles_label),
+                )
+            }
         }
         PreferenceGroup(heading = stringResource(id = R.string.dossier)) {
             SwitchPreference(
@@ -353,5 +369,17 @@ private fun caddyMergeModeEntries(): List<ListPreferenceEntry<String>> = listOf(
     },
     ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_COMBINE) {
         stringResource(R.string.caddy_merge_mode_combine)
+    },
+)
+
+private fun appLibraryBackgroundEntries(): List<ListPreferenceEntry<String>> = listOf(
+    ListPreferenceEntry(value = PreferenceManager2.BACKGROUND_STYLE_BLURRED) {
+        stringResource(R.string.caddy_app_library_background_blurred)
+    },
+    ListPreferenceEntry(value = PreferenceManager2.BACKGROUND_STYLE_OPAQUE) {
+        stringResource(R.string.caddy_app_library_background_opaque)
+    },
+    ListPreferenceEntry(value = PreferenceManager2.BACKGROUND_STYLE_TINTED) {
+        stringResource(R.string.caddy_app_library_background_tinted)
     },
 )

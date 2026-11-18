@@ -92,15 +92,22 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     /** Backdrop opacity, in percent, from the App Library settings. */
     private var backgroundOpacityPercent = 78
 
+    /** Background style from the App Library settings: blurred, opaque or tinted. */
+    private var backgroundStyle = PreferenceManager2.BACKGROUND_STYLE_BLURRED
+
     /** Card columns, from the App Library settings. */
     private var columnCount = DEFAULT_COLUMN_COUNT
+
+    /** Card height and grid spacing, in dp, from the App Library settings. */
+    private var cardHeightDp = DEFAULT_CARD_HEIGHT_DP
+    private var gridSpacingDp = DEFAULT_CELL_GAP_DP
 
     /** Whether the card titles are shown, from the App Library settings. */
     private var showTitles = true
 
     private val rebind = Runnable {
         rebindPosted = false
-        launcher?.let(::bind)
+        launcher?.let(::rebuildCards)
     }
     private var rebindPosted = false
 
@@ -110,6 +117,9 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         rebindPosted = true
         postDelayed(rebind, REBIND_DEBOUNCE_MS)
     }
+
+    /** The current grid of category cards, replaced in place when the app list changes. */
+    private var cardsView: View? = null
 
     private var downY = 0f
     private var dragY = 0f
@@ -164,9 +174,13 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     }
 
     /**
-     * The blurred wallpaper, tinted with the wallpaper's Monet accent, behind the cards. The blur
-     * radius follows the icon size the user picks, and the backdrop opacity is a user setting, so
-     * the page can range from a nearly solid surface to a very transparent one.
+     * The page backdrop, in one of three styles:
+     * - `blurred`: the wallpaper, softly blurred and dimmed, under a themed translucent scrim.
+     * - `opaque`: a solid themed surface, so nothing of the wallpaper shows through.
+     * - `tinted`: the wallpaper at full strength with a light accent tint, no blur.
+     *
+     * The blur radius follows the icon-size setting, and the scrim alpha follows the background
+     * opacity setting, so the two controls together cover from "barely visible" to "solid".
      */
     private fun applyBackground() {
         loadWallpaper()
@@ -178,44 +192,74 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
             Color.green(surface),
             Color.blue(surface),
         )
-        if (!Utilities.ATLEAST_S) {
-            // No blur available: the tinted surface alone keeps the cards readable.
-            wallpaper.alpha = 1f
-            wallpaper.setRenderEffect(null)
-            scrim.setBackgroundColor(scrimColor)
-            return
-        }
-        val blur = RenderEffect.createBlurEffect(
-            backgroundBlurRadiusPx,
-            backgroundBlurRadiusPx,
-            Shader.TileMode.CLAMP,
-        )
-        // Dim the wallpaper so the cards and text stay readable on top of it.
-        val dim = RenderEffect.createColorFilterEffect(
-            android.graphics.ColorMatrixColorFilter(
-                android.graphics.ColorMatrix().apply { setScale(0.62f, 0.62f, 0.62f, 1f) },
-            ),
-        )
+        val canBlur = Utilities.ATLEAST_S
         wallpaper.alpha = 1f
-        wallpaper.setRenderEffect(RenderEffect.createChainEffect(dim, blur))
-        scrim.setBackgroundColor(scrimColor)
+        when {
+            !canBlur || backgroundStyle == PreferenceManager2.BACKGROUND_STYLE_OPAQUE -> {
+                wallpaper.setRenderEffect(null)
+                scrim.setBackgroundColor(Color.argb(255, Color.red(surface), Color.green(surface), Color.blue(surface)))
+            }
+
+            backgroundStyle == PreferenceManager2.BACKGROUND_STYLE_TINTED -> {
+                wallpaper.setRenderEffect(null)
+                scrim.setBackgroundColor(
+                    Color.argb(
+                        Math.round(alpha * TINTED_SCRIM_FACTOR),
+                        Color.red(surface),
+                        Color.green(surface),
+                        Color.blue(surface),
+                    ),
+                )
+            }
+
+            else -> {
+                val blur = RenderEffect.createBlurEffect(
+                    backgroundBlurRadiusPx,
+                    backgroundBlurRadiusPx,
+                    Shader.TileMode.CLAMP,
+                )
+                // Dim the wallpaper so the cards and text stay readable on top of it.
+                val dim = RenderEffect.createColorFilterEffect(
+                    android.graphics.ColorMatrixColorFilter(
+                        android.graphics.ColorMatrix().apply { setScale(0.62f, 0.62f, 0.62f, 1f) },
+                    ),
+                )
+                wallpaper.setRenderEffect(RenderEffect.createChainEffect(dim, blur))
+                scrim.setBackgroundColor(scrimColor)
+            }
+        }
     }
 
     /**
-     * The opaque surface the backdrop is built from: a light or dark base lightly tinted with the
-     * wallpaper's Monet accent, so the page still reads as a themed surface rather than a flat grey.
+     * The opaque surface the backdrop is built from. It blends the wallpaper's three Monet accent
+     * roles into the light/dark base, so the page visibly follows the wallpaper's palette instead
+     * of using a fixed grey.
      */
     private fun surfaceColor(): Int {
-        val accent = CaddyCardRenderer.resolveDynamicColor(context)
         val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
-        val base = if (night) 16 else 244
-        val weight = 0.12f
+        val base = if (night) 18 else 246
+        val (accent1, accent2, accent3) = accentPalette()
+        val weight = if (night) 0.26f else 0.20f
+        val accentR = (Color.red(accent1) + Color.red(accent2) + Color.red(accent3)) / 3
+        val accentG = (Color.green(accent1) + Color.green(accent2) + Color.green(accent3)) / 3
+        val accentB = (Color.blue(accent1) + Color.blue(accent2) + Color.blue(accent3)) / 3
         return Color.rgb(
-            Math.round(base * (1f - weight) + Color.red(accent) * weight),
-            Math.round(base * (1f - weight) + Color.green(accent) * weight),
-            Math.round(base * (1f - weight) + Color.blue(accent) * weight),
+            Math.round(base * (1f - weight) + accentR * weight),
+            Math.round(base * (1f - weight) + accentG * weight),
+            Math.round(base * (1f - weight) + accentB * weight),
         )
+    }
+
+    /** The wallpaper's accent1/2/3 roles, falling back to the single themed accent. */
+    private fun accentPalette(): Triple<Int, Int, Int> {
+        val fallback = CaddyCardRenderer.resolveDynamicColor(context)
+        fun role(name: String): Int {
+            val id = resources.getIdentifier(name, "color", "android")
+            if (id == 0) return fallback
+            return runCatching { resources.getColor(id, context.theme) }.getOrDefault(fallback)
+        }
+        return Triple(role("system_accent1_600"), role("system_accent2_600"), role("system_accent3_600"))
     }
 
     private var wallpaperLoaded = false
@@ -256,17 +300,42 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     fun bind(launcher: Launcher) {
         this.launcher = launcher
-        val prefs = PreferenceManager2.getInstance(context)
-        val scale = prefs.appLibraryIconScale.firstCached() / 100f
-        backgroundBlurRadiusPx = dp(BLUR_BASE_DP * scale).toFloat()
-        backgroundOpacityPercent = prefs.appLibraryBackgroundOpacity.firstCached().coerceIn(0, 100)
-        columnCount = prefs.appLibraryColumns.firstCached().coerceIn(1, 4)
-        showTitles = prefs.appLibraryShowTitles.firstCached()
+        readSettings()
         applyBackground()
         column.removeAllViews()
         column.addView(buildHeader())
         column.addView(buildSuggestions(launcher))
-        column.addView(buildCards(launcher))
+        cardsView = buildCards(launcher)
+        column.addView(cardsView)
+    }
+
+    /**
+     * Replaces only the card grid when the app list changes. Rebuilding the whole column on every
+     * app-store snapshot made the header and suggestion row flicker during startup, so the update
+     * path touches the cards alone.
+     */
+    private fun rebuildCards(launcher: Launcher) {
+        if (!isAttachedToWindow) return
+        val fresh = buildCards(launcher)
+        val old = cardsView
+        if (old != null && old.parent === column) {
+            column.removeView(old)
+        }
+        cardsView = fresh
+        column.addView(fresh)
+    }
+
+    /** Reads the App Library settings into the cached fields. Called before every rebuild. */
+    private fun readSettings() {
+        val prefs = PreferenceManager2.getInstance(context)
+        val scale = prefs.appLibraryIconScale.firstCached() / 100f
+        backgroundBlurRadiusPx = dp(BLUR_BASE_DP * scale).toFloat()
+        backgroundOpacityPercent = prefs.appLibraryBackgroundOpacity.firstCached().coerceIn(0, 100)
+        backgroundStyle = prefs.appLibraryBackgroundStyle.firstCached()
+        columnCount = prefs.appLibraryColumns.firstCached().coerceIn(1, 4)
+        cardHeightDp = prefs.appLibraryCardHeight.firstCached().coerceIn(96, 280).toFloat()
+        gridSpacingDp = prefs.appLibraryGridSpacing.firstCached().coerceIn(0, 32).toFloat()
+        showTitles = prefs.appLibraryShowTitles.firstCached()
     }
 
     override fun onAttachedToWindow() {
@@ -280,6 +349,7 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         rebindPosted = false
         launcher?.appsView?.appsStore?.removeUpdateListener(appsListener)
         wallpaper.setRenderEffect(null)
+        cardsView = null
         super.onDetachedFromWindow()
     }
 
@@ -430,7 +500,7 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         isAddCategory: Boolean,
     ): View {
         val cell = FrameLayout(context)
-        val cardHeightPx = dp(CARD_HEIGHT_DP)
+        val cardHeightPx = dp(cardHeightDp)
         // A renderer handed no cell size draws no icons, so derive the slot from the fixed card
         // size here and pass it on.
         val geometry = CaddyHomeCardLayout.previewGeometry(
@@ -512,7 +582,7 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     private fun allApps(): List<AppInfo> = launcher?.appsView?.appsStore?.apps?.toList().orEmpty()
 
     /** The width of one card cell, used so every card is measured at the size it is laid out in. */
-    private fun cardCellWidthPx(): Int = (resources.displayMetrics.widthPixels - dp(12f) - dp(CELL_GAP_DP) * (columnCount - 1)) / columnCount
+    private fun cardCellWidthPx(): Int = (resources.displayMetrics.widthPixels - dp(12f) - dp(gridSpacingDp) * (columnCount - 1)) / columnCount
 
     private fun gridCellParams(index: Int): GridLayout.LayoutParams {
         val params = GridLayout.LayoutParams()
@@ -520,10 +590,10 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         // the full row while it is the only child, which is the oversized card seen before the
         // category cards load.
         params.width = cardCellWidthPx()
-        params.height = dp(CARD_HEIGHT_DP)
+        params.height = dp(cardHeightDp)
         params.columnSpec = GridLayout.spec(index % columnCount)
         params.rowSpec = GridLayout.spec(index / columnCount)
-        val gap = dp(CELL_GAP_DP) / 2
+        val gap = dp(gridSpacingDp) / 2
         params.setMargins(gap, dp(6f), gap, dp(6f))
         return params
     }
@@ -613,8 +683,8 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     companion object {
         private const val DEFAULT_COLUMN_COUNT = 2
         private const val ROWS_PER_CARD = 2
-        private const val CARD_HEIGHT_DP = 168f
-        private const val CELL_GAP_DP = 12f
+        private const val DEFAULT_CARD_HEIGHT_DP = 168f
+        private const val DEFAULT_CELL_GAP_DP = 12f
         private const val GRID_SIDE_INSET_DP = 36f
         private const val TITLE_RESERVE_DP = 72f
         private const val CLOSE_DURATION_MS = 150L
@@ -624,10 +694,13 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
          * Icon size relative to a cell at scale 1; the user's setting multiplies this. The base is
          * generous so the default (100%) already reads as a full-size icon rather than a small one.
          */
-        private const val ICON_FILL_RATIO_BASE = 0.74f
+        private const val ICON_FILL_RATIO_BASE = 0.82f
 
         /** The alpha the backdrop reaches at 100% opacity. Even then it stays slightly see-through. */
         private const val MAX_BACKDROP_ALPHA = 235
+
+        /** How much of the scrim alpha the tinted (non-blurred) style keeps. */
+        private const val TINTED_SCRIM_FACTOR = 0.45f
 
         /** How much of the page height a downward drag must cover to dismiss the page. */
         private const val DISMISS_FRACTION = 0.22f

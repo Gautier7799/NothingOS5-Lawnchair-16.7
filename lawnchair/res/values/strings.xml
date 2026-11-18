@@ -839,6 +839,12 @@
     <string name="caddy_app_library_columns_label">Columns</string>
     <string name="caddy_app_library_opacity_label">Background opacity</string>
     <string name="caddy_app_library_show_titles_label">Show card titles</string>
+    <string name="caddy_app_library_background_label">Background style</string>
+    <string name="caddy_app_library_background_blurred">Blurred wallpaper</string>
+    <string name="caddy_app_library_background_opaque">Solid</string>
+    <string name="caddy_app_library_background_tinted">Tinted wallpaper</string>
+    <string name="caddy_app_library_card_height_label">Card height</string>
+    <string name="caddy_app_library_spacing_label">Card spacing</string>
     <string name="hotseat_mode_label">Search bar widget</string>
     <string name="hotseat_mode_disabled">Disabled</string>
     <string name="hotseat_mode_lawnchair" translatable="false">Lawnchair</string>
