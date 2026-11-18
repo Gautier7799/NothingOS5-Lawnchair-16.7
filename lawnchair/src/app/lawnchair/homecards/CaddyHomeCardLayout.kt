@@ -88,6 +88,30 @@ object CaddyHomeCardLayout {
         return (areaHeightPx / cellPx).coerceIn(1, requestedRows)
     }
 
+    /** The icon slot size and the number of icons a preview card of [widthPx] x [heightPx] shows. */
+    data class PreviewGeometry(val cellPx: Int, val maxIcons: Int)
+
+    /**
+     * The icon grid geometry for a preview card measured [widthPx] x [heightPx] px, holding
+     * [columns] icons per row and up to [requestedRows] rows below a [titleReservePx]-tall header.
+     *
+     * A renderer that is handed no cell size draws no icons, so callers that own a fixed card
+     * size must derive the slot here and pass it on.
+     */
+    fun previewGeometry(
+        widthPx: Int,
+        heightPx: Int,
+        columns: Int,
+        requestedRows: Int,
+        sideInsetPx: Int,
+        titleReservePx: Int,
+    ): PreviewGeometry {
+        val area = (heightPx - titleReservePx).coerceAtLeast(0)
+        val cell = cellSizePx(widthPx, heightPx, columns, requestedRows, sideInsetPx, titleReservePx)
+        val rows = visibleRows(area, cell, requestedRows)
+        return PreviewGeometry(cellPx = cell, maxIcons = columns.coerceAtLeast(1) * rows)
+    }
+
     /** The scale to apply to an icon laid out at [nativePx] so it fits a [slotPx] slot. */
     fun iconScale(slotPx: Int, nativePx: Int): Float {
         if (slotPx <= 0 || nativePx <= 0) return 1f

@@ -236,4 +236,50 @@ class CaddyHomeCardLayoutTest {
         assertThat(CaddyHomeCardLayout.resolveHorizontalMove(cellX = 2, deltaCellsX = 3, columns = 0))
             .isEqualTo(0 to 5)
     }
+
+    // --- preview geometry for a fixed-size card (the empty-App-Library defect) ---
+
+    @Test
+    fun previewGeometry_producesANonZeroCellForAMeasuredCard() {
+        // A 2-column card: without a cell size the renderer draws nothing, so this must be > 0.
+        val geometry = CaddyHomeCardLayout.previewGeometry(
+            widthPx = 480,
+            heightPx = 500,
+            columns = 2,
+            requestedRows = 2,
+            sideInsetPx = 36,
+            titleReservePx = 72,
+        )
+        assertThat(geometry.cellPx).isGreaterThan(0)
+        assertThat(geometry.maxIcons).isEqualTo(4)
+    }
+
+    @Test
+    fun previewGeometry_isEmptyBeforeTheCardHasBeenMeasured() {
+        val geometry = CaddyHomeCardLayout.previewGeometry(
+            widthPx = 0,
+            heightPx = 0,
+            columns = 2,
+            requestedRows = 2,
+            sideInsetPx = 36,
+            titleReservePx = 72,
+        )
+        assertThat(geometry.cellPx).isEqualTo(0)
+    }
+
+    @Test
+    fun previewGeometry_sizesTheGridToExactlyTheRequestedRows() {
+        // The cell is derived from the row count, so the icon budget is always columns x rows and
+        // the grid never overflows the card.
+        val geometry = CaddyHomeCardLayout.previewGeometry(
+            widthPx = 480,
+            heightPx = 220,
+            columns = 2,
+            requestedRows = 2,
+            sideInsetPx = 36,
+            titleReservePx = 72,
+        )
+        assertThat(geometry.maxIcons).isEqualTo(4)
+        assertThat(geometry.cellPx * 2).isAtMost(220 - 72)
+    }
 }

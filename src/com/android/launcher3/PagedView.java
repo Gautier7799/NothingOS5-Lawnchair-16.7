@@ -1506,6 +1506,11 @@ public abstract class PagedView<T extends View & PageIndicator> extends ViewGrou
                         || (mEdgeGlowRight.getDistance() > 0 && layoutDir == LAYOUT_DIRECTION_RTL)) {
                     onDisallowSwipeToMinusOnePage();
                 }
+                // Symmetrically, detect a swipe past the last page (the edge opposite the feed).
+                if ((mEdgeGlowRight.getDistance() > 0 && layoutDir == LAYOUT_DIRECTION_LTR)
+                        || (mEdgeGlowLeft.getDistance() > 0 && layoutDir == LAYOUT_DIRECTION_RTL)) {
+                    onDisallowSwipeToMaxPage();
+                }
             }
 
             mEdgeGlowLeft.onRelease(ev);
@@ -1533,6 +1538,9 @@ public abstract class PagedView<T extends View & PageIndicator> extends ViewGrou
     }
 
     protected void onDisallowSwipeToMinusOnePage() {}
+
+    /** Called when the user swipes past the last page (the edge opposite the feed). */
+    protected void onDisallowSwipeToMaxPage() {}
 
     protected void onNotSnappingToPageInFreeScroll() { }
 

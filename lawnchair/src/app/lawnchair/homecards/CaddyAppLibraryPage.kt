@@ -34,7 +34,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import app.lawnchair.allapps.caddy.CaddyCategoryDialog
-import app.lawnchair.util.isPackageInstalledAndEnabled
 import com.android.launcher3.AbstractFloatingView
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.Launcher
@@ -83,7 +82,7 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     fun bind(launcher: Launcher) {
         column.removeAllViews()
-        column.addView(buildSearchBar())
+        column.addView(buildHeader())
         column.addView(buildSuggestions(launcher))
         column.addView(buildCards(launcher))
     }
@@ -93,22 +92,19 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         mIsOpen = true
     }
 
-    private fun buildSearchBar(): View {
+    private fun buildHeader(): View {
         val row = LinearLayout(context)
         row.orientation = HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
-        row.setPadding(dp(16f), dp(20f), dp(16f), dp(8f))
+        row.setPadding(dp(20f), dp(20f), dp(12f), dp(8f))
 
-        val searchLayout = if (context.packageManager
-                .isPackageInstalledAndEnabled(GOOGLE_APP_PACKAGE)
-        ) {
-            R.layout.search_container_hotseat_google_search
-        } else {
-            R.layout.search_container_hotseat
-        }
-        val qsb = LayoutInflater.from(context).inflate(searchLayout, row, false)
+        val title = TextView(context)
+        title.text = context.getString(R.string.caddy_app_library_title)
+        title.setTextColor(Color.WHITE)
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+        title.typeface = Typeface.DEFAULT_BOLD
         row.addView(
-            qsb,
+            title,
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT).apply { weight = 1f },
         )
 
@@ -217,6 +213,19 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     private fun buildCardCell(title: String, apps: List<AppInfo>, isAddCategory: Boolean): View {
         val cell = FrameLayout(context)
+        val cardHeightPx = dp(CARD_HEIGHT_DP)
+        val widthPx = resources.displayMetrics.widthPixels - dp(24f)
+        val cellWidthPx = (widthPx - dp(12f) * (COLUMN_COUNT - 1)) / COLUMN_COUNT
+        // A renderer handed no cell size draws no icons, so derive the slot from the fixed card
+        // size here and pass it on.
+        val geometry = CaddyHomeCardLayout.previewGeometry(
+            widthPx = cellWidthPx,
+            heightPx = cardHeightPx,
+            columns = COLUMN_COUNT,
+            requestedRows = ROWS_PER_CARD,
+            sideInsetPx = dp(GRID_SIDE_INSET_DP),
+            titleReservePx = dp(TITLE_RESERVE_DP),
+        )
         CaddyCardRenderer.renderCategoryCard(
             host = cell,
             title = title,
@@ -237,6 +246,8 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
             },
             fitGridToHost = true,
             columns = COLUMN_COUNT,
+            maxIcons = geometry.maxIcons,
+            cellSizePx = geometry.cellPx,
             showTitle = true,
         )
         return cell
@@ -268,10 +279,12 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     companion object {
         private const val COLUMN_COUNT = 2
+        private const val ROWS_PER_CARD = 2
         private const val CARD_HEIGHT_DP = 168f
+        private const val GRID_SIDE_INSET_DP = 36f
+        private const val TITLE_RESERVE_DP = 72f
         private const val CLOSE_DURATION_MS = 150L
         private const val OPEN_DURATION_MS = 180L
-        private const val GOOGLE_APP_PACKAGE = "com.google.android.googlequicksearchbox"
 
         /** Whether the App Library is currently open. */
         @JvmStatic
