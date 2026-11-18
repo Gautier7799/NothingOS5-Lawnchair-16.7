@@ -28,24 +28,36 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.GridLayout
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import app.lawnchair.allapps.caddy.CaddyCardRenderer
 import app.lawnchair.allapps.caddy.CaddyCategoryDialog
+import app.lawnchair.util.isPackageInstalledAndEnabled
 import com.android.launcher3.AbstractFloatingView
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.Launcher
+import com.android.launcher3.LauncherAppState
+import com.android.launcher3.LauncherSettings.Favorites.CONTAINER_ALL_APPS_PREDICTION
 import com.android.launcher3.R
 import com.android.launcher3.model.data.AppInfo
+import com.android.launcher3.model.data.PredictedContainerInfo
 import com.android.launcher3.touch.ItemClickHandler
+import com.android.launcher3.util.ComponentKey
+import com.android.launcher3.util.Executors
 
 /**
- * Full-screen Caddy App Library.
+ * The full-screen Caddy App Library.
  *
- * Presents every app on the device grouped into the same categories the drawer's
- * Caddy cards use, but in one scrollable page so the whole library is reachable
- * without opening the drawer. Tapping a category title opens the shared category
- * panel; tapping an icon launches the app exactly like the drawer does.
+ * This is the whole library as a single page rather than cards scattered across the workspace:
+ * a Google search field, a suggestions row, the category cards the drawer uses, and a trailing
+ * "+ Add category" card. It is opened by swiping right past the last workspace page and covers
+ * the screen until it is closed.
+ *
+ * Everything visual is delegated to the shared pieces the drawer already uses
+ * ([CaddyCardRenderer] for the cards, [CaddyCategoryDialog] for a category's apps), so this page
+ * adds a surface, not a second rendering of the cards.
  */
 class CaddyAppLibraryPage @JvmOverloads constructor(
     context: Context,
@@ -53,42 +65,27 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : AbstractFloatingView(context, attrs, defStyleAttr) {
 
-    private val content = LinearLayout(context)
+    private val column = LinearLayout(context)
 
     init {
         orientation = VERTICAL
-        setBackgroundColor(Color.argb(236, 12, 14, 16))
+        setBackgroundColor(Color.argb(245, 10, 12, 14))
         isClickable = true
         isFocusable = true
+        val scroll = ScrollView(context)
+        column.orientation = VERTICAL
+        scroll.addView(column)
         addView(
-            content,
+            scroll,
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT),
         )
     }
 
     fun bind(launcher: Launcher) {
-        content.removeAllViews()
-        val apps = launcher.appsView?.appsStore?.apps?.toList().orEmpty()
-        val categories = CaddyHomeCardSource.build(context, apps)
-
-        content.addView(buildHeader(launcher))
-        if (categories.isEmpty()) return
-
-        val scroll = ScrollView(context)
-        val column = LinearLayout(context)
-        column.orientation = VERTICAL
-        column.setPadding(dp(16f), 0, dp(16f), dp(24f))
-        scroll.addView(column)
-        content.addView(
-            scroll,
-            LayoutParams(LayoutParams.MATCH_PARENT, 0).apply { weight = 1f },
-        )
-
-        val resolveApp = appResolver(apps)
-        categories.forEach { category ->
-            column.addView(buildCategoryTitle(category.title, category.appKeys.mapNotNull(resolveApp)))
-            column.addView(buildCategoryGrid(category.appKeys.mapNotNull(resolveApp)))
-        }
+        column.removeAllViews()
+        column.addView(buildSearchBar())
+        column.addView(buildSuggestions(launcher))
+        column.addView(buildCards(launcher))
     }
 
     /** Marks the page open. Split out so the companion can set the protected flag. */
@@ -96,19 +93,22 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         mIsOpen = true
     }
 
-    private fun buildHeader(launcher: Launcher): View {
-        val header = LinearLayout(context)
-        header.orientation = HORIZONTAL
-        header.gravity = Gravity.CENTER_VERTICAL
-        header.setPadding(dp(20f), dp(18f), dp(12f), dp(12f))
+    private fun buildSearchBar(): View {
+        val row = LinearLayout(context)
+        row.orientation = HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.setPadding(dp(16f), dp(20f), dp(16f), dp(8f))
 
-        val title = TextView(context)
-        title.text = context.getString(R.string.caddy_app_library_title)
-        title.setTextColor(Color.WHITE)
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-        title.typeface = Typeface.DEFAULT_BOLD
-        header.addView(
-            title,
+        val searchLayout = if (context.packageManager
+                .isPackageInstalledAndEnabled(GOOGLE_APP_PACKAGE)
+        ) {
+            R.layout.search_container_hotseat_google_search
+        } else {
+            R.layout.search_container_hotseat
+        }
+        val qsb = LayoutInflater.from(context).inflate(searchLayout, row, false)
+        row.addView(
+            qsb,
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT).apply { weight = 1f },
         )
 
@@ -120,50 +120,137 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         close.isClickable = true
         close.contentDescription = context.getString(R.string.caddy_app_library_close)
         close.setOnClickListener { close(true) }
-        header.addView(close, LinearLayout.LayoutParams(dp(48f), dp(48f)))
-        return header
+        row.addView(close, LinearLayout.LayoutParams(dp(44f), dp(44f)))
+        return row
     }
 
-    private fun buildCategoryTitle(title: String, apps: List<AppInfo>): View {
-        val view = TextView(context)
-        view.text = title
-        view.setTextColor(Color.WHITE)
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-        view.typeface = Typeface.DEFAULT_BOLD
-        view.setPadding(dp(4f), dp(16f), dp(4f), dp(4f))
-        view.isClickable = true
-        view.setOnClickListener { CaddyCategoryDialog.show(context, title, apps) }
-        return view
+    private fun buildSuggestions(launcher: Launcher): View {
+        val heading = TextView(context)
+        heading.text = context.getString(R.string.caddy_app_library_suggestions)
+        heading.setTextColor(Color.WHITE)
+        heading.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        heading.typeface = Typeface.DEFAULT_BOLD
+        heading.setPadding(dp(20f), dp(12f), dp(20f), dp(4f))
+
+        val strip = LinearLayout(context)
+        strip.orientation = HORIZONTAL
+        strip.setPadding(dp(16f), 0, dp(16f), dp(4f))
+        val scroller = HorizontalScrollView(context)
+        scroller.isHorizontalScrollBarEnabled = false
+        scroller.addView(strip)
+
+        val container = LinearLayout(context)
+        container.orientation = VERTICAL
+        container.addView(heading)
+        container.addView(scroller)
+
+        loadSuggestions(launcher) { apps ->
+            if (apps.isEmpty()) {
+                container.visibility = GONE
+                return@loadSuggestions
+            }
+            apps.forEach { app ->
+                val cell = FrameLayout(context)
+                val icon = LayoutInflater.from(context)
+                    .inflate(R.layout.all_apps_icon, cell, false) as BubbleTextView
+                icon.applyFromApplicationInfo(app)
+                icon.setTextVisibility(true)
+                icon.setLongPressTimeoutFactor(1f)
+                icon.contentDescription = app.title
+                icon.setOnClickListener(ItemClickHandler.INSTANCE)
+                icon.setOnLongClickListener(CaddyCardIconLongClick.LISTENER)
+                icon.gravity = Gravity.CENTER
+                cell.addView(icon)
+                strip.addView(
+                    cell,
+                    LinearLayout.LayoutParams(dp(76f), dp(84f)).apply {
+                        gravity = Gravity.CENTER_VERTICAL
+                    },
+                )
+            }
+        }
+        return container
     }
 
-    private fun buildCategoryGrid(apps: List<AppInfo>): View {
+    /**
+     * Reads the launcher's predicted apps (the same list the drawer's suggestion row uses) and
+     * resolves them against the live app store. Nothing is shown until the model has loaded, so an
+     * early bind simply hides the row.
+     */
+    private fun loadSuggestions(launcher: Launcher, onReady: (List<AppInfo>) -> Unit) {
+        LauncherAppState.getInstance(context).model.loadAsync { dataModel ->
+            if (dataModel == null) return@loadAsync
+            val predicted = synchronized(dataModel) {
+                dataModel.itemsIdMap[CONTAINER_ALL_APPS_PREDICTION] as? PredictedContainerInfo
+            } ?: return@loadAsync
+            val keys = predicted.getAppContents().mapNotNull { info ->
+                info.targetComponent?.let { ComponentKey(it, info.user) }
+            }
+            Executors.MAIN_EXECUTOR.execute {
+                val store = launcher.appsView?.appsStore ?: return@execute
+                onReady(keys.mapNotNull { store.getApp(it) })
+            }
+        }
+    }
+
+    private fun buildCards(launcher: Launcher): View {
+        val apps = launcher.appsView?.appsStore?.apps?.toList().orEmpty()
         val grid = GridLayout(context)
         grid.columnCount = COLUMN_COUNT
         grid.useDefaultMargins = false
-        apps.forEachIndexed { index, app ->
-            val cell = FrameLayout(context)
-            val icon = LayoutInflater.from(context)
-                .inflate(R.layout.all_apps_icon, cell, false) as BubbleTextView
-            icon.applyFromApplicationInfo(app)
-            icon.setTextVisibility(false)
-            icon.setLongPressTimeoutFactor(1f)
-            icon.contentDescription = app.title
-            icon.setOnClickListener(ItemClickHandler.INSTANCE)
-            icon.setOnLongClickListener(CaddyCardIconLongClick.LISTENER)
-            icon.gravity = Gravity.CENTER
-            cell.addView(icon)
-            val params = GridLayout.LayoutParams()
-            params.width = 0
-            params.height = dp(64f)
-            params.columnSpec = GridLayout.spec(index % COLUMN_COUNT, 1f)
-            grid.addView(cell, params)
+        grid.setPadding(dp(12f), dp(8f), dp(12f), dp(32f))
+
+        val byKey = apps.associateBy { CaddyHomeCardSource.appKeyOf(it) }
+        var index = 0
+        CaddyHomeCardSource.build(context, apps).forEach { card ->
+            val cardApps = card.appKeys.mapNotNull { byKey[it] }
+            if (cardApps.isEmpty()) return@forEach
+            grid.addView(
+                buildCardCell(card.title, cardApps, isAddCategory = false),
+                gridCellParams(index++),
+            )
         }
+        // Trailing card that opens the category editor, mirroring the drawer's "+ Add category".
+        grid.addView(buildCardCell("", emptyList(), isAddCategory = true), gridCellParams(index))
         return grid
     }
 
-    private fun appResolver(apps: List<AppInfo>): (String) -> AppInfo? {
-        val byKey = apps.associateBy { CaddyHomeCardSource.appKeyOf(it) }
-        return { key -> byKey[key] }
+    private fun buildCardCell(title: String, apps: List<AppInfo>, isAddCategory: Boolean): View {
+        val cell = FrameLayout(context)
+        CaddyCardRenderer.renderCategoryCard(
+            host = cell,
+            title = title,
+            apps = apps,
+            isAddCategory = isAddCategory,
+            cardClick = {
+                if (isAddCategory) {
+                    CaddyCategoryEditor.show(context, allApps())
+                } else {
+                    CaddyCategoryDialog.show(context, title, apps)
+                }
+            },
+            iconBinder = { icon, app ->
+                icon.applyFromApplicationInfo(app)
+                icon.contentDescription = app.title
+                icon.setOnClickListener(ItemClickHandler.INSTANCE)
+                icon.setOnLongClickListener(CaddyCardIconLongClick.LISTENER)
+            },
+            fitGridToHost = true,
+            columns = COLUMN_COUNT,
+            showTitle = true,
+        )
+        return cell
+    }
+
+    private fun allApps(): List<AppInfo> = (context as? Launcher)?.appsView?.appsStore?.apps?.toList().orEmpty()
+
+    private fun gridCellParams(index: Int): GridLayout.LayoutParams {
+        val params = GridLayout.LayoutParams()
+        params.width = 0
+        params.height = dp(CARD_HEIGHT_DP)
+        params.columnSpec = GridLayout.spec(index % COLUMN_COUNT, 1f)
+        params.setMargins(dp(6f), dp(6f), dp(6f), dp(6f))
+        return params
     }
 
     override fun handleClose(animate: Boolean) {
@@ -175,13 +262,23 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     override fun onControllerInterceptTouchEvent(ev: MotionEvent): Boolean = false
 
-    override fun isOfType(type: Int): Boolean = type and AbstractFloatingView.TYPE_APP_LIBRARY != 0
+    override fun isOfType(type: Int): Boolean = type and TYPE_APP_LIBRARY != 0
 
     private fun dp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
-        private const val COLUMN_COUNT = 4
+        private const val COLUMN_COUNT = 2
+        private const val CARD_HEIGHT_DP = 168f
         private const val CLOSE_DURATION_MS = 150L
+        private const val OPEN_DURATION_MS = 180L
+        private const val GOOGLE_APP_PACKAGE = "com.google.android.googlequicksearchbox"
+
+        /** Whether the App Library is currently open. */
+        @JvmStatic
+        fun isOpen(launcher: Launcher): Boolean = AbstractFloatingView.getOpenView<CaddyAppLibraryPage>(
+            launcher,
+            AbstractFloatingView.TYPE_APP_LIBRARY,
+        ) != null
 
         /** Shows the App Library, reusing the open page when one already exists. */
         @JvmStatic
@@ -213,7 +310,5 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         fun close(launcher: Launcher) {
             AbstractFloatingView.closeOpenContainer(launcher, AbstractFloatingView.TYPE_APP_LIBRARY)
         }
-
-        private const val OPEN_DURATION_MS = 180L
     }
 }

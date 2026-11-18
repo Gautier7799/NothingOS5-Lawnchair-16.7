@@ -365,6 +365,12 @@ class PreferenceManager2 @Inject constructor(
         onSet = { reloadHelper.restart() },
     )
 
+    /** Opens the full-screen Caddy App Library when the user swipes right past the first page. */
+    val caddyAppLibraryEnabled = preference(
+        key = booleanPreferencesKey(name = "caddy_app_library_enabled"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_caddy_app_library_enabled),
+    )
+
     /** Shows the card title on workspace cards. */
     val caddyHomeShowTitles = preference(
         key = booleanPreferencesKey(name = "caddy_home_show_titles"),

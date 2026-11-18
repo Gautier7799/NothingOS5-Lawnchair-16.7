@@ -1314,6 +1314,14 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
     @Override
     protected void onDisallowSwipeToMinusOnePage() {
         mLauncher.getOverlayManager().onDisallowSwipeToMinusOnePage();
+        // A swipe to the right past the first page is the gesture that opens the full-screen
+        // Caddy App Library. When a feed (overlay) is attached the overlay consumes the gesture,
+        // so this only runs when the user actually reached the left edge with nothing there.
+        if (mLauncher instanceof app.lawnchair.LawnchairLauncher
+                && !hasOverlay()
+                && app.lawnchair.homecards.CaddyAppLibraryPreferences.isEnabled(mLauncher)) {
+            app.lawnchair.homecards.CaddyAppLibraryPage.show(mLauncher);
+        }
     }
 
     /**

@@ -22,19 +22,19 @@ import org.junit.Test
 class HotseatModeTest {
 
     @Test
-    fun values_containOnlyDisabledAndLawnchair() {
-        assertThat(HotseatMode.values()).containsExactly(DisabledHotseat, LawnchairHotseat)
+    fun values_containDisabledLawnchairAndGoogleSearch() {
+        assertThat(HotseatMode.values())
+            .containsExactly(DisabledHotseat, LawnchairHotseat, GoogleSearchHotseat)
     }
 
     @Test
-    fun googleSearch_isNoLongerOffered() {
-        assertThat(HotseatMode.values().map { it.toString() }).doesNotContain("google_search")
+    fun googleSearch_isOfferedAgain() {
+        assertThat(HotseatMode.values().map { it.toString() }).contains("google_search")
     }
 
     @Test
-    fun storedGoogleSearchPreference_fallsBackToLawnchairDock() {
-        // An old "google_search" preference must not resolve to the removed mode.
-        assertThat(HotseatMode.fromString("google_search")).isSameInstanceAs(LawnchairHotseat)
+    fun storedGoogleSearchPreference_resolvesToGoogleSearchDock() {
+        assertThat(HotseatMode.fromString("google_search")).isSameInstanceAs(GoogleSearchHotseat)
     }
 
     @Test
@@ -48,6 +48,7 @@ class HotseatModeTest {
     fun toStringValues_areStable() {
         assertThat(LawnchairHotseat.toString()).isEqualTo("lawnchair")
         assertThat(DisabledHotseat.toString()).isEqualTo("disabled")
+        assertThat(GoogleSearchHotseat.toString()).isEqualTo("google_search")
     }
 
     @Test
@@ -62,7 +63,9 @@ class HotseatModeTest {
     }
 
     @Test
-    fun dockSearchBar_isOnOnlyForLawnchairDockWithTheToggleEnabled() {
+    fun dockSearchBar_isOnOnlyForModesWithASearchBarAndTheToggleEnabled() {
         assertThat(DockSearchBar.isEnabled(LawnchairHotseat, true)).isTrue()
+        assertThat(DockSearchBar.isEnabled(GoogleSearchHotseat, true)).isTrue()
+        assertThat(DockSearchBar.isEnabled(GoogleSearchHotseat, false)).isFalse()
     }
 }
