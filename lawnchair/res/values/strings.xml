@@ -821,7 +821,6 @@
     <string name="dock_search_bar_toggle_label">Show search bar in dock</string>
     <string name="search_bar_dynamic_label">Hide search bar on side pages</string>
     <string name="caddy_app_library_title">App Library</string>
-    <string name="caddy_app_library_close">Close App Library</string>
     <string name="caddy_app_library_suggestions">Suggestions</string>
     <string name="caddy_category_editor_title">Create category</string>
     <string name="caddy_category_name_hint">Category name</string>
@@ -832,6 +831,11 @@
     <string name="caddy_category_delete_title">Delete card</string>
     <string name="caddy_category_delete_message">Remove the \"%1$s\" card from the App Library?</string>
     <string name="caddy_category_delete">Delete</string>
+    <string name="caddy_app_library_swipe_hint">Swipe down to close</string>
+    <string name="caddy_app_library_group">App Library</string>
+    <string name="caddy_app_library_enabled_label">Open App Library</string>
+    <string name="caddy_app_library_enabled_description">Swipe past the last page to open the full-screen App Library.</string>
+    <string name="caddy_app_library_icon_scale_label">Icon size</string>
     <string name="hotseat_mode_label">Search bar widget</string>
     <string name="hotseat_mode_disabled">Disabled</string>
     <string name="hotseat_mode_lawnchair" translatable="false">Lawnchair</string>

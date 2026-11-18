@@ -33,7 +33,23 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
 
     private val controller by lazy { CaddyHomeCards.controller(launcher) }
 
-    private val appsListener = AllAppsStore.OnUpdateListener { syncFromApps() }
+    private var syncPosted = false
+    private val syncRunnable = Runnable {
+        syncPosted = false
+        syncFromApps()
+    }
+
+    /**
+     * The app store publishes several snapshots while the launcher starts. Coalescing them into one
+     * sync per frame avoids re-laying-out and re-saving the cards on every snapshot, which is what
+     * made startup stutter.
+     */
+    private val appsListener = AllAppsStore.OnUpdateListener {
+        if (syncPosted) return@OnUpdateListener
+        val workspace = launcher.workspace ?: return@OnUpdateListener
+        syncPosted = true
+        workspace.postOnAnimation(syncRunnable)
+    }
 
     private var listening = false
 
@@ -65,6 +81,8 @@ class CaddyHomeCardCoordinator(private val launcher: Launcher) {
     }
 
     fun stop() {
+        launcher.workspace?.removeCallbacks(syncRunnable)
+        syncPosted = false
         if (listening) {
             launcher.appsView?.appsStore?.removeUpdateListener(appsListener)
             listening = false

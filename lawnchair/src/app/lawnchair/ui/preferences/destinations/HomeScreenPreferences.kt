@@ -105,6 +105,23 @@ fun HomeScreenPreferences(
             )
         }
         val dossierEnabledAdapter = prefs2.dossierEnabled.getAdapter()
+        val appLibraryEnabledAdapter = prefs2.caddyAppLibraryEnabled.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.caddy_app_library_group)) {
+            SwitchPreference(
+                adapter = appLibraryEnabledAdapter,
+                label = stringResource(R.string.caddy_app_library_enabled_label),
+                description = stringResource(R.string.caddy_app_library_enabled_description),
+            )
+            ExpandAndShrink(visible = appLibraryEnabledAdapter.state.value) {
+                SliderPreference(
+                    adapter = prefs2.appLibraryIconScale.getAdapter(),
+                    label = stringResource(R.string.caddy_app_library_icon_scale_label),
+                    step = 5,
+                    valueRange = 60..140,
+                    showAsPercentage = true,
+                )
+            }
+        }
         PreferenceGroup(heading = stringResource(id = R.string.caddy)) {
             SwitchPreference(
                 adapter = prefs2.caddyHomeEnabled.getAdapter(),

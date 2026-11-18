@@ -17,4 +17,14 @@
 <resources xmlns:tools="http://schemas.android.com/tools" xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="generic_smartspace_concatenated_desc">%1$s، %2$s</string>
     <string name="accessibility_smartspace_page">الصفحة %1$d من %2$d</string>
+    <string name="caddy_app_library_title">مكتبة التطبيقات</string>
+    <string name="caddy_app_library_suggestions">اقتراحات</string>
+    <string name="caddy_app_library_swipe_hint">اسحب للأسفل للإغلاق</string>
+    <string name="caddy_app_library_group">مكتبة التطبيقات</string>
+    <string name="caddy_app_library_enabled_label">فتح مكتبة التطبيقات</string>
+    <string name="caddy_app_library_enabled_description">اسحب بعد آخر صفحة لفتح مكتبة التطبيقات بملء الشاشة.</string>
+    <string name="caddy_app_library_icon_scale_label">حجم الأيقونات</string>
+    <string name="caddy_category_delete_title">حذف البطاقة</string>
+    <string name="caddy_category_delete_message">إزالة بطاقة \"%1$s\" من مكتبة التطبيقات؟</string>
+    <string name="caddy_category_delete">حذف</string>
 </resources>

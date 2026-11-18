@@ -65,6 +65,7 @@ object CaddyCardRenderer {
         columns: Int = 2,
         maxIcons: Int = MAX_PREVIEW_ICONS,
         cellSizePx: Int = 0,
+        iconFillRatio: Float = ICON_FILL_RATIO,
         showTitle: Boolean = true,
     ) {
         val context = host.context
@@ -238,7 +239,7 @@ object CaddyCardRenderer {
             // Keep the icon strictly inside its cell so it can never spill into the
             // neighbouring row.
             val iconSize = if (explicitCell) {
-                (cellSizePx * ICON_FILL_RATIO).toInt()
+                CaddyCardMetrics.iconSizePx(cellSizePx, iconFillRatio)
             } else {
                 dp(context, if (fitGridToHost) 54f else 56f)
             }

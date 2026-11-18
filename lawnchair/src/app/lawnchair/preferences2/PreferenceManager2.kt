@@ -371,6 +371,15 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = context.resources.getBoolean(R.bool.config_default_caddy_app_library_enabled),
     )
 
+    /**
+     * Icon size on the App Library cards, in percent of the default. Also scales the strength of
+     * the page's background blur, so one control tunes both.
+     */
+    val appLibraryIconScale = preference(
+        key = intPreferencesKey(name = "app_library_icon_scale"),
+        defaultValue = 100,
+    )
+
     /** Shows the card title on workspace cards. */
     val caddyHomeShowTitles = preference(
         key = booleanPreferencesKey(name = "caddy_home_show_titles"),
