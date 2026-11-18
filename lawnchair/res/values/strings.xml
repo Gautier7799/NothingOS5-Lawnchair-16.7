@@ -831,8 +831,6 @@
     <string name="caddy_category_delete_title">Delete card</string>
     <string name="caddy_category_delete_message">Remove the \"%1$s\" card from the App Library?</string>
     <string name="caddy_category_delete">Delete</string>
-    <string name="caddy_app_library_swipe_hint">Swipe down to close</string>
-    <string name="caddy_app_library_search_hint">Search apps and categories</string>
     <string name="caddy_app_library_group">App Library</string>
     <string name="caddy_app_library_enabled_label">Open App Library</string>
     <string name="caddy_app_library_enabled_description">Swipe past the last page to open the full-screen App Library.</string>

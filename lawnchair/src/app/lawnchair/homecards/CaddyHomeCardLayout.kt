@@ -92,6 +92,20 @@ object CaddyHomeCardLayout {
     data class PreviewGeometry(val cellPx: Int, val maxIcons: Int)
 
     /**
+     * The width of one card cell on a screen [screenWidthPx] wide holding [columns] cards.
+     *
+     * Each cell carries a [spacingPx]/2 margin on both sides, so the gap between two cards is
+     * [spacingPx] and the outer gap is [sidePaddingPx] + [spacingPx]/2. Subtracting [spacingPx] per
+     * column (not per gap) is what keeps the row exactly as wide as the screen, so the outer cards
+     * never reach the screen edge and the inner gap is exact.
+     */
+    fun cardWidthPx(screenWidthPx: Int, sidePaddingPx: Int, spacingPx: Int, columns: Int): Int {
+        val safeColumns = columns.coerceAtLeast(1)
+        val usable = screenWidthPx - 2 * sidePaddingPx - spacingPx * safeColumns
+        return (usable / safeColumns).coerceAtLeast(1)
+    }
+
+    /**
      * The icon grid geometry for a preview card measured [widthPx] x [heightPx] px, holding
      * [columns] icons per row and up to [requestedRows] rows below a [titleReservePx]-tall header.
      *

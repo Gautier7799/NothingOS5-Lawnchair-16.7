@@ -159,18 +159,6 @@ fun HomeScreenPreferences(
                     step = 2,
                     valueRange = 0..24,
                 )
-                ListPreference(
-                    adapter = prefs2.appLibraryBackgroundStyle.getAdapter(),
-                    label = stringResource(R.string.caddy_app_library_background_label),
-                    entries = appLibraryBackgroundEntries(),
-                )
-                SliderPreference(
-                    adapter = prefs2.appLibraryBackgroundOpacity.getAdapter(),
-                    label = stringResource(R.string.caddy_app_library_opacity_label),
-                    step = 5,
-                    valueRange = 0..100,
-                    showAsPercentage = true,
-                )
                 SwitchPreference(
                     adapter = prefs2.appLibraryShowTitles.getAdapter(),
                     label = stringResource(R.string.caddy_app_library_show_titles_label),
@@ -369,17 +357,5 @@ private fun caddyMergeModeEntries(): List<ListPreferenceEntry<String>> = listOf(
     },
     ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_COMBINE) {
         stringResource(R.string.caddy_merge_mode_combine)
-    },
-)
-
-private fun appLibraryBackgroundEntries(): List<ListPreferenceEntry<String>> = listOf(
-    ListPreferenceEntry(value = PreferenceManager2.BACKGROUND_STYLE_BLURRED) {
-        stringResource(R.string.caddy_app_library_background_blurred)
-    },
-    ListPreferenceEntry(value = PreferenceManager2.BACKGROUND_STYLE_OPAQUE) {
-        stringResource(R.string.caddy_app_library_background_opaque)
-    },
-    ListPreferenceEntry(value = PreferenceManager2.BACKGROUND_STYLE_TINTED) {
-        stringResource(R.string.caddy_app_library_background_tinted)
     },
 )

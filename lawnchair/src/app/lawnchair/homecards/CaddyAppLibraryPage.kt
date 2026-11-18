@@ -18,14 +18,7 @@ package app.lawnchair.homecards
 
 import android.app.AlertDialog
 import android.content.Context
-import android.content.res.Configuration
-import android.graphics.Color
-import android.graphics.RenderEffect
-import android.graphics.Shader
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
@@ -35,12 +28,9 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowInsets
-import android.view.inputmethod.EditorInfo
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.HorizontalScrollView
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -49,7 +39,6 @@ import app.lawnchair.allapps.caddy.CaddyCategoryDialog
 import app.lawnchair.allapps.caddy.CaddyMaterialYou
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
-import app.lawnchair.wallpaper.WallpaperManagerCompat
 import com.android.launcher3.AbstractFloatingView
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.Launcher
@@ -86,20 +75,8 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     private var launcher: Launcher? = null
 
-    /** The wallpaper layer drawn behind the cards, blurred and tinted with the Monet accent. */
-    private val wallpaper = ImageView(context)
-
-    /** A translucent Monet tint over the blurred wallpaper, so the page still reads as a surface. */
-    private val scrim = View(context)
-
-    /** Blur strength in px, scaled from the user's icon-size setting. */
-    private var backgroundBlurRadiusPx = 0f
-
-    /** Backdrop opacity, in percent, from the App Library settings. */
-    private var backgroundOpacityPercent = 78
-
-    /** Background style from the App Library settings: blurred, opaque or tinted. */
-    private var backgroundStyle = PreferenceManager2.BACKGROUND_STYLE_BLURRED
+    /** The opaque Material You surface that fills the page behind the cards. */
+    private val background = View(context)
 
     /** Card columns, from the App Library settings. */
     private var columnCount = DEFAULT_COLUMN_COUNT
@@ -127,12 +104,12 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     /** The current grid of category cards, replaced in place when the app list changes. */
     private var cardsView: View? = null
 
-    /** The live search text, kept so the card grid can be rebuilt without recreating the field. */
-    private var query = ""
-
     private var downY = 0f
     private var dragY = 0f
     private var dragging = false
+
+    /** Whether the current gesture started inside the system's edge-swipe band. */
+    private var downInEdgeZone = false
 
     /** The scrolling content, kept as a field so drag-to-close can respect its scroll position. */
     private val scroll = ScrollView(context)
@@ -142,23 +119,16 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         isClickable = true
         isFocusable = true
 
-        wallpaper.scaleType = ImageView.ScaleType.CENTER_CROP
         scroll.overScrollMode = OVER_SCROLL_NEVER
+        scroll.clipToPadding = false
         column.orientation = VERTICAL
         scroll.addView(column)
 
-        // The wallpaper and the scrolling content share one FrameLayout so the wallpaper sits
-        // behind the cards. A vertical LinearLayout would stack them instead of overlaying them.
+        // The opaque surface and the scrolling content share one FrameLayout so the surface fills
+        // the page behind the cards. A vertical LinearLayout would stack them instead of overlaying.
         val content = FrameLayout(context)
         content.addView(
-            wallpaper,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-            ),
-        )
-        content.addView(
-            scrim,
+            background,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -183,126 +153,18 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     }
 
     /**
-     * The page backdrop, in one of three styles:
-     * - `blurred`: the wallpaper, softly blurred, under a themed translucent scrim so the blur and
-     *   the tint blend into one cohesive surface (the iOS look).
-     * - `opaque`: a solid Material You surface, so nothing of the wallpaper shows through.
-     * - `tinted`: the wallpaper at full strength with a light tint, no blur.
-     *
-     * The blur radius follows the icon-size setting, and the scrim alpha follows the background
-     * opacity setting, so the two controls together cover from "barely visible" to "solid".
+     * The page backdrop: a solid Material You surface. There is no blur and no wallpaper layer, so
+     * the page matches the system theme exactly and never fights the launcher behind it.
      */
     private fun applyBackground() {
-        loadWallpaper()
-        val canBlur = Utilities.ATLEAST_S
-        val surface = surfaceColor()
-        val scrimAlpha = Math.round(backgroundOpacityPercent / 100f * MAX_BACKDROP_ALPHA)
-        wallpaper.alpha = 1f
-        when {
-            !canBlur || backgroundStyle == PreferenceManager2.BACKGROUND_STYLE_OPAQUE -> {
-                wallpaper.setRenderEffect(null)
-                scrim.setBackgroundColor(opaque(surface))
-            }
-
-            backgroundStyle == PreferenceManager2.BACKGROUND_STYLE_TINTED -> {
-                wallpaper.setRenderEffect(null)
-                scrim.setBackgroundColor(withAlpha(surface, Math.round(scrimAlpha * TINTED_SCRIM_FACTOR)))
-            }
-
-            else -> {
-                // iOS-style frost: a strong blur with a saturated, themed scrim on top. The tint is
-                // the page's own Material You surface colour, so the blur and the cards share one
-                // palette instead of the blur reading as raw, unrelated wallpaper.
-                val blur = RenderEffect.createBlurEffect(
-                    backgroundBlurRadiusPx,
-                    backgroundBlurRadiusPx,
-                    Shader.TileMode.CLAMP,
-                )
-                val saturation = RenderEffect.createColorFilterEffect(
-                    android.graphics.ColorMatrixColorFilter(saturationMatrix(BLUR_SATURATION)),
-                )
-                wallpaper.setRenderEffect(RenderEffect.createChainEffect(saturation, blur))
-                scrim.setBackgroundColor(withAlpha(surface, scrimAlpha))
-            }
-        }
-    }
-
-    private fun opaque(color: Int): Int = Color.argb(255, Color.red(color), Color.green(color), Color.blue(color))
-
-    private fun withAlpha(color: Int, alpha: Int): Int = Color.argb(alpha.coerceIn(0, 255), Color.red(color), Color.green(color), Color.blue(color))
-
-    /** A colour matrix that scales saturation about mid-grey, so a blur keeps its hues alive. */
-    private fun saturationMatrix(saturation: Float): android.graphics.ColorMatrix {
-        val s = saturation
-        val inv = 1f - s
-        val r = 0.213f * inv
-        val g = 0.715f * inv
-        val b = 0.072f * inv
-        return android.graphics.ColorMatrix(
-            floatArrayOf(
-                r + s, g, b, 0f, 0f,
-                r, g + s, b, 0f, 0f,
-                r, g, b + s, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f,
-            ),
-        )
+        background.setBackgroundColor(CaddyMaterialYou.surface(context))
     }
 
     /**
-     * The page's own surface colour: the framework Material You "surface" role when the platform
-     * provides it, so the backdrop matches the system theme exactly. Falls back to a light/dark
-     * neutral blended with the wallpaper accent when the role is unavailable.
-     */
-    private fun surfaceColor(): Int {
-        val role = resources.getIdentifier("system_surface", "color", "android")
-        if (role != 0) {
-            runCatching { resources.getColor(role, context.theme) }.getOrNull()?.let { return it }
-        }
-        val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-            Configuration.UI_MODE_NIGHT_YES
-        val base = if (night) 18 else 246
-        val (accent1, accent2, accent3) = accentPalette()
-        val weight = if (night) 0.26f else 0.20f
-        val accentR = (Color.red(accent1) + Color.red(accent2) + Color.red(accent3)) / 3
-        val accentG = (Color.green(accent1) + Color.green(accent2) + Color.green(accent3)) / 3
-        val accentB = (Color.blue(accent1) + Color.blue(accent2) + Color.blue(accent3)) / 3
-        return Color.rgb(
-            Math.round(base * (1f - weight) + accentR * weight),
-            Math.round(base * (1f - weight) + accentG * weight),
-            Math.round(base * (1f - weight) + accentB * weight),
-        )
-    }
-
-    /** The wallpaper's accent1/2/3 roles, falling back to the single themed accent. */
-    private fun accentPalette(): Triple<Int, Int, Int> {
-        val fallback = CaddyCardRenderer.resolveDynamicColor(context)
-        fun role(name: String): Int {
-            val id = resources.getIdentifier(name, "color", "android")
-            if (id == 0) return fallback
-            return runCatching { resources.getColor(id, context.theme) }.getOrDefault(fallback)
-        }
-        return Triple(role("system_accent1_600"), role("system_accent2_600"), role("system_accent3_600"))
-    }
-
-    private var wallpaperLoaded = false
-
-    private fun loadWallpaper() {
-        if (wallpaperLoaded) return
-        wallpaperLoaded = true
-        val manager = WallpaperManagerCompat.INSTANCE.get(context)
-        Executors.THREAD_POOL_EXECUTOR.execute {
-            val drawable = runCatching { manager.wallpaperManager.drawable }.getOrNull()
-            if (drawable == null) return@execute
-            Executors.MAIN_EXECUTOR.execute {
-                wallpaper.setImageDrawable(drawable)
-            }
-        }
-    }
-
-    /**
-     * Keeps the content clear of the system bars. The page itself fills the whole screen, so only
-     * the content column is inset: the title is pushed below the status bar and the last row of
-     * cards is lifted just above the navigation bar, leaving the page flush with the screen edges.
+     * Keeps the content clear of the system bars without wasting screen space. The page surface
+     * already fills the screen; only the card column is inset by the status bar at the top and the
+     * navigation bar at the bottom, so the first row is never under the clock and the last row sits
+     * just above the navigation bar with no empty gap below it.
      */
     private fun applyContentInsets(insets: WindowInsets) {
         val top: Int
@@ -318,7 +180,7 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
             @Suppress("DEPRECATION")
             bottom = insets.systemWindowInsetBottom
         }
-        column.setPadding(0, top, 0, bottom + dp(BOTTOM_CLEARANCE_DP))
+        column.setPadding(0, top, 0, bottom)
     }
 
     fun bind(launcher: Launcher) {
@@ -326,143 +188,19 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         readSettings()
         applyBackground()
         column.removeAllViews()
-        column.addView(buildHeader())
-        column.addView(buildSearch())
-        column.addView(buildSuggestions(launcher))
+        column.addView(buildSuggestions(launcher), fillWidthParams())
         cardsView = buildCards(launcher)
-        column.addView(cardsView)
+        column.addView(cardsView, fillWidthParams())
     }
 
-    /** An iOS-style rounded search field that filters the category cards as the user types. */
-    private fun buildSearch(): View {
-        val wrapper = FrameLayout(context)
-        wrapper.setPadding(dp(20f), dp(10f), dp(20f), dp(2f))
-
-        val field = EditText(context)
-        field.hint = context.getString(R.string.caddy_app_library_search_hint)
-        field.setSingleLine(true)
-        field.imeOptions = EditorInfo.IME_ACTION_SEARCH
-        field.setTextColor(CaddyMaterialYou.onSurface(context))
-        field.setHintTextColor(CaddyMaterialYou.onSurfaceVariant(context))
-        field.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-        field.setPadding(dp(42f), dp(11f), dp(16f), dp(11f))
-        field.background = GradientDrawable().apply {
-            cornerRadius = dp(22f).toFloat()
-            setColor(withAlpha(CaddyMaterialYou.surfaceContainer(context), SEARCH_FIELD_ALPHA))
-        }
-        field.setText(query)
-        field.setSelection(query.length)
-        field.addTextChangedListener(
-            object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-                override fun afterTextChanged(s: Editable?) {
-                    val next = s?.toString().orEmpty()
-                    if (next == query) return
-                    query = next
-                    launcher?.let(::rebuildCards)
-                }
-            },
-        )
-        wrapper.addView(
-            field,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ),
-        )
-
-        val glyph = TextView(context)
-        glyph.text = "\uD83D\uDD0D"
-        glyph.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-        val glyphLp = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            Gravity.START or Gravity.CENTER_VERTICAL,
-        )
-        glyphLp.leftMargin = dp(16f)
-        wrapper.addView(glyph, glyphLp)
-        return wrapper
-    }
-
-    /**
-     * Replaces only the card grid when the app list changes. Rebuilding the whole column on every
-     * app-store snapshot made the header and suggestion row flicker during startup, so the update
-     * path touches the cards alone.
-     */
-    private fun rebuildCards(launcher: Launcher) {
-        if (!isAttachedToWindow) return
-        val fresh = buildCards(launcher)
-        val old = cardsView
-        if (old != null && old.parent === column) {
-            column.removeView(old)
-        }
-        cardsView = fresh
-        column.addView(fresh)
-    }
-
-    /** Reads the App Library settings into the cached fields. Called before every rebuild. */
-    private fun readSettings() {
-        val prefs = PreferenceManager2.getInstance(context)
-        val scale = prefs.appLibraryIconScale.firstCached() / 100f
-        backgroundBlurRadiusPx = dp(BLUR_BASE_DP * scale).toFloat()
-        backgroundOpacityPercent = prefs.appLibraryBackgroundOpacity.firstCached().coerceIn(0, 100)
-        backgroundStyle = prefs.appLibraryBackgroundStyle.firstCached()
-        columnCount = prefs.appLibraryColumns.firstCached().coerceIn(1, 4)
-        cardHeightDp = prefs.appLibraryCardHeight.firstCached().coerceIn(96, 280).toFloat()
-        gridSpacingDp = prefs.appLibraryGridSpacing.firstCached().coerceIn(0, 32).toFloat()
-        showTitles = prefs.appLibraryShowTitles.firstCached()
-    }
-
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
-        launcher?.appsView?.appsStore?.addUpdateListener(appsListener)
-        requestApplyInsets()
-    }
-
-    override fun onDetachedFromWindow() {
-        removeCallbacks(rebind)
-        rebindPosted = false
-        launcher?.appsView?.appsStore?.removeUpdateListener(appsListener)
-        wallpaper.setRenderEffect(null)
-        cardsView = null
-        super.onDetachedFromWindow()
-    }
+    private fun fillWidthParams() = LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+    )
 
     /** Marks the page open. Split out so the companion can set the protected flag. */
     fun markOpen() {
         mIsOpen = true
-    }
-
-    private fun buildHeader(): View {
-        val row = LinearLayout(context)
-        row.orientation = VERTICAL
-        row.setPadding(dp(24f), dp(20f), dp(24f), dp(2f))
-
-        val title = TextView(context)
-        title.text = context.getString(R.string.caddy_app_library_title)
-        title.setTextColor(CaddyMaterialYou.onSurface(context))
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
-        title.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        row.addView(
-            title,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ),
-        )
-
-        val hint = TextView(context)
-        hint.text = context.getString(R.string.caddy_app_library_swipe_hint)
-        hint.setTextColor(CaddyMaterialYou.onSurfaceVariant(context))
-        hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-        val hintLp = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-        )
-        hintLp.topMargin = dp(2f)
-        row.addView(hint, hintLp)
-        return row
     }
 
     private fun buildSuggestions(launcher: Launcher): View {
@@ -471,11 +209,11 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         heading.setTextColor(CaddyMaterialYou.onSurface(context))
         heading.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
         heading.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        heading.setPadding(dp(24f), dp(16f), dp(24f), dp(6f))
+        heading.setPadding(dp(SIDE_PADDING_DP), dp(14f), dp(SIDE_PADDING_DP), dp(6f))
 
         val strip = LinearLayout(context)
         strip.orientation = HORIZONTAL
-        strip.setPadding(dp(16f), 0, dp(16f), dp(4f))
+        strip.setPadding(dp(SIDE_PADDING_DP), 0, dp(SIDE_PADDING_DP), dp(4f))
         val scroller = HorizontalScrollView(context)
         scroller.isHorizontalScrollBarEnabled = false
         scroller.addView(strip)
@@ -538,7 +276,10 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         val grid = GridLayout(context)
         grid.columnCount = columnCount
         grid.useDefaultMargins = false
-        grid.setPadding(dp(18f), dp(10f), dp(18f), dp(24f))
+        // A small, symmetric outer margin keeps the outer cards off the screen edge. The bottom
+        // padding is only half the spacing, because each cell already carries a spacing/2 bottom
+        // margin; that makes the gap below the last row match the gaps between rows exactly.
+        grid.setPadding(dp(SIDE_PADDING_DP), dp(SIDE_PADDING_DP), dp(SIDE_PADDING_DP), 0)
 
         val apps = launcher.appsView?.appsStore?.apps?.toList().orEmpty()
         // Render nothing until the app list is loaded. Rendering a lone "+ Add category" card
@@ -551,13 +292,6 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         var index = 0
         CaddyHomeCardSource.build(context, apps)
             .filterNot { it.id in hidden }
-            .filter { card ->
-                CaddyAppLibraryFilter.matches(
-                    query = query,
-                    title = card.title,
-                    appTitles = card.appKeys.mapNotNull { byKey[it]?.title?.toString() },
-                )
-            }
             .forEach { card ->
                 val cardApps = card.appKeys.mapNotNull { byKey[it] }
                 if (cardApps.isEmpty()) return@forEach
@@ -664,8 +398,38 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     private fun allApps(): List<AppInfo> = launcher?.appsView?.appsStore?.apps?.toList().orEmpty()
 
-    /** The width of one card cell, used so every card is measured at the size it is laid out in. */
-    private fun cardCellWidthPx(): Int = (resources.displayMetrics.widthPixels - dp(12f) - dp(gridSpacingDp) * (columnCount - 1)) / columnCount
+    /**
+     * Replaces only the card grid when the app list changes. Rebuilding the whole column on every
+     * app-store snapshot made the suggestion row flicker during startup, so the update path touches
+     * the cards alone.
+     */
+    private fun rebuildCards(launcher: Launcher) {
+        if (!isAttachedToWindow) return
+        val fresh = buildCards(launcher)
+        val old = cardsView
+        if (old != null && old.parent === column) {
+            column.removeView(old)
+        }
+        cardsView = fresh
+        column.addView(fresh)
+    }
+
+    /** Reads the App Library settings into the cached fields. Called before every rebuild. */
+    private fun readSettings() {
+        val prefs = PreferenceManager2.getInstance(context)
+        columnCount = prefs.appLibraryColumns.firstCached().coerceIn(1, 4)
+        cardHeightDp = prefs.appLibraryCardHeight.firstCached().coerceIn(96, 280).toFloat()
+        gridSpacingDp = prefs.appLibraryGridSpacing.firstCached().coerceIn(0, 32).toFloat()
+        showTitles = prefs.appLibraryShowTitles.firstCached()
+    }
+
+    /** The width of one card cell, so every card is measured at the size it is laid out in. */
+    private fun cardCellWidthPx(): Int = CaddyHomeCardLayout.cardWidthPx(
+        screenWidthPx = resources.displayMetrics.widthPixels,
+        sidePaddingPx = dp(SIDE_PADDING_DP),
+        spacingPx = dp(gridSpacingDp),
+        columns = columnCount,
+    )
 
     private fun gridCellParams(index: Int): GridLayout.LayoutParams {
         val params = GridLayout.LayoutParams()
@@ -677,7 +441,7 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         params.columnSpec = GridLayout.spec(index % columnCount)
         params.rowSpec = GridLayout.spec(index / columnCount)
         val gap = dp(gridSpacingDp) / 2
-        params.setMargins(gap, dp(6f), gap, dp(6f))
+        params.setMargins(gap, gap, gap, gap)
         return params
     }
 
@@ -691,8 +455,9 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     override fun onControllerInterceptTouchEvent(ev: MotionEvent): Boolean = false
 
     /**
-     * Starts the drag-to-close gesture from anywhere on the page, but only from the top of the
-     * content and only for a clearly downward drag, so vertical scrolling of the cards is untouched.
+     * Starts the drag-to-close gesture, but only from the top of the content, only for a clearly
+     * vertical downward drag, and never from the system's edge-swipe zone. Staying out of the edge
+     * zone is what keeps the page's own gesture from fighting the system swipe-to-go-back gesture.
      */
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
@@ -700,11 +465,14 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
                 downY = ev.y
                 dragY = 0f
                 dragging = false
+                downInEdgeZone = isInSystemGestureZone(ev.x)
             }
 
             MotionEvent.ACTION_MOVE -> {
                 val dy = ev.y - downY
-                if (!dragging && !scroll.canScrollVertically(-1) && dy > touchSlop * 2) {
+                if (!downInEdgeZone && !dragging && !scroll.canScrollVertically(-1) &&
+                    dy > touchSlop * 2
+                ) {
                     dragging = true
                     dragY = dy
                     translationY = dy
@@ -716,8 +484,9 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     }
 
     /**
-     * Closes the page on a downward swipe, with the page following the finger. The close button was
-     * removed in favour of this single gesture.
+     * Closes the page on a downward swipe, with the page following the finger. Touches that do not
+     * start a drag are not consumed, so taps on the cards and the system's edge-swipe gesture keep
+     * working.
      */
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -725,15 +494,19 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
                 downY = event.y
                 dragY = 0f
                 dragging = false
+                downInEdgeZone = isInSystemGestureZone(event.x)
+                // Only claim the gesture stream when a drag may begin here.
+                return !downInEdgeZone
             }
 
             MotionEvent.ACTION_MOVE -> {
                 val dy = event.y - downY
-                if (!dragging && dy > touchSlop) dragging = true
+                if (!downInEdgeZone && !dragging && dy > touchSlop) dragging = true
                 if (dragging) {
                     dragY = dy.coerceAtLeast(0f)
                     translationY = dragY
                 }
+                return dragging
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -745,9 +518,23 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
                     }
                 }
                 dragging = false
+                return true
             }
         }
-        return true
+        return dragging
+    }
+
+    /** True when [x] falls in the left or right system gesture band used for swipe-to-go-back. */
+    private fun isInSystemGestureZone(x: Float): Boolean {
+        val band = systemGestureBandPx()
+        return x <= band || x >= width - band
+    }
+
+    private fun systemGestureBandPx(): Int = dp(GESTURE_BAND_FALLBACK_DP)
+
+    /** Handles the system back gesture by closing the page, so back and drag-to-close agree. */
+    override fun onBackInvoked() {
+        close(true)
     }
 
     private fun dismissByDrag() {
@@ -773,32 +560,20 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         private const val CLOSE_DURATION_MS = 150L
         private const val OPEN_DURATION_MS = 180L
 
+        /** Symmetric outer margin of the card grid, so the outer cards never touch the screen edge. */
+        private const val SIDE_PADDING_DP = 12f
+
+        /** Fallback width, in dp, of the system's left/right edge-swipe band. */
+        private const val GESTURE_BAND_FALLBACK_DP = 20f
+
         /**
          * Icon size relative to a cell at scale 1; the user's setting multiplies this. Kept near the
          * cell so the preview icons read as full-size, matching the iOS App Library look.
          */
         private const val ICON_FILL_RATIO_BASE = 0.92f
 
-        /** The alpha the backdrop reaches at 100% opacity. */
-        private const val MAX_BACKDROP_ALPHA = 255
-
-        /** How much of the scrim alpha the tinted (non-blurred) style keeps. */
-        private const val TINTED_SCRIM_FACTOR = 0.45f
-
-        /** Saturation multiplier applied to the blurred wallpaper, so its hues stay alive. */
-        private const val BLUR_SATURATION = 1.35f
-
-        /** Alpha of the search field's fill, so it reads as a soft inset pill over the backdrop. */
-        private const val SEARCH_FIELD_ALPHA = 200
-
-        /** Clearance below the navigation bar for the last card row. */
-        private const val BOTTOM_CLEARANCE_DP = 12f
-
         /** How much of the page height a downward drag must cover to dismiss the page. */
         private const val DISMISS_FRACTION = 0.22f
-
-        /** Blur radius at icon scale 1.0, in dp. Larger icons read as a softer, deeper surface. */
-        private const val BLUR_BASE_DP = 26f
 
         /** Coalescing window for the app-store update bursts the launcher emits during startup. */
         private const val REBIND_DEBOUNCE_MS = 120L

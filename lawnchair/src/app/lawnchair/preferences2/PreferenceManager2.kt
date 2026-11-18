@@ -386,28 +386,10 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = 2,
     )
 
-    /**
-     * Opacity of the App Library backdrop, in percent. Lower values let more of the wallpaper show
-     * through; higher values make the page a more solid surface.
-     */
-    val appLibraryBackgroundOpacity = preference(
-        key = intPreferencesKey(name = "app_library_background_opacity"),
-        defaultValue = 78,
-    )
-
     /** Shows the category title on the App Library cards. */
     val appLibraryShowTitles = preference(
         key = booleanPreferencesKey(name = "app_library_show_titles"),
         defaultValue = true,
-    )
-
-    /**
-     * Background style of the App Library page: `blurred` (blurred wallpaper), `opaque` (solid
-     * themed surface) or `tinted` (wallpaper visible with a light accent tint, no blur).
-     */
-    val appLibraryBackgroundStyle = preference(
-        key = stringPreferencesKey(name = "app_library_background_style"),
-        defaultValue = BACKGROUND_STYLE_BLURRED,
     )
 
     /** Height of each App Library card, in dp. */
@@ -1155,10 +1137,6 @@ class PreferenceManager2 @Inject constructor(
 
         @JvmStatic
         fun getInstance(context: Context) = INSTANCE.get(context)!!
-
-        const val BACKGROUND_STYLE_BLURRED = "blurred"
-        const val BACKGROUND_STYLE_OPAQUE = "opaque"
-        const val BACKGROUND_STYLE_TINTED = "tinted"
 
         private const val TAG = "PreferenceManager2"
     }

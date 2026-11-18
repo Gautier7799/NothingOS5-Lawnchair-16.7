@@ -266,4 +266,42 @@ class CaddyHomeCardLayoutTest {
         assertThat(geometry.maxIcons).isEqualTo(4)
         assertThat(geometry.cellPx * 2).isAtMost(220 - 72)
     }
+
+    @Test
+    fun cardWidthPx_fillsTheScreenExactlyIncludingCellMargins() {
+        // Each cell carries a spacing/2 margin on both sides, so the full row is
+        // columns * width + columns * spacing + 2 * sidePadding. That must equal the screen, so
+        // the outer cards sit exactly `sidePadding + spacing/2` from the edge and the inner gaps
+        // are exactly `spacing` wide.
+        val width = CaddyHomeCardLayout.cardWidthPx(
+            screenWidthPx = 1080,
+            sidePaddingPx = 36,
+            spacingPx = 12,
+            columns = 2,
+        )
+        assertThat(2 * width + 2 * 12 + 2 * 36).isEqualTo(1080)
+    }
+
+    @Test
+    fun cardWidthPx_keepsOuterCardsOffTheScreenEdge() {
+        val width = CaddyHomeCardLayout.cardWidthPx(
+            screenWidthPx = 1080,
+            sidePaddingPx = 24,
+            spacingPx = 12,
+            columns = 4,
+        )
+        // The whole row, margins included, never exceeds the screen.
+        assertThat(4 * width + 4 * 12 + 2 * 24).isAtMost(1080)
+    }
+
+    @Test
+    fun cardWidthPx_neverReturnsZeroOnATinyScreen() {
+        val width = CaddyHomeCardLayout.cardWidthPx(
+            screenWidthPx = 10,
+            sidePaddingPx = 36,
+            spacingPx = 12,
+            columns = 4,
+        )
+        assertThat(width).isAtLeast(1)
+    }
 }

@@ -19,8 +19,6 @@
     <string name="accessibility_smartspace_page">الصفحة %1$d من %2$d</string>
     <string name="caddy_app_library_title">مكتبة التطبيقات</string>
     <string name="caddy_app_library_suggestions">اقتراحات</string>
-    <string name="caddy_app_library_swipe_hint">اسحب للأسفل للإغلاق</string>
-    <string name="caddy_app_library_search_hint">ابحث عن تطبيق أو فئة</string>
     <string name="caddy_app_library_group">مكتبة التطبيقات</string>
     <string name="caddy_app_library_enabled_label">فتح مكتبة التطبيقات</string>
     <string name="caddy_app_library_enabled_description">اسحب بعد آخر صفحة لفتح مكتبة التطبيقات بملء الشاشة.</string>
