@@ -22,7 +22,6 @@ object LauncherOptionsPopup {
         LauncherOptionPopupItem("wallpaper", true),
         LauncherOptionPopupItem("widgets", true),
         LauncherOptionPopupItem("all_apps", true),
-        LauncherOptionPopupItem("app_library", false),
         LauncherOptionPopupItem("home_settings", true),
         LauncherOptionPopupItem("sys_settings", false),
         LauncherOptionPopupItem("default_page", false),
@@ -34,14 +33,18 @@ object LauncherOptionsPopup {
         val prefs2 = getInstance(launcher)
 
         val currentOrder = prefs2.launcherPopupOrder.firstCached()
-        val currentOptions = currentOrder.toLauncherOptions()
+        val storedOptions = currentOrder.toLauncherOptions()
+        // Drop identifiers that no longer map to an option (e.g. a removed feature) so the
+        // settings editor, which resolves every stored identifier, never meets an unknown one.
+        val knownIdentifiers = DEFAULT_ORDER.map { it.identifier }.toSet()
+        val currentOptions = storedOptions.filter { it.identifier in knownIdentifiers }
 
         // check for missing items in current options; if so, add them
         val missingItems = DEFAULT_ORDER.filter { defaultItem ->
             defaultItem.identifier !in currentOptions.map { it.identifier }
         }
 
-        if (missingItems.isNotEmpty()) {
+        if (missingItems.isNotEmpty() || currentOptions.size != storedOptions.size) {
             prefs2.launcherPopupOrder.setBlocking(
                 (currentOptions + missingItems).toOptionOrderString(),
             )
@@ -60,7 +63,6 @@ object LauncherOptionsPopup {
         onStartWallpaperPicker: (View) -> Boolean,
         onStartWidgetsMenu: (View) -> Boolean,
         onStartHomeSettings: (View) -> Boolean,
-        onStartAppLibrary: (View) -> Boolean,
     ): ArrayList<OptionItem> {
         val prefs2 = getInstance(launcher!!)
         val lockHomeScreen = prefs2.lockHomeScreen.firstCached()
@@ -121,13 +123,6 @@ object LauncherOptionsPopup {
                 R.drawable.ic_apps,
                 LauncherEvent.LAUNCHER_ALL_APPS_TAP_OR_LONGPRESS,
                 onStartAllApps,
-            ),
-            "app_library" to OptionItem(
-                launcher,
-                R.string.caddy_app_library_title,
-                R.drawable.ic_apps,
-                LauncherEvent.IGNORE,
-                onStartAppLibrary,
             ),
             "home_settings" to OptionItem(
                 launcher,
@@ -207,11 +202,6 @@ object LauncherOptionsPopup {
 
             "all_apps" -> LauncherOptionMetadata(
                 label = R.string.all_apps_button_label,
-                icon = R.drawable.ic_apps,
-            )
-
-            "app_library" -> LauncherOptionMetadata(
-                label = R.string.caddy_app_library_title,
                 icon = R.drawable.ic_apps,
             )
 

@@ -88,12 +88,6 @@ object CaddyHomeCardLayout {
         return (areaHeightPx / cellPx).coerceIn(1, requestedRows)
     }
 
-    /** The scale to apply to an icon laid out at [nativePx] so it fits a [slotPx] slot. */
-    fun iconScale(slotPx: Int, nativePx: Int): Float {
-        if (slotPx <= 0 || nativePx <= 0) return 1f
-        return (slotPx.toFloat() / nativePx).coerceAtMost(1f)
-    }
-
     /**
      * Resolves a horizontal move of [deltaCellsX] cells from [cellX] on a page that is
      * [columns] cells wide into a page offset plus an in-page column.

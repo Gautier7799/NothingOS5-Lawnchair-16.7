@@ -31,7 +31,6 @@ import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import app.lawnchair.homecards.CaddyHomeCardLayout
 import app.lawnchair.util.resolveFolderPreviewColor
 import com.android.launcher3.BubbleTextView
 import com.android.launcher3.R
@@ -66,7 +65,9 @@ object CaddyCardRenderer {
         columns: Int = 2,
         maxIcons: Int = MAX_PREVIEW_ICONS,
         cellSizePx: Int = 0,
+        iconFillRatio: Float = ICON_FILL_RATIO,
         showTitle: Boolean = true,
+        titleAtBottom: Boolean = false,
     ) {
         val context = host.context
         host.removeAllViews()
@@ -77,36 +78,22 @@ object CaddyCardRenderer {
         host.setPadding(dp(context, 4f), dp(context, 4f), dp(context, 4f), dp(context, 4f))
 
         val densityPadding = dp(context, 14f)
-        val themeColor = resolveDynamicColor(context)
-        val nightMode = (
-            context.resources.configuration.uiMode and
-                Configuration.UI_MODE_NIGHT_MASK
-            ) == Configuration.UI_MODE_NIGHT_YES
-        // A lighter, wallpaper-visible glass surface for workspace cards. The base
-        // surface follows the current system appearance while Monet supplies its tint.
-        // Lower alpha is intentional: the wallpaper must remain visible through Caddy.
-        val baseRed = if (nightMode) 24 else 246
-        val baseGreen = if (nightMode) 29 else 250
-        val baseBlue = if (nightMode) 35 else 252
-        val tintWeight = 0.22f
-        val glassRed = Math.round(baseRed * (1f - tintWeight) + Color.red(themeColor) * tintWeight)
-        val glassGreen = Math.round(baseGreen * (1f - tintWeight) + Color.green(themeColor) * tintWeight)
-        val glassBlue = Math.round(baseBlue * (1f - tintWeight) + Color.blue(themeColor) * tintWeight)
-        val surfaceAlpha = if (nightMode) 142 else 164
-        val topGlass = Color.argb(surfaceAlpha, glassRed, glassGreen, glassBlue)
-        val bottomGlass = Color.argb(
-            if (nightMode) 104 else 126,
-            Math.max(8, glassRed - 12),
-            Math.max(10, glassGreen - 12),
-            Math.max(12, glassBlue - 12),
-        )
-        val foreground = if (nightMode) Color.WHITE else Color.rgb(26, 31, 38)
-        val accentStroke = Color.argb(
-            156,
-            Color.red(themeColor),
-            Color.green(themeColor),
-            Color.blue(themeColor),
-        )
+        // A solid Material You tonal surface: the same "surface container high" role the system
+        // uses for sheets and cards, so Caddy reads as part of the theme rather than a glassy
+        // overlay. The accent outline and the "+ Add" tint keep it from looking flat.
+        val surface = CaddyMaterialYou.surfaceContainer(context)
+        val accent = CaddyMaterialYou.accent(context)
+        val foreground = CaddyMaterialYou.onSurface(context)
+        val outline = CaddyMaterialYou.outlineVariant(context)
+        // Standard cards get a hairline outline; the "+ Add" card gets an accent outline so it
+        // reads as an action rather than another category.
+        val strokeColor = if (isAddCategory) {
+            Color.argb(200, Color.red(accent), Color.green(accent), Color.blue(accent))
+        } else {
+            Color.argb(90, Color.red(outline), Color.green(outline), Color.blue(outline))
+        }
+        // The "+ Add" card leans toward the accent so it reads as an action, not a category.
+        val cardColor = if (isAddCategory) blend(surface, accent, 0.18f) else surface
 
         val card = LinearLayout(context)
         card.orientation = LinearLayout.VERTICAL
@@ -125,10 +112,10 @@ object CaddyCardRenderer {
         card.setOnLongClickListener { cardLongClick?.invoke() ?: false }
         val background = GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(topGlass, bottomGlass),
+            intArrayOf(cardColor, cardColor),
         )
         background.cornerRadius = dp(context, if (fitGridToHost) 30f else 28f).toFloat()
-        background.setStroke(dp(context, if (fitGridToHost) 1.25f else 1f), accentStroke)
+        background.setStroke(dp(context, if (fitGridToHost) 1f else 1f), strokeColor)
         card.background = background
         // Drawer previews stay clipped to their rounded outline. Workspace previews use
         // native-size BubbleTextView children scaled into smaller cells; clipping those
@@ -144,7 +131,7 @@ object CaddyCardRenderer {
             ),
         )
 
-        if (showTitle || isAddCategory) {
+        val makeTitle = {
             val titleView = TextView(context)
             titleView.text = if (isAddCategory) "+  Add category" else title
             titleView.setTextColor(foreground)
@@ -152,8 +139,12 @@ object CaddyCardRenderer {
             titleView.typeface = Typeface.DEFAULT_BOLD
             titleView.maxLines = 1
             titleView.ellipsize = TextUtils.TruncateAt.END
+            titleView
+        }
+        // The "+ Add" card is an action, not a category preview, so its label always sits on top.
+        if ((showTitle || isAddCategory) && (!titleAtBottom || isAddCategory)) {
             card.addView(
-                titleView,
+                makeTitle(),
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -239,11 +230,30 @@ object CaddyCardRenderer {
             // Keep the icon strictly inside its cell so it can never spill into the
             // neighbouring row.
             val iconSize = if (explicitCell) {
-                (cellSizePx * ICON_FILL_RATIO).toInt()
+                CaddyCardMetrics.iconSizePx(cellSizePx, iconFillRatio)
             } else {
                 dp(context, if (fitGridToHost) 54f else 56f)
             }
-            addCaddyAppIcon(context, cell, app, iconSize, iconBinder, fitGridToHost)
+            addCaddyAppIcon(
+                context,
+                cell,
+                app,
+                iconSize,
+                iconBinder,
+                fitGridToHost,
+                if (explicitCell) cellSizePx else 0,
+            )
+        }
+        // iOS App Library places the category name under its icons; the drawer and workspace keep
+        // the name on top.
+        if ((showTitle || isAddCategory) && titleAtBottom && !isAddCategory) {
+            card.addView(
+                makeTitle(),
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ),
+            )
         }
         host.contentDescription = title
     }
@@ -255,6 +265,7 @@ object CaddyCardRenderer {
         iconSize: Int,
         iconBinder: (BubbleTextView, AppInfo) -> Unit,
         fitGridToHost: Boolean,
+        cellSizePx: Int,
     ) {
         // Use the same launcher icon widget as the default drawer. Its tag,
         // popup anchor, and long-press lifecycle are understood by Lawnchair's
@@ -272,41 +283,36 @@ object CaddyCardRenderer {
         // clips adaptive icons into a flat-bottom shape. Disable that mode and
         // center only the actual drawable using BubbleTextView's native icon size.
         icon.setCenterVertically(false)
-        // A workspace card's preview row is dynamically measured. Give its
-        // BubbleTextView a square, centered viewport so its drawable cannot be
-        // laid out against a full-height cell and then clipped by the card edge.
-        // The drawer retains its original full-cell layout.
-        if (fitGridToHost) {
-            icon.setPadding(0, 0, 0, 0)
-        } else {
-            val topInset = Math.max(0, (cell.layoutParams?.height ?: 0) - icon.iconSize) / 2
-            icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
-        }
         icon.gravity = Gravity.CENTER
-        // BubbleTextView's icon size is final, set from the device profile at inflation and
-        // never changeable at runtime. Laying it out at a smaller size therefore clips the
-        // drawable (which is what distorted the workspace cards). Instead lay the icon out at
-        // its own native size and scale the whole view down to the slot we want; with clipping
-        // disabled on the cell this never crops the icon.
-        val nativeSize = icon.iconSize.takeIf { it > 0 } ?: iconSize
-        val scale = if (fitGridToHost) {
-            CaddyHomeCardLayout.iconScale(iconSize, nativeSize)
-        } else {
-            1f
-        }
-        val iconParams = FrameLayout.LayoutParams(
-            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
-            if (fitGridToHost) nativeSize else ViewGroup.LayoutParams.MATCH_PARENT,
-            Gravity.CENTER,
-        )
         cell.clipChildren = false
         cell.clipToPadding = false
         icon.clipToOutline = false
-        if (scale < 1f) {
-            icon.scaleX = scale
-            icon.scaleY = scale
+
+        if (fitGridToHost && cellSizePx > 0) {
+            // Shrink the drawable itself with setIconSizeOverride and give the icon a viewport
+            // exactly its own size, centered in the cell. Scaling the whole view instead left it
+            // laid out at the native (larger) size, so neighbouring cells' icons overlapped in the
+            // middle of the card; overriding the drawable bounds keeps every icon inside its cell.
+            icon.setIconSizeOverride(iconSize)
+            icon.setPadding(0, 0, 0, 0)
+            cell.addView(
+                icon,
+                FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER),
+            )
+            return
         }
-        cell.addView(icon, iconParams)
+
+        // Drawer card: keep the original full-cell layout with a vertical inset.
+        val topInset = Math.max(0, (cell.layoutParams?.height ?: 0) - icon.iconSize) / 2
+        icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
+        cell.addView(
+            icon,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER,
+            ),
+        )
     }
 
     /**
@@ -355,6 +361,13 @@ object CaddyCardRenderer {
 
     private fun dp(context: Context, value: Float): Int = Utilities.dpToPx(value, context)
 
+    /** Blends [amount] of [accent] into [base]; used to tint the "+ Add" card. */
+    private fun blend(base: Int, accent: Int, amount: Float): Int = Color.rgb(
+        Math.round(Color.red(base) * (1f - amount) + Color.red(accent) * amount),
+        Math.round(Color.green(base) * (1f - amount) + Color.green(accent) * amount),
+        Math.round(Color.blue(base) * (1f - amount) + Color.blue(accent) * amount),
+    )
+
     private const val MAX_PREVIEW_ICONS = 4
-    private const val ICON_FILL_RATIO = 0.84f
+    private const val ICON_FILL_RATIO = 0.86f
 }

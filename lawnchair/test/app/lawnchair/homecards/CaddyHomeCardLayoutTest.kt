@@ -91,22 +91,6 @@ class CaddyHomeCardLayoutTest {
         assertThat(CaddyHomeCardLayout.overlaps(0, 0, 2, 2, 2, 0, 2, 2)).isFalse()
     }
 
-    @Test
-    fun iconScale_shrinksAnIconThatIsLargerThanItsSlot() {
-        assertThat(CaddyHomeCardLayout.iconScale(slotPx = 60, nativePx = 120)).isEqualTo(0.5f)
-    }
-
-    @Test
-    fun iconScale_neverEnlargesAnIconPastItsNativeSize() {
-        assertThat(CaddyHomeCardLayout.iconScale(slotPx = 240, nativePx = 120)).isEqualTo(1f)
-    }
-
-    @Test
-    fun iconScale_isOneForInvalidSizes() {
-        assertThat(CaddyHomeCardLayout.iconScale(0, 120)).isEqualTo(1f)
-        assertThat(CaddyHomeCardLayout.iconScale(60, 0)).isEqualTo(1f)
-    }
-
     // --- icon area from the real measured title height (the 4-icon clipping defect) ---
 
     @Test

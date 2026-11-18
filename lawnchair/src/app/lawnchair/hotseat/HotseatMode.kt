@@ -3,6 +3,7 @@ package app.lawnchair.hotseat
 import android.content.Context
 import androidx.annotation.LayoutRes
 import androidx.annotation.StringRes
+import app.lawnchair.util.isPackageInstalledAndEnabled
 import com.android.launcher3.R
 
 sealed class HotseatMode(
@@ -12,9 +13,7 @@ sealed class HotseatMode(
     companion object {
         fun fromString(value: String): HotseatMode = when (value) {
             "disabled" -> DisabledHotseat
-
-            // The Google search bar capsule was removed; any stored preference now uses the
-            // Lawnchair (iOS-style) dock instead.
+            "google_search" -> GoogleSearchHotseat
             else -> LawnchairHotseat
         }
 
@@ -24,6 +23,7 @@ sealed class HotseatMode(
         fun values() = listOf(
             DisabledHotseat,
             LawnchairHotseat,
+            GoogleSearchHotseat,
         )
     }
 
@@ -39,6 +39,22 @@ object LawnchairHotseat : HotseatMode(
 ) {
     override fun toString() = "lawnchair"
     override fun isAvailable(context: Context): Boolean = true
+}
+
+/**
+ * The dynamic Google search bar inside the dock.
+ *
+ * Its layout hosts a [app.lawnchair.qsb.GoogleQsbContainerView], which is the real Google
+ * search widget: the same bar Lawnchair shows on the workspace, with voice and Lens. It is
+ * only offered when the Google app is installed.
+ */
+object GoogleSearchHotseat : HotseatMode(
+    nameResourceId = R.string.hotseat_mode_google_search,
+    layoutResourceId = R.layout.search_container_hotseat_google_search,
+) {
+    override fun toString(): String = "google_search"
+
+    override fun isAvailable(context: Context): Boolean = context.packageManager.isPackageInstalledAndEnabled("com.google.android.googlequicksearchbox")
 }
 
 object DisabledHotseat : HotseatMode(
