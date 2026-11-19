@@ -74,6 +74,17 @@ object CaddyCardRenderer {
         // the workspace cell on empty margin.
         host.setPadding(dp(context, 2f), dp(context, 2f), dp(context, 2f), dp(context, 2f))
 
+        // The drawer follows the compact iOS App Library composition: a soft
+        // translucent icon tile with its category label beneath it. Workspace
+        // cards keep their existing renderer and sizing.
+        if (!fitGridToHost) {
+            renderDrawerCategoryCard(
+                host, title, apps, isAddCategory, cardClick, cardLongClick,
+                iconBinder, columns, maxIcons,
+            )
+            return
+        }
+
         val densityPadding = dp(context, 14f)
         val themeColor = resolveDynamicColor(context)
         // Translucent Nothing-style glass, tinted by Lawnchair's existing folder /
@@ -230,6 +241,137 @@ object CaddyCardRenderer {
             addCaddyAppIcon(context, cell, app, iconSize, iconBinder, fitGridToHost)
         }
         host.contentDescription = title
+    }
+
+    private fun renderDrawerCategoryCard(
+        host: FrameLayout,
+        title: String?,
+        apps: List<AppInfo>,
+        isAddCategory: Boolean,
+        cardClick: (() -> Unit)?,
+        cardLongClick: (() -> Boolean)?,
+        iconBinder: (BubbleTextView, AppInfo) -> Unit,
+        columns: Int,
+        maxIcons: Int,
+    ) {
+        val context = host.context
+        val themeColor = resolveDynamicColor(context)
+        // Light, wallpaper-tinted glass like the supplied App Library reference.
+        val red = Math.round(Color.red(themeColor) * 0.22f + 238f * 0.78f)
+        val green = Math.round(Color.green(themeColor) * 0.22f + 241f * 0.78f)
+        val blue = Math.round(Color.blue(themeColor) * 0.22f + 247f * 0.78f)
+        val topColor = Color.argb(214, red, green, blue)
+        val bottomColor = Color.argb(190, Math.max(0, red - 8), Math.max(0, green - 8), Math.max(0, blue - 8))
+        val foreground = Color.rgb(28, 33, 42)
+
+        val card = FrameLayout(context)
+        val background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(topColor, bottomColor),
+        ).apply {
+            cornerRadius = dp(context, 24f).toFloat()
+            setStroke(
+                dp(context, 1f),
+                Color.argb(104, Color.red(themeColor), Color.green(themeColor), Color.blue(themeColor)),
+            )
+        }
+        card.background = background
+        card.clipToOutline = true
+        card.elevation = dp(context, 1.5f).toFloat()
+        card.isClickable = true
+        card.isFocusable = true
+        card.setOnClickListener { cardClick?.invoke() }
+        card.setOnLongClickListener { cardLongClick?.invoke() ?: false }
+        host.addView(
+            card,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(context, 148f),
+                Gravity.TOP,
+            ),
+        )
+
+        if (isAddCategory) {
+            val plus = TextView(context).apply {
+                text = "+"
+                setTextColor(foreground)
+                textSize = 42f
+                gravity = Gravity.CENTER
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { cardClick?.invoke() }
+                setOnLongClickListener { cardLongClick?.invoke() ?: false }
+            }
+            card.addView(
+                plus,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        } else {
+            val grid = GridLayout(context).apply {
+                columnCount = columns
+                rowCount = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
+                useDefaultMargins = false
+                clipChildren = false
+                clipToPadding = false
+            }
+            card.addView(
+                grid,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ).apply {
+                    setMargins(dp(context, 7f), dp(context, 7f), dp(context, 7f), dp(context, 7f))
+                },
+            )
+            for (index in 0 until minOf(apps.size, maxIcons)) {
+                val cell = FrameLayout(context).apply {
+                    clipChildren = false
+                    clipToPadding = false
+                }
+                val lp = GridLayout.LayoutParams().apply {
+                    width = 0
+                    height = dp(context, 64f)
+                    columnSpec = GridLayout.spec(index % columns, 1f)
+                    rowSpec = GridLayout.spec(index / columns)
+                }
+                grid.addView(cell, lp)
+                addCaddyAppIcon(
+                    context,
+                    cell,
+                    apps[index],
+                    dp(context, 48f),
+                    iconBinder,
+                    fitGridToHost = false,
+                )
+            }
+        }
+
+        val label = TextView(context).apply {
+            text = if (isAddCategory) "+  Add category" else title
+            setTextColor(foreground)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(context, 5f), 0, dp(context, 5f), 0)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { cardClick?.invoke() }
+            setOnLongClickListener { cardLongClick?.invoke() ?: false }
+        }
+        host.addView(
+            label,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(context, 28f),
+                Gravity.BOTTOM,
+            ),
+        )
+        host.contentDescription = title ?: if (isAddCategory) "Add category" else null
     }
 
     private fun addCaddyAppIcon(
