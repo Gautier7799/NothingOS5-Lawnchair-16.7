@@ -88,6 +88,7 @@ class AllAppsSearchInput(context: Context, attrs: AttributeSet?) :
     private lateinit var hint: TextView
     private lateinit var input: FallbackSearchInputView
     private lateinit var qsbShell: ComposeView
+    private lateinit var searchWrapper: FrameLayout
 
     private val qsbMarginTopAdjusting = resources.getDimensionPixelSize(R.dimen.qsb_margin_top_adjusting)
     private val allAppsSearchVerticalOffset = resources.getDimensionPixelSize(R.dimen.all_apps_search_vertical_offset)
@@ -135,6 +136,8 @@ class AllAppsSearchInput(context: Context, attrs: AttributeSet?) :
         input = ViewCompat.requireViewById(this, R.id.input)
 
         qsbShell = ViewCompat.requireViewById(this, R.id.qsb_shell)
+        searchWrapper = ViewCompat.requireViewById(this, R.id.search_wrapper)
+        searchWrapper.setOnClickListener { focusSearchInput() }
 
         qsbShell.apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
@@ -206,13 +209,7 @@ class AllAppsSearchInput(context: Context, attrs: AttributeSet?) :
                 )
 
                 val actions = QsbActions(
-                    onQsbClick = {
-                        if (input.text.isNullOrEmpty()) {
-                            searchAlgorithm?.doZeroStateSearch(this@AllAppsSearchInput)
-                        }
-                        input.requestFocus()
-                        input.showKeyboard()
-                    },
+                    onQsbClick = ::focusSearchInput,
                     onStartIconClick = if (shouldShowIcons) {
                         {
                             val launcher = context.launcher
@@ -331,6 +328,19 @@ class AllAppsSearchInput(context: Context, attrs: AttributeSet?) :
             isGone = true
             layoutParams.height = 0
         }
+    }
+
+    /**
+     * Route every tap on the visible all-apps search surface to the real EditText.
+     * The Compose QSB is a visual/action layer; the EditText remains the search
+     * controller's input and must receive focus before the keyboard is requested.
+     */
+    private fun focusSearchInput() {
+        if (input.text.isNullOrEmpty()) {
+            searchAlgorithm?.doZeroStateSearch(this)
+        }
+        input.requestFocus()
+        input.showKeyboard()
     }
 
     private fun setupPadding() {
