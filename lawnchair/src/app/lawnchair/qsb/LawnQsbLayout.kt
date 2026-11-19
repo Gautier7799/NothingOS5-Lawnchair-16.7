@@ -138,16 +138,15 @@ class LawnQsbLayout(context: Context, attrs: AttributeSet?) : FrameLayout(contex
             }
         }
 
-        // Stop Compose QSB from disappearing
-        // https://stackoverflow.com/questions/72781705/jetpack-compose-view-not-drawing-when-coming-back-to-fragment/77496737#77496737
+        // Keep the QSB composition alive while attached. The configured
+        // DisposeOnDetachedFromWindow strategy already releases it when the
+        // launcher view is detached; disposing it on attachment destroys the
+        // clickable Compose surface and leaves the visible search pill inert.
         composeView.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(v: View) {
                 requestLayout()
-                composeView.disposeComposition()
             }
-            override fun onViewDetachedFromWindow(v: View) {
-                composeView.disposeComposition()
-            }
+            override fun onViewDetachedFromWindow(v: View) = Unit
         })
 
         addView(
