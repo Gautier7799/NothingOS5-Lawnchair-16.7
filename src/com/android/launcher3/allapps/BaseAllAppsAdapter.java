@@ -348,14 +348,14 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 return new ViewHolder(new View(mActivityContext));
             case VIEW_TYPE_CADDY_CATEGORY:
                 FrameLayout caddyCard = new FrameLayout(mActivityContext);
-                int caddyHeight = dp(204);
+                int caddyHeight = dp(184);
                 caddyCard.setLayoutParams(new RecyclerView.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, caddyHeight));
                 return new ViewHolder(caddyCard);
             case VIEW_TYPE_CADDY_SPACER:
                 View caddySpacer = new View(mActivityContext);
                 caddySpacer.setLayoutParams(new RecyclerView.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, dp(204)));
+                        ViewGroup.LayoutParams.MATCH_PARENT, dp(184)));
                 return new ViewHolder(caddySpacer);
             case VIEW_TYPE_FOLDER:
                 // LC-Feature: Folder support in All Apps
@@ -468,7 +468,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 AdapterItem caddyItem = mApps.getAdapterItems().get(position);
                 ViewGroup.LayoutParams caddyParams = holder.itemView.getLayoutParams();
                 if (caddyParams != null) {
-                    caddyParams.height = dp(204);
+                    caddyParams.height = dp(184);
                     holder.itemView.setLayoutParams(caddyParams);
                 }
                 if (caddyItem.caddyIsSearchActions) {
@@ -482,7 +482,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 holder.itemView.setVisibility(View.INVISIBLE);
                 ViewGroup.LayoutParams spacerParams = holder.itemView.getLayoutParams();
                 if (spacerParams != null) {
-                    spacerParams.height = dp(204);
+                    spacerParams.height = dp(184);
                     holder.itemView.setLayoutParams(spacerParams);
                 }
                 break;
