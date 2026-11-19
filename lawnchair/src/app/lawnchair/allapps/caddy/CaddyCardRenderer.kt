@@ -404,9 +404,12 @@ object CaddyCardRenderer {
             .inflate(R.layout.all_apps_icon, cell, false) as BubbleTextView
         icon.applyFromApplicationInfo(app)
         icon.setTextVisibility(false)
-        // Home cards are icon-only. Removing the invisible label lets TextView's
-        // CENTER gravity center the actual drawable in the available cell.
-        if (fitGridToHost) icon.text = ""
+        // Caddy previews are icon-only in both the drawer and workspace.
+        // A transparent TextView label still reserves a full text line in
+        // BubbleTextView; in the compact drawer cells that extra line makes the
+        // icon compound drawable exceed the cell height and appear clipped or
+        // crowded against the neighboring row. Remove the label, not just its alpha.
+        icon.text = ""
         icon.setLongPressTimeoutFactor(1f)
         icon.contentDescription = app.title
         iconBinder(icon, app)
