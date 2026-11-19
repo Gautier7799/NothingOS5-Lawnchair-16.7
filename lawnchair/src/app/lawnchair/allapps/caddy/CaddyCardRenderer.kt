@@ -256,32 +256,31 @@ object CaddyCardRenderer {
     ) {
         val context = host.context
         val themeColor = resolveDynamicColor(context)
-        // Light, wallpaper-tinted glass like the supplied App Library reference.
-        val red = Math.round(Color.red(themeColor) * 0.22f + 238f * 0.78f)
-        val green = Math.round(Color.green(themeColor) * 0.22f + 241f * 0.78f)
-        val blue = Math.round(Color.blue(themeColor) * 0.22f + 247f * 0.78f)
-        val topColor = Color.argb(214, red, green, blue)
-        val bottomColor = Color.argb(190, Math.max(0, red - 8), Math.max(0, green - 8), Math.max(0, blue - 8))
-        val foreground = Color.rgb(28, 33, 42)
 
+        // iOS App Library-inspired translucent category tile. Android's ordinary
+        // drawable background cannot blur the wallpaper behind it, so use a
+        // genuinely translucent Monet-tinted surface and a fine outline instead
+        // of pretending that a solid opaque fill is backdrop blur.
+        val red = Math.round(Color.red(themeColor) * 0.18f + 232f * 0.82f)
+        val green = Math.round(Color.green(themeColor) * 0.18f + 236f * 0.82f)
+        val blue = Math.round(Color.blue(themeColor) * 0.18f + 244f * 0.82f)
         val card = FrameLayout(context)
-        val background = GradientDrawable(
+        card.background = GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(topColor, bottomColor),
+            intArrayOf(
+                Color.argb(154, red, green, blue),
+                Color.argb(128, Math.max(0, red - 12), Math.max(0, green - 12), Math.max(0, blue - 12)),
+            ),
         ).apply {
-            cornerRadius = dp(context, 24f).toFloat()
-            setStroke(
-                dp(context, 1f),
-                Color.argb(104, Color.red(themeColor), Color.green(themeColor), Color.blue(themeColor)),
-            )
+            cornerRadius = dp(context, 22f).toFloat()
+            setStroke(dp(context, 1f), Color.argb(92, 255, 255, 255))
         }
-        card.background = background
         card.clipToOutline = true
-        card.elevation = dp(context, 1.5f).toFloat()
         card.isClickable = true
         card.isFocusable = true
         card.setOnClickListener { cardClick?.invoke() }
         card.setOnLongClickListener { cardLongClick?.invoke() ?: false }
+        card.elevation = dp(context, 1f).toFloat()
         host.addView(
             card,
             FrameLayout.LayoutParams(
@@ -294,7 +293,7 @@ object CaddyCardRenderer {
         if (isAddCategory) {
             val plus = TextView(context).apply {
                 text = "+"
-                setTextColor(foreground)
+                setTextColor(Color.rgb(35, 42, 54))
                 textSize = 42f
                 gravity = Gravity.CENTER
                 isClickable = true
@@ -310,54 +309,112 @@ object CaddyCardRenderer {
                 ),
             )
         } else {
-            val grid = GridLayout(context).apply {
-                columnCount = columns
-                rowCount = if (maxIcons <= 0) 2 else (maxIcons + columns - 1) / columns
-                useDefaultMargins = false
+            val visibleApps = apps.take(maxOf(4, maxIcons) + 4)
+            val content = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(context, 7f), dp(context, 7f), dp(context, 7f), dp(context, 5f))
                 clipChildren = false
                 clipToPadding = false
             }
             card.addView(
-                grid,
+                content,
                 FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                ).apply {
-                    setMargins(dp(context, 7f), dp(context, 7f), dp(context, 7f), dp(context, 7f))
-                },
+                ),
             )
-            for (index in 0 until minOf(apps.size, maxIcons)) {
+
+            // Four featured native launcher icons form the main 2x2 grid.
+            val grid = GridLayout(context).apply {
+                columnCount = 2
+                rowCount = 2
+                useDefaultMargins = false
+                clipChildren = false
+                clipToPadding = false
+            }
+            content.addView(
+                grid,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    0,
+                    if (visibleApps.size > 4) 1.0f else 1.0f,
+                ),
+            )
+            for (index in 0 until minOf(4, visibleApps.size)) {
                 val cell = FrameLayout(context).apply {
                     clipChildren = false
                     clipToPadding = false
                 }
-                val lp = GridLayout.LayoutParams().apply {
-                    width = 0
-                    height = dp(context, 64f)
-                    columnSpec = GridLayout.spec(index % columns, 1f)
-                    rowSpec = GridLayout.spec(index / columns)
-                }
-                grid.addView(cell, lp)
+                grid.addView(
+                    cell,
+                    GridLayout.LayoutParams().apply {
+                        width = 0
+                        height = 0
+                        columnSpec = GridLayout.spec(index % 2, 1f)
+                        rowSpec = GridLayout.spec(index / 2, 1f)
+                    },
+                )
                 addCaddyAppIcon(
                     context,
                     cell,
-                    apps[index],
-                    dp(context, 48f),
+                    visibleApps[index],
+                    dp(context, 43f),
                     iconBinder,
                     fitGridToHost = false,
                 )
             }
+
+            // Additional category members remain visible as a compact native-icon
+            // strip, matching the small secondary icons used by App Library groups.
+            val extraApps = visibleApps.drop(4)
+            if (extraApps.isNotEmpty()) {
+                val extras = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    clipChildren = false
+                    clipToPadding = false
+                }
+                content.addView(
+                    extras,
+                    LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        dp(context, 34f),
+                    ),
+                )
+                extraApps.forEach { app ->
+                    val cell = FrameLayout(context).apply {
+                        clipChildren = false
+                        clipToPadding = false
+                    }
+                    extras.addView(
+                        cell,
+                        LinearLayout.LayoutParams(dp(context, 34f), dp(context, 32f)),
+                    )
+                    addCaddyAppIcon(
+                        context,
+                        cell,
+                        app,
+                        dp(context, 25f),
+                        iconBinder,
+                        fitGridToHost = false,
+                    )
+                    cell.getChildAt(0)?.let { icon ->
+                        icon.scaleX = 0.58f
+                        icon.scaleY = 0.58f
+                    }
+                }
+            }
         }
 
         val label = TextView(context).apply {
-            text = if (isAddCategory) "+  Add category" else title
-            setTextColor(foreground)
+            text = if (isAddCategory) "Add category" else title
+            setTextColor(Color.rgb(28, 33, 42))
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 5f), 0, dp(context, 5f), 0)
+            setPadding(dp(context, 4f), 0, dp(context, 4f), 0)
             isClickable = true
             isFocusable = true
             setOnClickListener { cardClick?.invoke() }
