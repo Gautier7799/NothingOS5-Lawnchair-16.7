@@ -285,7 +285,7 @@ object CaddyCardRenderer {
             card,
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(context, 148f),
+                dp(context, 168f),
                 Gravity.TOP,
             ),
         )
@@ -358,7 +358,7 @@ object CaddyCardRenderer {
                     context,
                     cell,
                     visibleApps[index],
-                    dp(context, 43f),
+                    dp(context, 46f),
                     iconBinder,
                     fitGridToHost = false,
                 )
@@ -394,14 +394,10 @@ object CaddyCardRenderer {
                         context,
                         cell,
                         app,
-                        dp(context, 25f),
+                        dp(context, 24f),
                         iconBinder,
                         fitGridToHost = false,
                     )
-                    cell.getChildAt(0)?.let { icon ->
-                        icon.scaleX = 0.58f
-                        icon.scaleY = 0.58f
-                    }
                 }
             }
         }
@@ -465,8 +461,12 @@ object CaddyCardRenderer {
         if (fitGridToHost) {
             icon.setPadding(0, 0, 0, 0)
         } else {
-            val topInset = Math.max(0, (cell.layoutParams?.height ?: 0) - icon.iconSize) / 2
-            icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
+            // Drawer preview cells have a fixed square viewport. Override the
+            // launcher-wide icon size for this compact grid; otherwise each
+            // BubbleTextView keeps the full drawer icon bounds and overlaps its
+            // neighboring cell. The supplied size is the actual drawable size.
+            icon.setIconSizeOverride(iconSize)
+            icon.setPadding(0, 0, 0, 0)
         }
         icon.gravity = Gravity.CENTER
         // Laying the icon out at a smaller view size clips the drawable, because
