@@ -19,6 +19,7 @@ package app.lawnchair.homecards
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
@@ -28,6 +29,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.GridLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -40,12 +42,10 @@ import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.touch.ItemClickHandler
 
 /**
- * Full-screen Caddy App Library.
+ * Full-screen iOS-inspired App Library.
  *
- * Presents every app on the device grouped into the same categories the drawer's
- * Caddy cards use, but in one scrollable page so the whole library is reachable
- * without opening the drawer. Tapping a category title opens the shared category
- * panel; tapping an icon launches the app exactly like the drawer does.
+ * Uses the launcher's original app icon views and the same Caddy categories,
+ * presented as a two-column grid of translucent glass-style category cards.
  */
 class CaddyAppLibraryPage @JvmOverloads constructor(
     context: Context,
@@ -57,7 +57,7 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     init {
         orientation = VERTICAL
-        setBackgroundColor(Color.argb(236, 12, 14, 16))
+        setBackgroundColor(Color.TRANSPARENT)
         isClickable = true
         isFocusable = true
         addView(
@@ -71,23 +71,37 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         val apps = launcher.appsView?.appsStore?.apps?.toList().orEmpty()
         val categories = CaddyHomeCardSource.build(context, apps)
 
-        content.addView(buildHeader(launcher))
+        content.addView(buildSearchHeader())
         if (categories.isEmpty()) return
 
         val scroll = ScrollView(context)
-        val column = LinearLayout(context)
-        column.orientation = VERTICAL
-        column.setPadding(dp(16f), 0, dp(16f), dp(24f))
-        scroll.addView(column)
+        scroll.isFillViewport = true
+        scroll.clipToPadding = false
+        val grid = GridLayout(context).apply {
+            columnCount = 2
+            useDefaultMargins = false
+            setPadding(dp(16f), dp(8f), dp(16f), dp(28f))
+        }
+        scroll.addView(grid)
         content.addView(
             scroll,
             LayoutParams(LayoutParams.MATCH_PARENT, 0).apply { weight = 1f },
         )
 
         val resolveApp = appResolver(apps)
-        categories.forEach { category ->
-            column.addView(buildCategoryTitle(category.title, category.appKeys.mapNotNull(resolveApp)))
-            column.addView(buildCategoryGrid(category.appKeys.mapNotNull(resolveApp)))
+        categories.forEachIndexed { index, category ->
+            val categoryApps = category.appKeys.mapNotNull(resolveApp)
+            if (categoryApps.isEmpty()) return@forEachIndexed
+            val card = buildCategoryCard(category.title, categoryApps)
+            val params = GridLayout.LayoutParams(
+                GridLayout.spec(index / 2, 1f),
+                GridLayout.spec(index % 2, 1f),
+            ).apply {
+                width = 0
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
+                setMargins(dp(5f), dp(5f), dp(5f), dp(10f))
+            }
+            grid.addView(card, params)
         }
     }
 
@@ -96,70 +110,150 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         mIsOpen = true
     }
 
-    private fun buildHeader(launcher: Launcher): View {
-        val header = LinearLayout(context)
-        header.orientation = HORIZONTAL
-        header.gravity = Gravity.CENTER_VERTICAL
-        header.setPadding(dp(20f), dp(18f), dp(12f), dp(12f))
-
-        val title = TextView(context)
-        title.text = context.getString(R.string.caddy_app_library_title)
-        title.setTextColor(Color.WHITE)
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-        title.typeface = Typeface.DEFAULT_BOLD
+    private fun buildSearchHeader(): View {
+        val header = LinearLayout(context).apply {
+            orientation = VERTICAL
+            setPadding(dp(20f), dp(18f), dp(20f), dp(12f))
+        }
+        val search = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER
+            background = roundedSurface(
+                fill = Color.argb(48, 255, 255, 255),
+                stroke = Color.argb(42, 255, 255, 255),
+                radius = 20f,
+            )
+            setPadding(dp(14f), 0, dp(14f), 0)
+            minimumHeight = dp(54f)
+        }
+        val magnifier = ImageView(context).apply {
+            setImageResource(android.R.drawable.ic_menu_search)
+            setColorFilter(Color.WHITE)
+            alpha = 0.82f
+            contentDescription = null
+        }
+        search.addView(magnifier, LinearLayout.LayoutParams(dp(22f), dp(22f)))
+        val label = TextView(context).apply {
+            text = context.getString(R.string.caddy_app_library_title)
+            setTextColor(Color.WHITE)
+            alpha = 0.88f
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
+            setPadding(dp(8f), 0, 0, 0)
+        }
+        search.addView(label)
         header.addView(
-            title,
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT).apply { weight = 1f },
+            search,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(54f),
+            ),
         )
-
-        val close = TextView(context)
-        close.text = "✕"
-        close.setTextColor(Color.WHITE)
-        close.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-        close.gravity = Gravity.CENTER
-        close.isClickable = true
-        close.contentDescription = context.getString(R.string.caddy_app_library_close)
-        close.setOnClickListener { close(true) }
-        header.addView(close, LinearLayout.LayoutParams(dp(48f), dp(48f)))
         return header
     }
 
-    private fun buildCategoryTitle(title: String, apps: List<AppInfo>): View {
-        val view = TextView(context)
-        view.text = title
-        view.setTextColor(Color.WHITE)
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-        view.typeface = Typeface.DEFAULT_BOLD
-        view.setPadding(dp(4f), dp(16f), dp(4f), dp(4f))
-        view.isClickable = true
-        view.setOnClickListener { CaddyCategoryDialog.show(context, title, apps) }
-        return view
+    private fun buildCategoryCard(title: String, apps: List<AppInfo>): View {
+        val wrapper = LinearLayout(context).apply {
+            orientation = VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+        val surface = LinearLayout(context).apply {
+            orientation = VERTICAL
+            gravity = Gravity.CENTER
+            background = roundedSurface(
+                fill = Color.argb(42, 255, 255, 255),
+                stroke = Color.argb(64, 255, 255, 255),
+                radius = 25f,
+            )
+            setPadding(dp(8f), dp(9f), dp(8f), dp(9f))
+            minimumHeight = dp(154f)
+        }
+
+        val featured = apps.take(FEATURED_APP_COUNT)
+        featured.chunked(2).forEach { rowApps ->
+            val row = LinearLayout(context).apply {
+                orientation = HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            rowApps.forEach { app ->
+                val cell = FrameLayout(context)
+                cell.addView(createAppIcon(app), FrameLayout.LayoutParams(dp(62f), dp(62f), Gravity.CENTER))
+                row.addView(
+                    cell,
+                    LinearLayout.LayoutParams(0, dp(66f), 1f),
+                )
+            }
+            if (rowApps.size == 1) {
+                row.addView(View(context), LinearLayout.LayoutParams(0, dp(66f), 1f))
+            }
+            surface.addView(row)
+        }
+
+        val extraApps = apps.drop(FEATURED_APP_COUNT).take(MAX_EXTRA_ICONS)
+        if (extraApps.isNotEmpty()) {
+            val extras = LinearLayout(context).apply {
+                orientation = HORIZONTAL
+                gravity = Gravity.CENTER
+                setPadding(0, dp(5f), 0, 0)
+            }
+            extraApps.forEach { app ->
+                val cell = FrameLayout(context)
+                cell.addView(
+                    createAppIcon(app),
+                    FrameLayout.LayoutParams(dp(31f), dp(31f), Gravity.CENTER),
+                )
+                extras.addView(cell, LinearLayout.LayoutParams(0, dp(36f), 1f))
+            }
+            surface.addView(extras)
+        }
+
+        wrapper.addView(
+            surface,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+        val caption = TextView(context).apply {
+            text = title
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            gravity = Gravity.CENTER
+            maxLines = 1
+            setPadding(dp(2f), dp(5f), dp(2f), 0)
+            isClickable = true
+            setOnClickListener { CaddyCategoryDialog.show(context, title, apps) }
+        }
+        wrapper.addView(
+            caption,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+        return wrapper
     }
 
-    private fun buildCategoryGrid(apps: List<AppInfo>): View {
-        val grid = GridLayout(context)
-        grid.columnCount = COLUMN_COUNT
-        grid.useDefaultMargins = false
-        apps.forEachIndexed { index, app ->
-            val cell = FrameLayout(context)
-            val icon = LayoutInflater.from(context)
-                .inflate(R.layout.all_apps_icon, cell, false) as BubbleTextView
-            icon.applyFromApplicationInfo(app)
-            icon.setTextVisibility(false)
-            icon.setLongPressTimeoutFactor(1f)
-            icon.contentDescription = app.title
-            icon.setOnClickListener(ItemClickHandler.INSTANCE)
-            icon.setOnLongClickListener(CaddyCardIconLongClick.LISTENER)
-            icon.gravity = Gravity.CENTER
-            cell.addView(icon)
-            val params = GridLayout.LayoutParams()
-            params.width = 0
-            params.height = dp(64f)
-            params.columnSpec = GridLayout.spec(index % COLUMN_COUNT, 1f)
-            grid.addView(cell, params)
-        }
-        return grid
+    private fun createAppIcon(app: AppInfo): BubbleTextView {
+        val icon = LayoutInflater.from(context)
+            .inflate(R.layout.all_apps_icon, this, false) as BubbleTextView
+        icon.applyFromApplicationInfo(app)
+        icon.setTextVisibility(false)
+        icon.setLongPressTimeoutFactor(1f)
+        icon.contentDescription = app.title
+        icon.setOnClickListener(ItemClickHandler.INSTANCE)
+        icon.setOnLongClickListener(CaddyCardIconLongClick.LISTENER)
+        icon.gravity = Gravity.CENTER
+        return icon
     }
+
+    private fun roundedSurface(fill: Int, stroke: Int, radius: Float): GradientDrawable =
+        GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(radius)
+            setColor(fill)
+            setStroke(dp(1f), stroke)
+        }
 
     private fun appResolver(apps: List<AppInfo>): (String) -> AppInfo? {
         val byKey = apps.associateBy { CaddyHomeCardSource.appKeyOf(it) }
@@ -180,8 +274,10 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     private fun dp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
-        private const val COLUMN_COUNT = 4
+        private const val FEATURED_APP_COUNT = 4
+        private const val MAX_EXTRA_ICONS = 4
         private const val CLOSE_DURATION_MS = 150L
+        private const val OPEN_DURATION_MS = 180L
 
         /** Shows the App Library, reusing the open page when one already exists. */
         @JvmStatic
@@ -213,7 +309,5 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
         fun close(launcher: Launcher) {
             AbstractFloatingView.closeOpenContainer(launcher, AbstractFloatingView.TYPE_APP_LIBRARY)
         }
-
-        private const val OPEN_DURATION_MS = 180L
     }
 }
