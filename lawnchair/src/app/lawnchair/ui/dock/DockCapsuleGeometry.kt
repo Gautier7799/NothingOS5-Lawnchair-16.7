@@ -89,4 +89,16 @@ object DockCapsuleGeometry {
 
     /** Returns the gap between the search pill and the dock, in px. */
     fun searchPillGapPx(density: Float): Int = (SEARCH_PILL_GAP_DP * density).roundToInt()
+
+    /**
+     * Returns the top of the floating search pill, in px, relative to the top of the dock's icon
+     * container. The pill floats [SEARCH_PILL_GAP_DP] above the panel, so on a full-height panel the
+     * value is negative: the pill sits in the workspace area above the dock and cannot live inside
+     * the dock's own bounds.
+     */
+    fun searchPillTopPx(containerHeightPx: Int, density: Float): Int {
+        val panelHeight = panelHeightPx(containerHeightPx, density)
+        val panelTop = (containerHeightPx - panelHeight) / 2
+        return panelTop - searchPillGapPx(density) - searchPillHeightPx(density)
+    }
 }

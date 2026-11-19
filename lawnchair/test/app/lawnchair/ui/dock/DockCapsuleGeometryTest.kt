@@ -104,4 +104,29 @@ class DockCapsuleGeometryTest {
         val short = DockCapsuleGeometry.preferredCornerRadiusPx(60, pixel8Density, 100f)
         assertThat(short).isLessThan(30f)
     }
+
+    @Test
+    fun searchPillTop_isAboveThePanel() {
+        // The dock container is the full 90dp panel plus the bottom margin (236 + 32 = 268px).
+        val containerHeight = DockCapsuleGeometry.preferredHeightPx(pixel8Density) +
+            DockCapsuleGeometry.bottomMarginPx(pixel8Density)
+        val pillTop = DockCapsuleGeometry.searchPillTopPx(containerHeight, pixel8Density)
+        val panelTop = (containerHeight - DockCapsuleGeometry.preferredHeightPx(pixel8Density)) / 2
+        val pillHeight = DockCapsuleGeometry.searchPillHeightPx(pixel8Density)
+        val gap = DockCapsuleGeometry.searchPillGapPx(pixel8Density)
+
+        // Exactly one gap above the panel, so the pill bottom touches the gap.
+        assertThat(pillTop).isEqualTo(panelTop - gap - pillHeight)
+        assertThat(pillTop + pillHeight).isEqualTo(panelTop - gap)
+        // It floats outside the container: that is why it cannot be a child of the dock.
+        assertThat(pillTop).isLessThan(0)
+    }
+
+    @Test
+    fun searchPillTop_usesTheClampedPanelHeight() {
+        // A container shorter than the panel must not push the pill off the top of the screen.
+        val tight = DockCapsuleGeometry.searchPillTopPx(120, pixel8Density)
+        assertThat(tight).isEqualTo(-DockCapsuleGeometry.searchPillGapPx(pixel8Density) -
+            DockCapsuleGeometry.searchPillHeightPx(pixel8Density))
+    }
 }
