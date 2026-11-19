@@ -35,7 +35,7 @@
         android:layout_height="@dimen/search_box_height"
         android:layout_gravity="center"
         android:background="@android:color/transparent"
-        android:clickable="true"
+        android:clickable="false"
         android:focusable="false"
         android:padding="0dp"
         android:paddingStart="@dimen/qsb_g_icon_marginStart"
