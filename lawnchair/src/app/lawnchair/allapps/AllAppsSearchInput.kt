@@ -88,7 +88,6 @@ class AllAppsSearchInput(context: Context, attrs: AttributeSet?) :
     private lateinit var hint: TextView
     private lateinit var input: FallbackSearchInputView
     private lateinit var qsbShell: ComposeView
-    private lateinit var searchWrapper: FrameLayout
 
     private val qsbMarginTopAdjusting = resources.getDimensionPixelSize(R.dimen.qsb_margin_top_adjusting)
     private val allAppsSearchVerticalOffset = resources.getDimensionPixelSize(R.dimen.all_apps_search_vertical_offset)
@@ -136,8 +135,7 @@ class AllAppsSearchInput(context: Context, attrs: AttributeSet?) :
         input = ViewCompat.requireViewById(this, R.id.input)
 
         qsbShell = ViewCompat.requireViewById(this, R.id.qsb_shell)
-        searchWrapper = ViewCompat.requireViewById(this, R.id.search_wrapper)
-        searchWrapper.setOnClickListener { focusSearchInput() }
+        input.setOnClickListener { focusSearchInput() }
 
         qsbShell.apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
