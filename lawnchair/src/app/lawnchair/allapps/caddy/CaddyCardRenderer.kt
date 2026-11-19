@@ -74,17 +74,6 @@ object CaddyCardRenderer {
         // the workspace cell on empty margin.
         host.setPadding(dp(context, 2f), dp(context, 2f), dp(context, 2f), dp(context, 2f))
 
-        // The drawer follows the compact iOS App Library composition: a soft
-        // translucent icon tile with its category label beneath it. Workspace
-        // cards keep their existing renderer and sizing.
-        if (!fitGridToHost) {
-            renderDrawerCategoryCard(
-                host, title, apps, isAddCategory, cardClick, cardLongClick,
-                iconBinder,
-            )
-            return
-        }
-
         val densityPadding = dp(context, 14f)
         val themeColor = resolveDynamicColor(context)
         // Translucent Nothing-style glass, tinted by Lawnchair's existing folder /
@@ -243,152 +232,6 @@ object CaddyCardRenderer {
         host.contentDescription = title
     }
 
-    private fun renderDrawerCategoryCard(
-        host: FrameLayout,
-        title: String?,
-        apps: List<AppInfo>,
-        isAddCategory: Boolean,
-        cardClick: (() -> Unit)?,
-        cardLongClick: (() -> Boolean)?,
-        iconBinder: (BubbleTextView, AppInfo) -> Unit,
-    ) {
-        val context = host.context
-        val themeColor = resolveDynamicColor(context)
-
-        // iOS App Library-inspired translucent category tile. Android's ordinary
-        // drawable background cannot blur the wallpaper behind it, so use a
-        // genuinely translucent Monet-tinted surface and a fine outline instead
-        // of pretending that a solid opaque fill is backdrop blur.
-        val red = Math.round(Color.red(themeColor) * 0.18f + 232f * 0.82f)
-        val green = Math.round(Color.green(themeColor) * 0.18f + 236f * 0.82f)
-        val blue = Math.round(Color.blue(themeColor) * 0.18f + 244f * 0.82f)
-        val card = FrameLayout(context)
-        card.background = GradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(
-                Color.argb(154, red, green, blue),
-                Color.argb(128, Math.max(0, red - 12), Math.max(0, green - 12), Math.max(0, blue - 12)),
-            ),
-        ).apply {
-            cornerRadius = dp(context, 22f).toFloat()
-            setStroke(dp(context, 1f), Color.argb(92, 255, 255, 255))
-        }
-        card.clipToOutline = true
-        card.isClickable = true
-        card.isFocusable = true
-        card.setOnClickListener { cardClick?.invoke() }
-        card.setOnLongClickListener { cardLongClick?.invoke() ?: false }
-        card.elevation = dp(context, 1f).toFloat()
-        host.addView(
-            card,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(context, 168f),
-                Gravity.TOP,
-            ),
-        )
-
-        if (isAddCategory) {
-            val plus = TextView(context).apply {
-                text = "+"
-                setTextColor(Color.rgb(35, 42, 54))
-                textSize = 42f
-                gravity = Gravity.CENTER
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { cardClick?.invoke() }
-                setOnLongClickListener { cardLongClick?.invoke() ?: false }
-            }
-            card.addView(
-                plus,
-                FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                ),
-            )
-        } else {
-            val visibleApps = apps.take(4)
-            val content = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(context, 7f), dp(context, 7f), dp(context, 7f), dp(context, 5f))
-                clipChildren = false
-                clipToPadding = false
-            }
-            card.addView(
-                content,
-                FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                ),
-            )
-
-            // Four featured native launcher icons form the main 2x2 grid.
-            val grid = GridLayout(context).apply {
-                columnCount = 2
-                rowCount = 2
-                useDefaultMargins = false
-                clipChildren = false
-                clipToPadding = false
-            }
-            content.addView(
-                grid,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    0,
-                    1f,
-                ),
-            )
-            for (index in 0 until minOf(4, visibleApps.size)) {
-                val cell = FrameLayout(context).apply {
-                    clipChildren = false
-                    clipToPadding = false
-                }
-                grid.addView(
-                    cell,
-                    GridLayout.LayoutParams().apply {
-                        width = 0
-                        height = 0
-                        columnSpec = GridLayout.spec(index % 2, 1f)
-                        rowSpec = GridLayout.spec(index / 2, 1f)
-                    },
-                )
-                addCaddyAppIcon(
-                    context,
-                    cell,
-                    visibleApps[index],
-                    dp(context, 46f),
-                    iconBinder,
-                    fitGridToHost = false,
-                )
-            }
-
-        }
-
-        val label = TextView(context).apply {
-            text = if (isAddCategory) "Add category" else title
-            setTextColor(Color.rgb(28, 33, 42))
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            maxLines = 1
-            ellipsize = TextUtils.TruncateAt.END
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 4f), 0, dp(context, 4f), 0)
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { cardClick?.invoke() }
-            setOnLongClickListener { cardLongClick?.invoke() ?: false }
-        }
-        host.addView(
-            label,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(context, 28f),
-                Gravity.BOTTOM,
-            ),
-        )
-        host.contentDescription = title ?: if (isAddCategory) "Add category" else null
-    }
-
     private fun addCaddyAppIcon(
         context: Context,
         cell: FrameLayout,
@@ -404,6 +247,8 @@ object CaddyCardRenderer {
             .inflate(R.layout.all_apps_icon, cell, false) as BubbleTextView
         icon.applyFromApplicationInfo(app)
         icon.setTextVisibility(false)
+        // Home cards are icon-only. Removing the invisible label lets TextView's
+        // CENTER gravity center the actual drawable in the available cell.
         if (fitGridToHost) icon.text = ""
         icon.setLongPressTimeoutFactor(1f)
         icon.contentDescription = app.title
@@ -421,12 +266,8 @@ object CaddyCardRenderer {
         if (fitGridToHost) {
             icon.setPadding(0, 0, 0, 0)
         } else {
-            // Drawer preview cells have a fixed square viewport. Override the
-            // launcher-wide icon size for this compact grid; otherwise each
-            // BubbleTextView keeps the full drawer icon bounds and overlaps its
-            // neighboring cell. The supplied size is the actual drawable size.
-            icon.setIconSizeOverride(iconSize)
-            icon.setPadding(0, 0, 0, 0)
+            val topInset = Math.max(0, (cell.layoutParams?.height ?: 0) - icon.iconSize) / 2
+            icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
         }
         icon.gravity = Gravity.CENTER
         // Laying the icon out at a smaller view size clips the drawable, because
