@@ -188,20 +188,26 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
             surface.addView(row)
         }
 
-        val extraApps = apps.drop(FEATURED_APP_COUNT).take(MAX_EXTRA_ICONS)
+        val extraApps = apps.drop(FEATURED_APP_COUNT)
         if (extraApps.isNotEmpty()) {
-            val extras = LinearLayout(context).apply {
-                orientation = HORIZONTAL
-                gravity = Gravity.CENTER
+            val extras = GridLayout(context).apply {
+                columnCount = 4
                 setPadding(0, dp(5f), 0, 0)
             }
-            extraApps.forEach { app ->
+            extraApps.forEachIndexed { index, app ->
                 val cell = FrameLayout(context)
                 cell.addView(
                     createAppIcon(app),
                     FrameLayout.LayoutParams(dp(31f), dp(31f), Gravity.CENTER),
                 )
-                extras.addView(cell, LinearLayout.LayoutParams(0, dp(36f), 1f))
+                val params = GridLayout.LayoutParams(
+                    GridLayout.spec(index / 4),
+                    GridLayout.spec(index % 4, 1f),
+                ).apply {
+                    width = 0
+                    height = dp(36f)
+                }
+                extras.addView(cell, params)
             }
             surface.addView(extras)
         }
@@ -275,7 +281,6 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
 
     companion object {
         private const val FEATURED_APP_COUNT = 4
-        private const val MAX_EXTRA_ICONS = 4
         private const val CLOSE_DURATION_MS = 150L
         private const val OPEN_DURATION_MS = 180L
 
