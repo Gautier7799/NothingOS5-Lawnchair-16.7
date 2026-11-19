@@ -256,7 +256,7 @@ class CaddyAppLibraryPage @JvmOverloads constructor(
     private fun roundedSurface(fill: Int, stroke: Int, radius: Float): GradientDrawable =
         GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(radius)
+            cornerRadius = dp(radius).toFloat()
             setColor(fill)
             setStroke(dp(1f), stroke)
         }
