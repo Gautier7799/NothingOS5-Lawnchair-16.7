@@ -252,17 +252,10 @@ class AllAppsSearchInput(context: Context, attrs: AttributeSet?) :
             }
         }
 
-        // Stop Compose QSB from disappearing
-        // https://stackoverflow.com/questions/72781705/jetpack-compose-view-not-drawing-when-coming-back-to-fragment/77496737#77496737
-        qsbShell.addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(v: View) {
-                requestLayout()
-                qsbShell.disposeComposition()
-            }
-            override fun onViewDetachedFromWindow(v: View) {
-                qsbShell.disposeComposition()
-            }
-        })
+        // ComposeView already uses DisposeOnDetachedFromWindow above. Do not
+        // manually dispose its composition from onViewAttachedToWindow: doing so
+        // removes the QSB click surface immediately after attachment and leaves
+        // the visible search pill unable to receive its own actions.
 
         // Activate zero search on tap
         @SuppressLint("ClickableViewAccessibility")
