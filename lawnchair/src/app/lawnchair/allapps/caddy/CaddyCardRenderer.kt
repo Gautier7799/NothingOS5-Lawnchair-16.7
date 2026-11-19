@@ -309,7 +309,7 @@ object CaddyCardRenderer {
                 ),
             )
         } else {
-            val visibleApps = apps.take(maxOf(4, maxIcons) + 4)
+            val visibleApps = apps.take(4)
             val content = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(context, 7f), dp(context, 7f), dp(context, 7f), dp(context, 5f))
@@ -364,42 +364,6 @@ object CaddyCardRenderer {
                 )
             }
 
-            // Additional category members remain visible as a compact native-icon
-            // strip, matching the small secondary icons used by App Library groups.
-            val extraApps = visibleApps.drop(4)
-            if (extraApps.isNotEmpty()) {
-                val extras = LinearLayout(context).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    clipChildren = false
-                    clipToPadding = false
-                }
-                content.addView(
-                    extras,
-                    LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        dp(context, 34f),
-                    ),
-                )
-                extraApps.forEach { app ->
-                    val cell = FrameLayout(context).apply {
-                        clipChildren = false
-                        clipToPadding = false
-                    }
-                    extras.addView(
-                        cell,
-                        LinearLayout.LayoutParams(dp(context, 34f), dp(context, 32f)),
-                    )
-                    addCaddyAppIcon(
-                        context,
-                        cell,
-                        app,
-                        dp(context, 24f),
-                        iconBinder,
-                        fitGridToHost = false,
-                    )
-                }
-            }
         }
 
         val label = TextView(context).apply {
