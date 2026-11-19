@@ -80,7 +80,7 @@ object CaddyCardRenderer {
         if (!fitGridToHost) {
             renderDrawerCategoryCard(
                 host, title, apps, isAddCategory, cardClick, cardLongClick,
-                iconBinder, columns, maxIcons,
+                iconBinder,
             )
             return
         }
@@ -251,8 +251,6 @@ object CaddyCardRenderer {
         cardClick: (() -> Unit)?,
         cardLongClick: (() -> Boolean)?,
         iconBinder: (BubbleTextView, AppInfo) -> Unit,
-        columns: Int,
-        maxIcons: Int,
     ) {
         val context = host.context
         val themeColor = resolveDynamicColor(context)
@@ -337,7 +335,7 @@ object CaddyCardRenderer {
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     0,
-                    if (visibleApps.size > 4) 1.0f else 1.0f,
+                    1f,
                 ),
             )
             for (index in 0 until minOf(4, visibleApps.size)) {
