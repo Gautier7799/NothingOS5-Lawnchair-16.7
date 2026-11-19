@@ -18,6 +18,12 @@ import kotlin.math.roundToInt
 /**
  * Draws the small floating search pill that sits just above the iOS dock when the dock search bar
  * is turned off. Tapping it opens the launcher search.
+ *
+ * The pill floats in the gap above the dock panel, which is outside the dock's own bounds. A child
+ * drawn outside its parent still paints when `clipChildren` is off, but it never receives touches,
+ * so the pill is hosted by the DragLayer instead of the Hotseat. Because it is no longer a
+ * descendant of the dock it does not inherit the dock's alpha, so `Hotseat` pushes its alpha down
+ * explicitly.
  */
 class DockSearchPill private constructor(private val host: Hotseat) {
 
@@ -25,6 +31,10 @@ class DockSearchPill private constructor(private val host: Hotseat) {
     private val density = context.resources.displayMetrics.density
     private val pill = LinearLayout(context)
     private val position = Runnable { position() }
+    private val attachRunnable = Runnable { attach() }
+    private var attachAttempts = 0
+    private val containerLocation = IntArray(2)
+    private val dragLayerLocation = IntArray(2)
 
     private fun dp(value: Int) = (value * density).roundToInt()
 
@@ -74,20 +84,30 @@ class DockSearchPill private constructor(private val host: Hotseat) {
         val container = host.iconsContainer ?: return
         val containerHeight = container.height
         if (containerHeight <= 0) return
-        val panelHeight = DockCapsuleGeometry.panelHeightPx(containerHeight, density)
-        val panelTop = (containerHeight - panelHeight) / 2
-        val pillHeight = DockCapsuleGeometry.searchPillHeightPx(density)
-        val gap = DockCapsuleGeometry.searchPillGapPx(density)
-        // The pill floats in the gap above the panel; the container clips to padding off, so it can
-        // overflow upward.
-        pill.translationY = (panelTop - gap - pillHeight - container.paddingTop).toFloat()
+        val parent = pill.parent as? View ?: return
+        // The pill is a DragLayer sibling, so the dock has to be resolved in the DragLayer's
+        // coordinate space before the pill can be placed above it.
+        container.getLocationInWindow(containerLocation)
+        parent.getLocationInWindow(dragLayerLocation)
+        val containerTopInParent = containerLocation[1] - dragLayerLocation[1]
+        val pillTop = containerTopInParent +
+            DockCapsuleGeometry.searchPillTopPx(containerHeight, density)
+        pill.translationY = pillTop.toFloat()
     }
 
     private fun attach() {
-        val container = host.iconsContainer ?: return
         if (pill.parent != null) return
-        container.addView(pill)
+        val container = host.iconsContainer ?: return
+        // The Hotseat is inflated before the Launcher resolves its DragLayer, so the first attempt
+        // usually has no host yet. Retry on the next message-loop turn.
+        val dragLayer = (context as? Launcher)?.dragLayer
+        if (dragLayer == null) {
+            if (attachAttempts++ < MAX_ATTACH_ATTEMPTS) host.post(attachRunnable)
+            return
+        }
+        dragLayer.addView(pill)
         container.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> position.run() }
+        host.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> position.run() }
         container.post(position)
     }
 
@@ -99,6 +119,7 @@ class DockSearchPill private constructor(private val host: Hotseat) {
         private const val ICON_SIZE_DP = 14
         private const val LABEL_MARGIN_DP = 4
         private const val LABEL_TEXT_SIZE_SP = 12f
+        private const val MAX_ATTACH_ATTEMPTS = 30
         private val EDGE_COLOR = Color.argb(90, 255, 255, 255)
 
         /** Adds the floating search pill above the dock and returns it. */
