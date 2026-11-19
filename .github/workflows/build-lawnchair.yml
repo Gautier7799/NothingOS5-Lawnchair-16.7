@@ -45,6 +45,7 @@ on:
       - openhands/dossier-resize-touch-path
       - openhands/caddy-card-drop-to-dossier
       - openhands/consolidated-caddy-dossier-fixes
+      - feature/caddy-drawer-home-ios-library
 
 permissions:
   contents: read
