@@ -29,7 +29,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.speech.RecognizerIntent;
-import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
@@ -855,6 +854,9 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
     /**
      * Opens the selected Caddy category in its own lightweight app grid.
      * This deliberately does not create or open a FolderInfo/FolderIcon.
+     *
+     * The panel is hosted inside the launcher's DragLayer rather than a dialog window,
+     * so the app icons in it can be dragged onto the home screen.
      */
     private void showCaddyCategory(AdapterItem item) {
         List<AppInfo> apps = item.caddyApps == null
@@ -862,153 +864,10 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         if (apps.isEmpty()) {
             return;
         }
-
-        Dialog dialog = new Dialog(mActivityContext);
-        LinearLayout panel = new LinearLayout(mActivityContext);
-        panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(20), dp(18), dp(20), dp(16));
-
-        int dynamicAccent = resolveCaddyDynamicColor();
-        int glassBase = Color.rgb(27, 35, 37);
-        int glassTop = Color.rgb(39, 49, 51);
-        int glassBottom = Color.rgb(25, 33, 35);
-        int tintedTop = Color.rgb(
-                (Color.red(glassTop) * 3 + Color.red(dynamicAccent)) / 4,
-                (Color.green(glassTop) * 3 + Color.green(dynamicAccent)) / 4,
-                (Color.blue(glassTop) * 3 + Color.blue(dynamicAccent)) / 4);
-        GradientDrawable panelBackground = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[] {
-                        Color.argb(246, Color.red(tintedTop), Color.green(tintedTop),
-                                Color.blue(tintedTop)),
-                        Color.argb(250, Color.red(glassBase), Color.green(glassBase),
-                                Color.blue(glassBase)),
-                        Color.argb(252, Color.red(glassBottom), Color.green(glassBottom),
-                                Color.blue(glassBottom))
-                });
-        panelBackground.setCornerRadius(dp(30));
-        panelBackground.setStroke(dp(1), Color.argb(48, 255, 255, 255));
-        panel.setBackground(panelBackground);
-        panel.setClipToOutline(true);
-        panel.setElevation(dp(12));
-
-        TextView heading = new TextView(mActivityContext);
-        heading.setText(item.caddyTitle);
-        heading.setTextColor(Color.WHITE);
-        heading.setTextSize(20);
-        heading.setTypeface(android.graphics.Typeface.DEFAULT,
-                android.graphics.Typeface.BOLD);
-        heading.setPadding(0, 0, 0, dp(14));
-        panel.addView(heading, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        ScrollView scrollView = new ScrollView(mActivityContext);
-        scrollView.setFillViewport(false);
-        panel.addView(scrollView, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-
-        android.widget.GridLayout appGrid = new android.widget.GridLayout(mActivityContext);
-        appGrid.setColumnCount(4);
-        appGrid.setUseDefaultMargins(false);
-        scrollView.addView(appGrid, new ScrollView.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        for (AppInfo app : apps) {
-            LinearLayout appCell = new LinearLayout(mActivityContext);
-            appCell.setOrientation(LinearLayout.VERTICAL);
-            appCell.setGravity(Gravity.CENTER);
-            appCell.setPadding(dp(3), dp(8), dp(3), dp(8));
-
-            FrameLayout appIconFrame = new FrameLayout(mActivityContext);
-            appCell.addView(appIconFrame, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(68)));
-
-            BubbleTextView appIcon = (BubbleTextView) mLayoutInflater.inflate(
-                    R.layout.all_apps_icon, appIconFrame, false);
-            appIcon.applyFromApplicationInfo(app);
-            appIcon.setTextVisibility(false);
-            appIcon.setLongPressTimeoutFactor(1f);
-            appIcon.setContentDescription(app.title);
-            appIcon.setOnFocusChangeListener(mIconFocusListener);
-            appIcon.setOnClickListener(v -> {
-                // Let Launcher3 process the click while the icon is still attached
-                // to its dialog hierarchy. The native handler may close All Apps and
-                // start the selected activity; dismissing first can detach the anchor
-                // before that handler resolves the app launch.
-                mOnIconClickListener.onClick(v);
-                dialog.dismiss();
-            });
-            appIcon.setOnLongClickListener(mOnIconLongClickListener);
-            // Match the compact Caddy preview fix: hiding text does not remove
-            // BubbleTextView's reserved label line while centerVertically is enabled.
-            appIcon.setCenterVertically(false);
-            int appIconInset = Math.max(0, (dp(68) - appIcon.getIconSize()) / 2);
-            appIcon.setPadding(appIcon.getPaddingLeft(), appIconInset,
-                    appIcon.getPaddingRight(), 0);
-            appIcon.setGravity(Gravity.CENTER);
-            appIconFrame.setClipChildren(false);
-            appIconFrame.setClipToPadding(false);
-            appIcon.setClipToOutline(false);
-            appIconFrame.addView(appIcon, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    Gravity.CENTER));
-
-            TextView appLabel = new TextView(mActivityContext);
-            appLabel.setText(app.title);
-            appLabel.setTextColor(Color.WHITE);
-            appLabel.setTextSize(11);
-            appLabel.setGravity(Gravity.CENTER);
-            appLabel.setMaxLines(2);
-            appLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(34));
-            labelParams.topMargin = dp(5);
-            appCell.addView(appLabel, labelParams);
-
-            android.widget.GridLayout.LayoutParams cellParams =
-                    new android.widget.GridLayout.LayoutParams();
-            cellParams.width = 0;
-            cellParams.columnSpec = android.widget.GridLayout.spec(
-                    android.widget.GridLayout.UNDEFINED, 1f);
-            cellParams.setMargins(dp(2), dp(2), dp(2), dp(2));
-            appGrid.addView(appCell, cellParams);
+        if (!(mActivityContext instanceof Launcher launcher)) {
+            return;
         }
-
-        int screenHeight = mActivityContext.getResources().getDisplayMetrics().heightPixels;
-        int maxPanelHeight = Math.max(dp(300), screenHeight - dp(176));
-        int contentRows = (apps.size() + 3) / 4;
-        int desiredPanelHeight = dp(76) + contentRows * dp(96) + dp(34);
-        int panelHeight = Math.min(desiredPanelHeight, maxPanelHeight);
-        dialog.setContentView(panel);
-        dialog.setCanceledOnTouchOutside(true);
-        dialog.setCancelable(true);
-        dialog.show();
-
-        android.view.Window window = dialog.getWindow();
-        if (window != null) {
-            window.setBackgroundDrawableResource(android.R.color.transparent);
-            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-            android.view.WindowManager.LayoutParams windowParams = window.getAttributes();
-            windowParams.width = Math.min(
-                    mActivityContext.getResources().getDisplayMetrics().widthPixels - dp(32),
-                    dp(560));
-            windowParams.height = panelHeight;
-            windowParams.gravity = Gravity.CENTER;
-            windowParams.dimAmount = 0.34f;
-            window.setAttributes(windowParams);
-            window.setDimAmount(0.34f);
-        }
-
-        // A restrained scale/fade entrance makes the category panel feel connected
-        // to the drawer without changing the underlying category cards.
-        panel.setAlpha(0f);
-        panel.setScaleX(0.965f);
-        panel.setScaleY(0.965f);
-        panel.animate().alpha(1f).scaleX(1f).scaleY(1f)
-                .setDuration(190L)
-                .setInterpolator(new android.view.animation.DecelerateInterpolator())
-                .start();
+        app.lawnchair.allapps.caddy.CaddyCategoryPanel.show(launcher, item.caddyTitle, apps);
     }
 
     /**
