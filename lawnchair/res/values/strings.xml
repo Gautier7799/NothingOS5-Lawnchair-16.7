@@ -141,6 +141,26 @@
     <string name="caddy_beta">Caddy (beta)</string>
     <string name="caddy_home_enabled_label">Show Caddy cards on home screen</string>
     <string name="caddy_home_enabled_description">Place your Caddy category cards on the workspace. Turn off to remove them.</string>
+
+    <!-- Home-screen sidebar -->
+    <string name="sidebar_section_title">Sidebar</string>
+    <string name="sidebar_enabled_label">Show the sidebar</string>
+    <string name="sidebar_enabled_description">A pull-out column of apps on the right edge of the home screen. Drag the tab to open it.</string>
+    <string name="sidebar_apps_label">Apps in the sidebar</string>
+    <string name="sidebar_apps_description">Choose which apps appear in the column.</string>
+    <string name="sidebar_empty">No apps selected</string>
+    <string name="sidebar_open">Open sidebar</string>
+    <string name="sidebar_close">Close sidebar</string>
+    <string name="sidebar_columns_label">Columns</string>
+    <string name="sidebar_opacity_label">Panel opacity</string>
+    <string name="sidebar_opacity_description">How solid the panel looks. Lower values let the wallpaper show through.</string>
+    <string name="sidebar_on_right_edge_label">Open from the right edge</string>
+    <string name="sidebar_on_right_edge_description">Turn off to put the tab on the left edge instead.</string>
+    <string name="sidebar_handle_position_label">Tab position</string>
+    <string name="sidebar_haptics_label">Vibrate on open</string>
+    <string name="sidebar_haptics_description">A short vibration when the panel opens.</string>
+    <string name="sidebar_appearance_section_title">Appearance</string>
+    <string name="sidebar_behavior_section_title">Behaviour</string>
     <string name="caddy_home_show_titles_label">Show card titles</string>
     <string name="caddy_home_columns_label">Icons per row</string>
     <string name="caddy_merge_mode_label">Merge cards by</string>

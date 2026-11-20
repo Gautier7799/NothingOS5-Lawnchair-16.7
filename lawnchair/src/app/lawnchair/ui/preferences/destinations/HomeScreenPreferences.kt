@@ -31,6 +31,7 @@ import app.lawnchair.preferences.getAdapter
 import app.lawnchair.preferences.preferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.preferenceManager2
+import app.lawnchair.sidebar.SidebarMetrics
 import app.lawnchair.theme.color.ColorMode
 import app.lawnchair.ui.preferences.LocalIsExpandedScreen
 import app.lawnchair.ui.preferences.components.FeedPreference
@@ -47,6 +48,7 @@ import app.lawnchair.ui.preferences.components.layout.ExpandAndShrink
 import app.lawnchair.ui.preferences.components.layout.PreferenceGroup
 import app.lawnchair.ui.preferences.components.layout.PreferenceLayout
 import app.lawnchair.ui.preferences.navigation.HomeScreenGrid
+import app.lawnchair.ui.preferences.navigation.HomeScreenSidebarApps
 import app.lawnchair.util.collectAsStateBlocking
 import com.android.launcher3.R
 import com.android.launcher3.Utilities
@@ -127,6 +129,52 @@ fun HomeScreenPreferences(
                 entries = caddyMergeModeEntries(),
                 label = stringResource(R.string.caddy_merge_mode_label),
             )
+        }
+        val sidebarEnabledAdapter = prefs2.sidebarEnabled.getAdapter()
+        val sidebarOnRightEdgeAdapter = prefs2.sidebarOnRightEdge.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.sidebar_section_title)) {
+            SwitchPreference(
+                adapter = sidebarEnabledAdapter,
+                label = stringResource(R.string.sidebar_enabled_label),
+                description = stringResource(R.string.sidebar_enabled_description),
+            )
+            ExpandAndShrink(visible = sidebarEnabledAdapter.state.value) {
+                NavigationActionPreference(
+                    label = stringResource(R.string.sidebar_apps_label),
+                    subtitle = stringResource(R.string.sidebar_apps_description),
+                    destination = HomeScreenSidebarApps,
+                )
+                SliderPreference(
+                    label = stringResource(R.string.sidebar_columns_label),
+                    adapter = prefs2.sidebarColumns.getAdapter(),
+                    valueRange = SidebarMetrics.MIN_COLUMNS..SidebarMetrics.MAX_COLUMNS,
+                    step = 1,
+                )
+                SliderPreference(
+                    label = stringResource(R.string.sidebar_opacity_label),
+                    adapter = prefs2.sidebarOpacity.getAdapter(),
+                    valueRange = SidebarMetrics.MIN_OPACITY_PERCENT..100,
+                    step = 10,
+                    showAsPercentage = true,
+                )
+                SliderPreference(
+                    label = stringResource(R.string.sidebar_handle_position_label),
+                    adapter = prefs2.sidebarHandlePosition.getAdapter(),
+                    valueRange = 0f..1f,
+                    step = 0.05f,
+                    showAsPercentage = true,
+                )
+                SwitchPreference(
+                    adapter = sidebarOnRightEdgeAdapter,
+                    label = stringResource(R.string.sidebar_on_right_edge_label),
+                    description = stringResource(R.string.sidebar_on_right_edge_description),
+                )
+                SwitchPreference(
+                    adapter = prefs2.sidebarHaptics.getAdapter(),
+                    label = stringResource(R.string.sidebar_haptics_label),
+                    description = stringResource(R.string.sidebar_haptics_description),
+                )
+            }
         }
         PreferenceGroup(heading = stringResource(id = R.string.dossier)) {
             SwitchPreference(

@@ -372,6 +372,49 @@ class PreferenceManager2 @Inject constructor(
         onSet = { reloadHelper.restart() },
     )
 
+    /** Master switch for the home-screen sidebar. */
+    val sidebarEnabled = preference(
+        key = booleanPreferencesKey(name = "sidebar_enabled"),
+        defaultValue = context.resources.getBoolean(R.bool.config_default_sidebar_enabled),
+        onSet = { reloadHelper.restart() },
+    )
+
+    /** Comma-separated component keys of the apps shown in the sidebar, in display order. */
+    val sidebarApps = preference(
+        key = stringPreferencesKey(name = "sidebar_apps"),
+        defaultValue = "",
+    )
+
+    /** Columns of apps in the sidebar. */
+    val sidebarColumns = preference(
+        key = intPreferencesKey(name = "sidebar_columns"),
+        defaultValue = 1,
+    )
+
+    /** Panel opacity, as a percentage. */
+    val sidebarOpacity = preference(
+        key = intPreferencesKey(name = "sidebar_opacity"),
+        defaultValue = app.lawnchair.sidebar.SidebarMetrics.DEFAULT_OPACITY_PERCENT,
+    )
+
+    /** Whether the edge tab is on the right edge; false puts it on the left. */
+    val sidebarOnRightEdge = preference(
+        key = booleanPreferencesKey(name = "sidebar_on_right_edge"),
+        defaultValue = true,
+    )
+
+    /** Where the edge tab sits vertically, 0 at the top and 1 at the bottom. */
+    val sidebarHandlePosition = preference(
+        key = floatPreferencesKey(name = "sidebar_handle_position"),
+        defaultValue = 0.5f,
+    )
+
+    /** Whether opening and closing the panel vibrates. */
+    val sidebarHaptics = preference(
+        key = booleanPreferencesKey(name = "sidebar_haptics"),
+        defaultValue = true,
+    )
+
     /** Icons per row on a workspace card; the card's height decides how many rows fit. */
     val caddyHomeColumns = preference(
         key = intPreferencesKey(name = "caddy_home_columns"),
