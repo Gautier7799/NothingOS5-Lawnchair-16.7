@@ -59,7 +59,12 @@ arithmetic and unit tests rather than by screenshot.
 ## Earlier builds
 
 Builds from before this fork's release tracking began were published as
-individual GitHub releases and are not repeated here. Superseded Caddy panel
-builds (`caddy-panel-drag-64ccfb9`, `caddy-panel-parity-0fbebae`,
-`caddy-panel-fixed-56126fd`) have been deleted: they were all replaced by
-`860b055`, and two of them contained the icon overlap described above.
+individual GitHub releases and have all been deleted, so the releases page lists
+only the build above. Nothing is lost that is worth keeping: each one was
+superseded by a later fix, and every deleted tag pointed at code that no longer
+reflects the branch.
+
+The only other release in the repository is an unpublished draft holding
+`Material.You.Widgets.v2.5-modyolo.apk`. That is the third-party reference app
+the native widget work was measured against, not a build of this fork, so it is
+kept deliberately.
