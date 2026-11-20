@@ -30,7 +30,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
-import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -107,8 +106,16 @@ class CaddyCategoryPanel @JvmOverloads constructor(
         content.addView(
             panel,
             FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
+                CaddyPanelLayout.widthPx(
+                    resources.displayMetrics.widthPixels,
+                    resources.displayMetrics.density,
+                ),
+                CaddyPanelLayout.heightPx(
+                    0,
+                    COLUMN_COUNT,
+                    resources.displayMetrics.heightPixels,
+                    resources.displayMetrics.density,
+                ),
                 Gravity.CENTER,
             ),
         )
@@ -124,6 +131,18 @@ class CaddyCategoryPanel @JvmOverloads constructor(
     /** Fills the panel with [apps] under [title] and sizes it to the host. */
     fun bind(title: CharSequence?, apps: List<AppInfo>) {
         panel.removeAllViews()
+
+        val density = resources.displayMetrics.density
+        val panelWidth = CaddyPanelLayout.widthPx(resources.displayMetrics.widthPixels, density)
+        (panel.layoutParams as? FrameLayout.LayoutParams)?.let {
+            it.width = panelWidth
+            it.height = CaddyPanelLayout.heightPx(
+                apps.size,
+                COLUMN_COUNT,
+                resources.displayMetrics.heightPixels,
+                density,
+            )
+        }
 
         val heading = TextView(context)
         heading.text = title
@@ -146,9 +165,8 @@ class CaddyCategoryPanel @JvmOverloads constructor(
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f),
         )
 
-        val grid = GridLayout(context)
-        grid.columnCount = COLUMN_COUNT
-        grid.useDefaultMargins = false
+        val grid = LinearLayout(context)
+        grid.orientation = LinearLayout.VERTICAL
         scrollView.addView(
             grid,
             FrameLayout.LayoutParams(
@@ -157,10 +175,24 @@ class CaddyCategoryPanel @JvmOverloads constructor(
             ),
         )
 
-        apps.forEach { app -> grid.addView(appCell(app), cellParams()) }
+        val cellWidth = CaddyPanelLayout.cellWidthPx(panelWidth, COLUMN_COUNT, density)
+        apps.chunked(COLUMN_COUNT).forEach { rowApps ->
+            val row = LinearLayout(context)
+            row.orientation = LinearLayout.HORIZONTAL
+            grid.addView(
+                row,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+            rowApps.forEach { app -> row.addView(appCell(app), cellParams(cellWidth)) }
+            // Keep the last row's cells the same width as every other row's.
+            repeat(COLUMN_COUNT - rowApps.size) { row.addView(SpacerView(context), cellParams(cellWidth)) }
+        }
 
         appCount = apps.size
-        applyPanelSize(appCount)
+        requestLayout()
     }
 
     /** One app, built exactly as the dialog built it. */
@@ -198,11 +230,7 @@ class CaddyCategoryPanel @JvmOverloads constructor(
         icon.clipToOutline = false
         iconFrame.addView(
             icon,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER,
-            ),
+            FrameLayout.LayoutParams(dp(68f), dp(68f), Gravity.CENTER),
         )
 
         val label = TextView(context)
@@ -222,34 +250,38 @@ class CaddyCategoryPanel @JvmOverloads constructor(
         return cell
     }
 
-    private fun cellParams() = GridLayout.LayoutParams().apply {
-        width = 0
-        columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+    private fun cellParams(cellWidth: Int) = LinearLayout.LayoutParams(cellWidth, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
         setMargins(dp(2f), dp(2f), dp(2f), dp(2f))
     }
 
-    /**
-     * Sizes the panel from the host size.
-     *
-     * The overlay fills the DragLayer, so its own size is the host size. Doing this on a
-     * size change rather than in `onMeasure` keeps the pass that produced the size from
-     * being invalidated by the child params it writes.
-     */
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        applyPanelSize(appCount)
-    }
+    /** An empty cell, so a short last row keeps the same column widths. */
+    private class SpacerView(context: Context) : View(context)
 
-    private fun applyPanelSize(count: Int) {
-        if (width == 0 || height == 0) return
+    /**
+     * Sizes the panel from the space this view was actually given.
+     *
+     * The size cannot be set when the view is built: the cells use zero-width weighted
+     * columns, and a weight only resolves once the grid has a definite width. If the panel
+     * is still `WRAP_CONTENT` when the grid is measured, every column measures to zero and
+     * the icons stack on a single point. Measuring here guarantees a resolved width before
+     * the grid sees a measure spec, so the four columns always get real space.
+     */
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val density = resources.displayMetrics.density
-        panel.layoutParams = (
-            panel.layoutParams as? FrameLayout.LayoutParams
-                ?: FrameLayout.LayoutParams(0, 0, Gravity.CENTER)
-            ).apply {
-            width = CaddyPanelLayout.widthPx(width, density)
-            height = CaddyPanelLayout.heightPx(count, COLUMN_COUNT, height, density)
+        val panelWidth = CaddyPanelLayout.widthPx(MeasureSpec.getSize(widthMeasureSpec), density)
+        val panelHeight = CaddyPanelLayout.heightPx(
+            appCount,
+            COLUMN_COUNT,
+            MeasureSpec.getSize(heightMeasureSpec),
+            density,
+        )
+        (panel.layoutParams as? FrameLayout.LayoutParams)?.let {
+            if (it.width != panelWidth || it.height != panelHeight) {
+                it.width = panelWidth
+                it.height = panelHeight
+            }
         }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     /**

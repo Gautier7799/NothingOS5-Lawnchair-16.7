@@ -59,13 +59,35 @@ object CaddyPanelLayout {
         return minOf(available, cap).coerceAtLeast(0)
     }
 
+    /** Horizontal padding, in dp, the panel applies on each side. */
+    const val PANEL_PADDING_H_DP = 20
+
+    /** Width, in dp, of one app cell's outer margins, both sides combined. */
+    const val CELL_MARGIN_DP = 4
+
+    /**
+     * Width of one app cell for a panel of [panelWidthPx].
+     *
+     * Cells are laid out at a fixed width rather than as zero-width weighted columns.
+     * A weighted column only resolves once the grid itself has a resolved width, so any
+     * layout pass that measures the grid before the panel does collapses every column to
+     * zero and stacks the icons on one point. Computing the width here removes that
+     * dependency: the grid gets a definite size on its very first measure.
+     */
+    @JvmStatic
+    fun cellWidthPx(panelWidthPx: Int, columns: Int, density: Float): Int {
+        val safeColumns = columns.coerceAtLeast(1)
+        val content = panelWidthPx - dp(PANEL_PADDING_H_DP * 2, density)
+        return (content / safeColumns - dp(CELL_MARGIN_DP, density)).coerceAtLeast(0)
+    }
+
     /**
      * Height of the panel for [appCount] apps laid out in [columns] columns on a host of
      * [hostHeightPx].
      *
      * Identical to what the dialog computed: the content height grows with the number of
      * rows, then is clamped to the larger of [MIN_HEIGHT_DP] and the host less
-     * [VERTICAL_RESERVE_DP]. The floor is on the ceiling, not on the result, so a tall
+     * [VERTICAL_RESERVE_DP]. The floor is on the ceiling, not on the result, so tall
      * content still gets the full workspace-free band.
      */
     @JvmStatic

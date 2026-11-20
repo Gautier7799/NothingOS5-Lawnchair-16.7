@@ -82,6 +82,37 @@ class CaddyPanelLayoutTest {
     }
 
     /**
+     * The reported bug, second attempt: the icons were stacked on one point.
+     *
+     * Cells used zero-width weighted columns, which only resolve once the grid itself has
+     * a resolved width. Any pass that measured the grid first collapsed every column to
+     * zero. Cell widths are now computed up front, so the grid is definite on its first
+     * measure and the four columns never share an origin.
+     */
+    @Test
+    fun cellWidthPx_dividesTheContentBoxIntoFourDistinctColumns() {
+        val panelWidth = CaddyPanelLayout.widthPx(1080, density)
+        val cellWidth = CaddyPanelLayout.cellWidthPx(panelWidth, columns = 4, density = density)
+        assertTrue("cell width must be positive, was $cellWidth", cellWidth > 0)
+
+        // Each column must fit inside the content box with room for its own margins.
+        val content = panelWidth - (20 * density).toInt() * 2
+        assertTrue(
+            "four ${cellWidth}px cells must fit in ${content}px",
+            cellWidth * 4 <= content,
+        )
+        // And the cells must not be so narrow that four of them cannot hold an icon.
+        assertTrue("cell width $cellWidth too small for a 60dp icon", cellWidth > (60 * density).toInt())
+    }
+
+    @Test
+    fun cellWidthPx_leavesNoColumnAtZeroOnANarrowHost() {
+        val panelWidth = CaddyPanelLayout.widthPx(320, density)
+        val cellWidth = CaddyPanelLayout.cellWidthPx(panelWidth, columns = 4, density = density)
+        assertTrue("cell width must be positive on a narrow host, was $cellWidth", cellWidth > 0)
+    }
+
+    /**
      * The reported bug: icons drawn outside their cell overlapped each other.
      *
      * The dialog put each icon in a 68dp frame and pushed it down by
