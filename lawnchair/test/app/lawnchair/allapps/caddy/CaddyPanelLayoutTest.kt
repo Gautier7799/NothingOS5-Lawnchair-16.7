@@ -24,18 +24,18 @@ import org.junit.Test
  * Bounds rules for the Caddy category panel.
  *
  * The panel is a DragLayer overlay, so it has to be sized from the host the launcher
- * reports and must stay inside it. These tests pin the clamping rules that keep it on
- * screen for every app count, column count and host size.
+ * reports and must stay inside it. These tests pin the rules that keep it on screen and
+ * keep it identical in size to the dialog it replaced.
  */
 class CaddyPanelLayoutTest {
 
     private val density = 2f
 
     @Test
-    fun widthPx_keepsSymmetricMarginsOnAPhone() {
-        // 1080px at density 2 is a 540dp phone: margins win over the 560dp cap.
+    fun widthPx_keepsSymmetricalMarginsOnAPhone() {
+        // 1080px at density 2 is a 540dp phone: the margins win over the 560dp cap.
         assertEquals(
-            1080 - 2 * CaddyPanelLayout.SIDE_MARGIN_DP * density.toInt(),
+            1080 - CaddyPanelLayout.SIDE_MARGIN_DP * 2 * density.toInt(),
             CaddyPanelLayout.widthPx(hostWidthPx = 1080, density = density),
         )
     }
@@ -55,8 +55,7 @@ class CaddyPanelLayoutTest {
     }
 
     @Test
-    fun heightPx_growsWithTheRowCount() {
-        // Two and three rows both sit above the minimum height, so the growth is the row cost.
+    fun heightPx_growsByOneRowPerRowOfApps() {
         val twoRows = CaddyPanelLayout.heightPx(8, columns = 4, hostHeightPx = 4000, density = density)
         val threeRows = CaddyPanelLayout.heightPx(12, columns = 4, hostHeightPx = 4000, density = density)
         assertTrue("more rows must be taller", threeRows > twoRows)
@@ -74,7 +73,7 @@ class CaddyPanelLayoutTest {
         // One row on a tall host: chrome + one row + the label reserve, in px.
         val height = CaddyPanelLayout.heightPx(1, columns = 4, hostHeightPx = 4000, density = density)
         assertEquals(
-            2 * (CaddyPanelLayout.CHROME_HEIGHT_DP +
+            density.toInt() * (CaddyPanelLayout.CHROME_HEIGHT_DP +
                 CaddyPanelLayout.ROW_HEIGHT_DP +
                 CaddyPanelLayout.LABEL_RESERVE_DP),
             height,
@@ -82,22 +81,31 @@ class CaddyPanelLayoutTest {
     }
 
     @Test
-    fun heightPx_keepsTheMinimumWhenTheContentIsSmall() {
-        // No apps at all still gives a panel tall enough to tap, not a zero-height strip.
-        val height = CaddyPanelLayout.heightPx(0, columns = 4, hostHeightPx = 4000, density = density)
-        assertEquals(2 * CaddyPanelLayout.MIN_HEIGHT_DP, height)
+    fun heightPx_floorsTheCeilingNotTheResult() {
+        // A tall category on a short host keeps the 300dp floor, exactly like the dialog.
+        val height = CaddyPanelLayout.heightPx(40, columns = 4, hostHeightPx = 800, density = density)
+        assertEquals(density.toInt() * CaddyPanelLayout.MIN_HEIGHT_DP, height)
     }
 
     @Test
-    fun heightPx_neverExceedsTheHost() {
-        val host = 500
-        val height = CaddyPanelLayout.heightPx(40, columns = 4, hostHeightPx = host, density = density)
-        assertTrue("panel must fit the host, was $height", height <= host)
+    fun heightPx_matchesTheDialogForATypicalPhone() {
+        // 1080x2400 at density 2.75 with 12 apps is three rows: the dialog gave 76+3*96+34.
+        val height = CaddyPanelLayout.heightPx(12, columns = 4, hostHeightPx = 2400, density = 2.75f)
+        assertEquals(
+            (2.75f * CaddyPanelLayout.CHROME_HEIGHT_DP).toInt() +
+                (2.75f * 3 * CaddyPanelLayout.ROW_HEIGHT_DP).toInt() +
+                (2.75f * CaddyPanelLayout.LABEL_RESERVE_DP).toInt(),
+            height,
+        )
     }
 
     @Test
     fun heightPx_handlesZeroAppsAndColumns() {
         val height = CaddyPanelLayout.heightPx(0, columns = 0, hostHeightPx = 4000, density = density)
-        assertEquals(2 * CaddyPanelLayout.MIN_HEIGHT_DP, height)
+        assertEquals(
+            density.toInt() * CaddyPanelLayout.CHROME_HEIGHT_DP +
+                density.toInt() * CaddyPanelLayout.LABEL_RESERVE_DP,
+            height,
+        )
     }
 }

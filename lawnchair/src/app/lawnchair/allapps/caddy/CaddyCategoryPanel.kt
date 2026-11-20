@@ -28,6 +28,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
@@ -45,19 +46,15 @@ import com.android.launcher3.touch.ItemLongClickListener
 import com.android.launcher3.views.BaseDragLayer
 
 /**
- * The panel listing every app of a Caddy category.
+ * The panel shown when a Caddy category card is opened.
  *
- * This is a floating overlay **inside the launcher's DragLayer**, not a dialog window.
- * That placement is what makes dragging an app out of the panel work: the launcher's
- * drag machinery maps the drag preview through the view hierarchy
- * (`DragPreviewProvider` -> `BaseDragLayer.getLocationInDragLayer`) and feeds the drag
- * through the DragLayer's touch stream. A view hosted in a separate window fails both:
- * the coordinate walk never reaches the DragLayer, and the move/up events go to the
- * dialog window instead of the drag driver, so the drop is refused.
+ * It is an [AbstractFloatingView] hosted in the launcher's DragLayer, not a dialog
+ * window. That placement is what makes dragging an app out of the panel work: the drag
+ * preview is mapped through the view hierarchy, and the move/up events reach the
+ * DragLayer's drag driver. In a separate window both fail and the drop is refused.
  *
- * Because the icons are ordinary DragLayer descendants here, each one keeps the
- * launcher's own click and long-press handlers. A long-press therefore starts the same
- * all-apps drag the drawer uses, and the app can be dropped on the workspace.
+ * The look is unchanged from the dialog this replaces: the same glass surface, corner
+ * radius, icon frame, label metrics, dim and open animation.
  */
 class CaddyCategoryPanel @JvmOverloads constructor(
     context: Context,
@@ -67,18 +64,16 @@ class CaddyCategoryPanel @JvmOverloads constructor(
 
     private val launcher: Launcher = Launcher.getLauncher(context)
 
-    /** Scrim behind the panel; a tap on it closes the panel. */
+    /** Full-bleed scrim behind the panel; a tap on it closes the panel. */
     private val scrim = View(context)
 
-    /** The rounded surface that holds the title and the app grid. */
+    /** The rounded glass surface that holds the title and the app grid. */
     private val panel = LinearLayout(context)
 
-    /** Number of apps in the current grid, needed to size the panel on a host resize. */
+    /** Number of apps in the current grid, needed to resize the panel on a host resize. */
     private var appCount = 0
 
     init {
-        // The base class is a LinearLayout; a single child keeps the overlay a plain
-        // full-size frame, and the scrim and the panel stack inside it.
         orientation = VERTICAL
         isClickable = true
         isFocusable = true
@@ -90,19 +85,9 @@ class CaddyCategoryPanel @JvmOverloads constructor(
 
         panel.orientation = VERTICAL
         panel.setPadding(dp(20f), dp(18f), dp(20f), dp(16f))
-        panel.background = GradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(
-                CaddyMaterialYou.surfaceContainer(context),
-                CaddyMaterialYou.surface(context),
-            ),
-        ).apply {
-            cornerRadius = dp(28f).toFloat()
-            setStroke(dp(1f), CaddyMaterialYou.outlineVariant(context))
-        }
+        panel.background = glassBackground()
         panel.clipToOutline = true
         panel.elevation = dp(12f).toFloat()
-        // Absorb taps on the panel's own padding so only the scrim closes the panel.
         panel.isClickable = true
 
         val content = FrameLayout(context)
@@ -121,10 +106,31 @@ class CaddyCategoryPanel @JvmOverloads constructor(
                 Gravity.CENTER,
             ),
         )
-        addView(
-            content,
-            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT),
+        addView(content, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    /** The glass gradient, tinted by the wallpaper accent, exactly as before. */
+    private fun glassBackground(): GradientDrawable {
+        val accent = CaddyCardRenderer.resolveDynamicColor(context)
+        val glassBase = Color.rgb(27, 35, 37)
+        val glassTop = Color.rgb(39, 49, 51)
+        val glassBottom = Color.rgb(25, 33, 35)
+        val tintedTop = Color.rgb(
+            (Color.red(glassTop) * 3 + Color.red(accent)) / 4,
+            (Color.green(glassTop) * 3 + Color.green(accent)) / 4,
+            (Color.blue(glassTop) * 3 + Color.blue(accent)) / 4,
         )
+        return GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(
+                Color.argb(246, Color.red(tintedTop), Color.green(tintedTop), Color.blue(tintedTop)),
+                Color.argb(250, Color.red(glassBase), Color.green(glassBase), Color.blue(glassBase)),
+                Color.argb(252, Color.red(glassBottom), Color.green(glassBottom), Color.blue(glassBottom)),
+            ),
+        ).apply {
+            cornerRadius = dp(30f).toFloat()
+            setStroke(dp(1f), Color.argb(48, 255, 255, 255))
+        }
     }
 
     /** Fills the panel with [apps] under [title] and sizes it to the host. */
@@ -133,7 +139,7 @@ class CaddyCategoryPanel @JvmOverloads constructor(
 
         val heading = TextView(context)
         heading.text = title
-        heading.setTextColor(CaddyMaterialYou.onSurface(context))
+        heading.setTextColor(Color.WHITE)
         heading.setTextSize(20f)
         heading.typeface = Typeface.DEFAULT_BOLD
         heading.maxLines = 1
@@ -165,77 +171,91 @@ class CaddyCategoryPanel @JvmOverloads constructor(
             ),
         )
 
-        apps.forEach { app ->
-            val cell = LinearLayout(context)
-            cell.orientation = LinearLayout.VERTICAL
-            cell.gravity = Gravity.CENTER
-            cell.setPadding(dp(2f), dp(8f), dp(2f), dp(8f))
-
-            val icon = LayoutInflater.from(context)
-                .inflate(R.layout.caddy_panel_icon, cell, false) as CaddyPanelIcon
-            icon.applyFromApplicationInfo(app)
-            icon.setTextVisibility(false)
-            icon.contentDescription = app.title
-            icon.setOnClickListener { view ->
-                // Click before closing: ItemClickHandler bails out when the view has no
-                // window token, which it would not have once detached from the DragLayer.
-                ItemClickHandler.INSTANCE.onClick(view)
-                close(true)
-            }
-            // A long-press starts the launcher's own all-apps drag, which is what makes
-            // dragging the icon onto the workspace possible. The panel is a DragLayer
-            // child, so the drag preview and the touch stream both resolve correctly.
-            icon.setOnLongClickListener { view -> startAppDrag(view) }
-            cell.addView(
-                icon,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(ICON_CELL_DP),
-                ),
-            )
-
-            val label = TextView(context)
-            label.text = app.title
-            label.setTextColor(CaddyMaterialYou.onSurfaceVariant(context))
-            label.setTextSize(11f)
-            label.gravity = Gravity.CENTER
-            label.maxLines = 2
-            label.ellipsize = TextUtils.TruncateAt.END
-            cell.addView(
-                label,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(LABEL_HEIGHT_DP),
-                ).apply { topMargin = dp(4f) },
-            )
-
-            grid.addView(
-                cell,
-                GridLayout.LayoutParams().apply {
-                    width = 0
-                    columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                    setMargins(dp(2f), dp(2f), dp(2f), dp(2f))
-                },
-            )
-        }
+        apps.forEach { app -> grid.addView(appCell(app), cellParams()) }
 
         appCount = apps.size
         applyPanelSize(appCount)
+    }
+
+    /** One app: a fixed-height icon frame plus a two-line label, as in the dialog. */
+    private fun appCell(app: AppInfo): LinearLayout {
+        val cell = LinearLayout(context)
+        cell.orientation = LinearLayout.VERTICAL
+        cell.gravity = Gravity.CENTER
+        cell.setPadding(dp(3f), dp(8f), dp(3f), dp(8f))
+
+        val iconFrame = FrameLayout(context)
+        cell.addView(
+            iconFrame,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ICON_FRAME_DP)),
+        )
+
+        val icon = LayoutInflater.from(context)
+            .inflate(R.layout.caddy_panel_icon, iconFrame, false) as CaddyPanelIcon
+        icon.applyFromApplicationInfo(app)
+        icon.setTextVisibility(false)
+        icon.setLongPressTimeoutFactor(1f)
+        icon.contentDescription = app.title
+        icon.setOnClickListener { view ->
+            // Launch before closing: ItemClickHandler bails out when the view has no
+            // window token, which it would not have once detached from the DragLayer.
+            ItemClickHandler.INSTANCE.onClick(view)
+            close(true)
+        }
+        icon.setOnLongClickListener { view -> startAppDrag(view) }
+        // Centre the icon inside its frame without letting the label shift it up.
+        icon.setCenterVertically(false)
+        val inset = maxOf(0, (dp(ICON_FRAME_DP) - icon.iconSize) / 2)
+        icon.setPadding(icon.paddingLeft, inset, icon.paddingRight, 0)
+        icon.gravity = Gravity.CENTER
+        iconFrame.clipChildren = false
+        iconFrame.clipToPadding = false
+        icon.clipToOutline = false
+        iconFrame.addView(
+            icon,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER,
+            ),
+        )
+
+        val label = TextView(context)
+        label.text = app.title
+        label.setTextColor(Color.WHITE)
+        label.setTextSize(11f)
+        label.gravity = Gravity.CENTER
+        label.maxLines = 2
+        label.ellipsize = TextUtils.TruncateAt.END
+        cell.addView(
+            label,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(LABEL_HEIGHT_DP),
+            ).apply { topMargin = dp(5f) },
+        )
+        return cell
+    }
+
+    private fun cellParams() = GridLayout.LayoutParams().apply {
+        width = 0
+        columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+        setMargins(dp(2f), dp(2f), dp(2f), dp(2f))
     }
 
     /**
      * Sizes the panel from the host size.
      *
      * The overlay fills the DragLayer, so its own size is the host size. Doing this on a
-     * size change (rather than in `onMeasure`) keeps the pass that produced the size from
-     * being invalidated by the child params it would write.
+     * size change rather than in `onMeasure` keeps the pass that produced the size from
+     * being invalidated by the child params it writes.
      */
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         applyPanelSize(appCount)
     }
 
-    private fun applyPanelSize(appCount: Int) {
+    private fun applyPanelSize(count: Int) {
         if (width == 0 || height == 0) return
         val density = resources.displayMetrics.density
         panel.layoutParams = (
@@ -243,20 +263,16 @@ class CaddyCategoryPanel @JvmOverloads constructor(
                 ?: FrameLayout.LayoutParams(0, 0, Gravity.CENTER)
             ).apply {
             width = CaddyPanelLayout.widthPx(width, density)
-            height = CaddyPanelLayout.heightPx(appCount, COLUMN_COUNT, height, density)
+            height = CaddyPanelLayout.heightPx(count, COLUMN_COUNT, height, density)
         }
     }
 
     /**
      * Starts dragging [view]'s app onto the workspace.
      *
-     * This mirrors the drawer's all-apps long-press but does not require the launcher to be
-     * in the All Apps state: the panel can be opened from the workspace too, and dragging
-     * has to work in both cases. The source is the drawer view, which is a no-op
-     * `DragSource`, so a successful drop is owned entirely by the workspace.
-     *
-     * The panel closes as soon as the drag begins, exactly as a folder does when an icon is
-     * dragged out of it, so the workspace the user is dropping onto is fully visible.
+     * The source is the drawer view, which is a no-op `DragSource`, so a successful drop
+     * is owned entirely by the workspace. The panel closes as soon as the drag begins,
+     * exactly as a folder does when an icon is dragged out of it.
      */
     private fun startAppDrag(view: View): Boolean {
         val icon = (view as? CaddyPanelIcon) ?: return false
@@ -317,14 +333,16 @@ class CaddyCategoryPanel @JvmOverloads constructor(
     companion object {
         private const val COLUMN_COUNT = 4
         private const val CLOSE_DURATION_MS = 150L
-        private const val OPEN_DURATION_MS = 180L
-        private const val SCRIM_DIM_ALPHA = 84
+        private const val OPEN_DURATION_MS = 190L
 
-        /** Height of one icon, in dp, inside a grid cell. */
-        private const val ICON_CELL_DP = 56f
+        /** Dim behind the panel, matching the old dialog's 0.34f window dim. */
+        private const val SCRIM_DIM_ALPHA = 87
 
-        /** Height of the app label, in dp, under its icon. */
-        private const val LABEL_HEIGHT_DP = 30f
+        /** Height, in dp, of the frame that centres one icon. */
+        private const val ICON_FRAME_DP = 68f
+
+        /** Height, in dp, of the two-line app label. */
+        private const val LABEL_HEIGHT_DP = 34f
 
         /** Whether a panel is currently open. */
         @JvmStatic
@@ -357,6 +375,7 @@ class CaddyCategoryPanel @JvmOverloads constructor(
             view.bind(title, apps)
             view.markOpen()
             view.alpha = 0f
+            view.panelScale = 0.965f
             dragLayer.addView(
                 view,
                 ViewGroup.LayoutParams(
@@ -367,7 +386,17 @@ class CaddyCategoryPanel @JvmOverloads constructor(
             view.animate()
                 .alpha(1f)
                 .setDuration(OPEN_DURATION_MS)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction { view.panelScale = 1f }
                 .start()
         }
     }
+
+    /** Scale of the glass surface during the open animation, as the dialog did. */
+    private var panelScale: Float
+        get() = panel.scaleX
+        set(value) {
+            panel.scaleX = value
+            panel.scaleY = value
+        }
 }

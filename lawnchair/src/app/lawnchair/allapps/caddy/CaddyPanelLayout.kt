@@ -19,30 +19,29 @@ package app.lawnchair.allapps.caddy
 /**
  * Android-free sizing rules for the Caddy category panel.
  *
- * The panel is a floating overlay inside the launcher's DragLayer, not a dialog window.
- * Its bounds therefore have to be computed from the host size the launcher reports
- * rather than from window metrics, and they must stay inside the host on every device.
- * Keeping the arithmetic here lets the clamping rules be tested on the JVM.
+ * The numbers mirror the panel the category card has always shown: the same chrome,
+ * row cost and label reserve, so the overlay looks identical to the old dialog. The
+ * arithmetic lives here only so the clamping can be tested on the JVM.
  */
 object CaddyPanelLayout {
 
-    /** Fallback width ceiling, in dp, so the panel does not stretch on tablets. */
+    /** Width ceiling, in dp, so the panel does not stretch on tablets. */
     const val MAX_WIDTH_DP = 560
 
-    /** Horizontal gap, in dp, kept between the panel and the host edges. */
+    /** Total horizontal margin, in dp, split evenly between the two sides. */
     const val SIDE_MARGIN_DP = 16
 
-    /** Minimum height, in dp, so a one-app panel is still comfortable to tap. */
-    const val MIN_HEIGHT_DP = 180
+    /** Smallest height, in dp, a panel may take. */
+    const val MIN_HEIGHT_DP = 300
 
-    /** Vertical space, in dp, reserved above and below the panel for the workspace. */
+    /** Vertical space, in dp, kept free above and below the panel. */
     const val VERTICAL_RESERVE_DP = 176
 
     /** Panel height, in dp, contributed by the title and the outer padding. */
     const val CHROME_HEIGHT_DP = 76
 
-    /** Height of one app row, in dp: icon, label, cell padding and grid margins. */
-    const val ROW_HEIGHT_DP = 110
+    /** Height of one app row, in dp: icon frame, label and cell padding. */
+    const val ROW_HEIGHT_DP = 96
 
     /** Height, in dp, of the trailing label under the last row. */
     const val LABEL_RESERVE_DP = 34
@@ -50,12 +49,12 @@ object CaddyPanelLayout {
     /**
      * Width of the panel for a host of [hostWidthPx].
      *
-     * The panel never touches the host edges: it keeps [SIDE_MARGIN_DP] on each side and
-     * stops growing at [MAX_WIDTH_DP], so it stays centred and readable on tablets.
+     * The panel keeps [SIDE_MARGIN_DP] on each side and stops growing at
+     * [MAX_WIDTH_DP], so it stays centred and readable on tablets.
      */
     @JvmStatic
     fun widthPx(hostWidthPx: Int, density: Float): Int {
-        val available = hostWidthPx - dp(SIDE_MARGIN_DP, density) * 2
+        val available = hostWidthPx - dp(SIDE_MARGIN_DP * 2, density)
         val cap = dp(MAX_WIDTH_DP, density)
         return minOf(available, cap).coerceAtLeast(0)
     }
@@ -64,9 +63,10 @@ object CaddyPanelLayout {
      * Height of the panel for [appCount] apps laid out in [columns] columns on a host of
      * [hostHeightPx].
      *
-     * The content height grows with the number of rows, then is clamped so the panel always
-     * leaves [VERTICAL_RESERVE_DP] above and below for the workspace. The result never drops
-     * below [MIN_HEIGHT_DP] unless the host itself is shorter than that.
+     * Identical to what the dialog computed: the content height grows with the number of
+     * rows, then is clamped to the larger of [MIN_HEIGHT_DP] and the host less
+     * [VERTICAL_RESERVE_DP]. The floor is on the ceiling, not on the result, so a tall
+     * content still gets the full workspace-free band.
      */
     @JvmStatic
     fun heightPx(appCount: Int, columns: Int, hostHeightPx: Int, density: Float): Int {
@@ -75,9 +75,11 @@ object CaddyPanelLayout {
         val desired = dp(CHROME_HEIGHT_DP, density) +
             rows * dp(ROW_HEIGHT_DP, density) +
             dp(LABEL_RESERVE_DP, density)
-        val ceiling = hostHeightPx - dp(VERTICAL_RESERVE_DP, density)
-        val floor = minOf(dp(MIN_HEIGHT_DP, density), hostHeightPx.coerceAtLeast(0))
-        return minOf(desired, ceiling.coerceAtLeast(floor)).coerceAtLeast(floor)
+        val ceiling = maxOf(
+            dp(MIN_HEIGHT_DP, density),
+            hostHeightPx - dp(VERTICAL_RESERVE_DP, density),
+        )
+        return minOf(desired, ceiling)
     }
 
     private fun dp(value: Int, density: Float): Int = (value * density).toInt()
