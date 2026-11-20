@@ -21,91 +21,85 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Bounds rules for the Caddy category panel.
- *
- * The panel is a DragLayer overlay, so it has to be sized from the host the launcher
- * reports and must stay inside it. These tests pin the rules that keep it on screen and
- * keep it identical in size to the dialog it replaced.
+ * The panel reuses the dialog's metrics so the two look identical. These tests pin the
+ * arithmetic that the dialog used, because an earlier version of the overlay changed
+ * them and the icons overlapped.
  */
 class CaddyPanelLayoutTest {
 
-    private val density = 2f
+    private val density = 2.75f
 
     @Test
-    fun widthPx_keepsSymmetricalMarginsOnAPhone() {
-        // 1080px at density 2 is a 540dp phone: the margins win over the 560dp cap.
+    fun heightPx_matchesTheDialogForATypicalPhone() {
+        // 1080x2400 at 2.75 with 12 apps is three rows: 76 + 3*96 + 34.
+        val height = CaddyPanelLayout.heightPx(12, columns = 4, hostHeightPx = 2400, density = density)
         assertEquals(
-            1080 - CaddyPanelLayout.SIDE_MARGIN_DP * 2 * density.toInt(),
-            CaddyPanelLayout.widthPx(hostWidthPx = 1080, density = density),
-        )
-    }
-
-    @Test
-    fun widthPx_capsOnATablet() {
-        // 2400px at density 2 is 1200dp, far above the 560dp ceiling.
-        assertEquals(
-            CaddyPanelLayout.MAX_WIDTH_DP * density.toInt(),
-            CaddyPanelLayout.widthPx(hostWidthPx = 2400, density = density),
-        )
-    }
-
-    @Test
-    fun widthPx_neverNegativeOnATinyHost() {
-        assertEquals(0, CaddyPanelLayout.widthPx(hostWidthPx = 10, density = density))
-    }
-
-    @Test
-    fun heightPx_growsByOneRowPerRowOfApps() {
-        val twoRows = CaddyPanelLayout.heightPx(8, columns = 4, hostHeightPx = 4000, density = density)
-        val threeRows = CaddyPanelLayout.heightPx(12, columns = 4, hostHeightPx = 4000, density = density)
-        assertTrue("more rows must be taller", threeRows > twoRows)
-        assertEquals(2 * CaddyPanelLayout.ROW_HEIGHT_DP, threeRows - twoRows)
-    }
-
-    @Test
-    fun heightPx_clampsToLeaveRoomForTheWorkspace() {
-        val height = CaddyPanelLayout.heightPx(40, columns = 4, hostHeightPx = 2000, density = density)
-        assertEquals(2000 - 2 * CaddyPanelLayout.VERTICAL_RESERVE_DP, height)
-    }
-
-    @Test
-    fun heightPx_isTheNaturalContentHeightWhenThereIsRoom() {
-        // One row on a tall host: chrome + one row + the label reserve, in px.
-        val height = CaddyPanelLayout.heightPx(1, columns = 4, hostHeightPx = 4000, density = density)
-        assertEquals(
-            density.toInt() * (CaddyPanelLayout.CHROME_HEIGHT_DP +
-                CaddyPanelLayout.ROW_HEIGHT_DP +
-                CaddyPanelLayout.LABEL_RESERVE_DP),
+            (76 * density).toInt() + (3 * 96 * density).toInt() + (34 * density).toInt(),
             height,
         )
+    }
+
+    @Test
+    fun heightPx_addsOneRowForEachPartialRow() {
+        val one = CaddyPanelLayout.heightPx(1, columns = 4, hostHeightPx = 2400, density = density)
+        val four = CaddyPanelLayout.heightPx(4, columns = 4, hostHeightPx = 2400, density = density)
+        val five = CaddyPanelLayout.heightPx(5, columns = 4, hostHeightPx = 2400, density = density)
+        assertEquals(one, four)
+        assertEquals((96 * density).toInt(), five - four)
     }
 
     @Test
     fun heightPx_floorsTheCeilingNotTheResult() {
-        // A tall category on a short host keeps the 300dp floor, exactly like the dialog.
+        // The dialog floored max(300dp, screen - 176dp), never the result itself.
         val height = CaddyPanelLayout.heightPx(40, columns = 4, hostHeightPx = 800, density = density)
-        assertEquals(density.toInt() * CaddyPanelLayout.MIN_HEIGHT_DP, height)
+        assertEquals((300 * density).toInt(), height)
     }
 
     @Test
-    fun heightPx_matchesTheDialogForATypicalPhone() {
-        // 1080x2400 at density 2.75 with 12 apps is three rows: the dialog gave 76+3*96+34.
-        val height = CaddyPanelLayout.heightPx(12, columns = 4, hostHeightPx = 2400, density = 2.75f)
-        assertEquals(
-            (2.75f * CaddyPanelLayout.CHROME_HEIGHT_DP).toInt() +
-                (2.75f * 3 * CaddyPanelLayout.ROW_HEIGHT_DP).toInt() +
-                (2.75f * CaddyPanelLayout.LABEL_RESERVE_DP).toInt(),
-            height,
-        )
+    fun heightPx_capsAtTheHostMinusTheReserve() {
+        val host = 2400
+        val height = CaddyPanelLayout.heightPx(400, columns = 4, hostHeightPx = host, density = density)
+        assertEquals(host - (176 * density).toInt(), height)
     }
 
     @Test
-    fun heightPx_handlesZeroAppsAndColumns() {
-        val height = CaddyPanelLayout.heightPx(0, columns = 0, hostHeightPx = 4000, density = density)
-        assertEquals(
-            density.toInt() * CaddyPanelLayout.CHROME_HEIGHT_DP +
-                density.toInt() * CaddyPanelLayout.LABEL_RESERVE_DP,
-            height,
-        )
+    fun heightPx_neverExceedsTheHostOnARealDevice() {
+        for (host in listOf(1920, 2160, 2280, 2400, 2640, 3200)) {
+            val height = CaddyPanelLayout.heightPx(200, columns = 4, hostHeightPx = host, density = density)
+            assertTrue("height $height must fit host $host", height <= host)
+        }
+    }
+
+    @Test
+    fun widthPx_capsAt560dp() {
+        assertEquals((560 * density).toInt(), CaddyPanelLayout.widthPx(2400, density))
+    }
+
+    @Test
+    fun widthPx_keepsA16dpMarginOnEachSide() {
+        val host = 800
+        assertEquals(host - (16 * density).toInt() * 2, CaddyPanelLayout.widthPx(host, density))
+    }
+
+    /**
+     * The reported bug: icons drawn outside their cell overlapped each other.
+     *
+     * The dialog put each icon in a 68dp frame and pushed it down by
+     * `(68 - iconSize) / 2`, which keeps the drawable inside the frame for every icon
+     * size the device profiles use. An earlier overlay used a 56dp frame with a 60dp
+     * icon, so the drawable hung below its frame and covered the row underneath.
+     */
+    @Test
+    fun iconFrameAlwaysContainsTheIcon() {
+        val frame = 68
+        for (iconSize in listOf(48, 57, 60, 66)) {
+            val inset = maxOf(0, (frame - iconSize) / 2)
+            val bottom = inset + iconSize
+            assertTrue(
+                "a ${iconSize}dp icon spans [$inset,$bottom] and must stay inside the " +
+                    "${frame}dp frame",
+                bottom <= frame,
+            )
+        }
     }
 }

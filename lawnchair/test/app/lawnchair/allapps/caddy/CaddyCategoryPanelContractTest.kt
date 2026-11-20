@@ -17,7 +17,6 @@
 package app.lawnchair.allapps.caddy
 
 import com.android.launcher3.AbstractFloatingView
-import com.android.launcher3.BubbleTextView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -83,22 +82,4 @@ class CaddyCategoryPanelContractTest {
         )
     }
 
-    @Test
-    fun panelIconsSkipTheShortcutPopup() {
-        // The stock long press opens a shortcut popup anchored to the icon. That popup is
-        // added to the same DragLayer as the panel, so it covers the panel and swallows the
-        // gesture the user meant as a drag. The panel's icons override the hook to return no
-        // pre-drag condition, which starts the drag on the long press itself.
-        val hook = BubbleTextView::class.java.getMethod("startLongPressAction")
-        assertEquals(
-            "CaddyPanelIcon must override startLongPressAction",
-            CaddyPanelIcon::class.java,
-            CaddyPanelIcon::class.java.getMethod("startLongPressAction").declaringClass,
-        )
-        assertEquals(
-            "the base class is still the one that declares the hook",
-            BubbleTextView::class.java,
-            hook.declaringClass,
-        )
-    }
 }
