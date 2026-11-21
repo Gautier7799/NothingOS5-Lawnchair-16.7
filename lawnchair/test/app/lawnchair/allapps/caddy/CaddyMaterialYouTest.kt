@@ -105,6 +105,14 @@ class CaddyMaterialYouTest {
     }
 
     @Test
+    fun accentToneIsLighterInDarkModeSoItStaysVisible() {
+        assertTrue(
+            "an accent tuned for light mode is too dark on a dark surface",
+            CaddyMaterialYou.accentTone(isNight = true) > CaddyMaterialYou.accentTone(isNight = false),
+        )
+    }
+
+    @Test
     fun tonesStayInsideTheValidRange() {
         for (night in listOf(false, true)) {
             val tones = listOf(
@@ -113,6 +121,7 @@ class CaddyMaterialYouTest {
                 CaddyMaterialYou.onSurfaceTone(night),
                 CaddyMaterialYou.onSurfaceVariantTone(night),
                 CaddyMaterialYou.outlineVariantTone(night),
+                CaddyMaterialYou.accentTone(night),
             )
             tones.forEach { assertTrue("tone $it out of range", it in 0..100) }
         }

@@ -52,8 +52,8 @@ object CaddyMaterialYou {
     fun outlineVariant(context: Context): Int = neutralVariant(context, LIGHT.outlineVariant, DARK.outlineVariant)
 
     /** The wallpaper accent, used for selected states and the "+ Add" card. */
-    fun accent(context: Context): Int = frameworkColor(context, "system_accent1_600")
-        ?: schemeColor(context) { accentColor(it, LIGHT.accent) }
+    fun accent(context: Context): Int = schemeColor(context) { accentColor(it, accentTone(isNight(context))) }
+        ?: frameworkColor(context, "system_accent1_600")
         ?: CaddyCardRenderer.resolveDynamicColor(context)
 
     /** The translucent tint laid over the blurred wallpaper, so the blur carries the theme colour. */
@@ -97,6 +97,9 @@ object CaddyMaterialYou {
 
     /** The surface container high tone for the current light/dark mode. */
     internal fun surfaceContainerTone(isNight: Boolean): Int = if (isNight) DARK.surfaceContainerHigh else LIGHT.surfaceContainerHigh
+
+    /** The accent tone for the current light/dark mode. */
+    internal fun accentTone(isNight: Boolean): Int = if (isNight) DARK.accent else LIGHT.accent
 
     /** The surface tone for the current light/dark mode. */
     internal fun surfaceTone(isNight: Boolean): Int = if (isNight) DARK.surface else LIGHT.surface
