@@ -2226,6 +2226,17 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         if (card == null) return false;
 
         int screenId = getCellLayoutId(target);
+        // Reject the drop before anything is written when the card could not be
+        // attached to this layout. addInScreen silently skips the attach for an
+        // unknown screen id (the dock reports a page index instead of a screen) or
+        // an out-of-grid cell, and the onDropChild that follows would then write to
+        // the layout params addInScreen never set. Checking first also keeps the
+        // database free of a card row that could never be shown.
+        if (!DossierPlacement.canPlace(screenId, !mLauncher.isHotseatLayout(target),
+                targetCell[0], targetCell[1], span[0], span[1],
+                target.getCountX(), target.getCountY())) {
+            return false;
+        }
         // Seed the card's placement so the write reflects the final position.
         card.container = CONTAINER_DESKTOP;
         card.screenId = screenId;
@@ -2313,6 +2324,14 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
         if (card == null) return null;
 
         final int screenId = getCellLayoutId(target);
+        // Same guard as the workspace drop: a card that cannot be attached to this
+        // layout must not be written to the database, or the onDropChild below throws
+        // on layout params that addInScreen never set.
+        if (!DossierPlacement.canPlace(screenId, !mLauncher.isHotseatLayout(target),
+                mTargetCell[0], mTargetCell[1], span[0], span[1],
+                target.getCountX(), target.getCountY())) {
+            return null;
+        }
         card.container = CONTAINER_DESKTOP;
         card.screenId = screenId;
         card.cellX = mTargetCell[0];

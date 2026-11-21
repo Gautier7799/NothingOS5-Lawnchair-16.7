@@ -72,8 +72,9 @@ jobs:
       # PR until that debt is paid down, so a non-zero exit here is reported as
       # a warning instead of failing the job.
       - name: Run lint (advisory)
-        run: ./gradlew :lintLawnWithQuickstepGithubDebug --stacktrace || \
-          echo "::warning::Lint reported findings (see the lint-report artifact)"
+        run: |
+          ./gradlew :lintLawnWithQuickstepGithubDebug --stacktrace \
+            || echo "::warning::Lint reported findings (see the lint-report artifact)"
 
       - name: Upload lint report
         if: always()
