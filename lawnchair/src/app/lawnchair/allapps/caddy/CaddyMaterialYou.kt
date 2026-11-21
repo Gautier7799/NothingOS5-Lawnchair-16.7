@@ -19,6 +19,8 @@ package app.lawnchair.allapps.caddy
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
+import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.toArgb
 import app.lawnchair.theme.ThemeProvider
 import app.lawnchair.theme.setLuminance
@@ -37,10 +39,10 @@ import dev.kdrag0n.monet.theme.ColorScheme
 object CaddyMaterialYou {
 
     /** The card / sheet surface: the M3 "surface container high" role. */
-    fun surfaceContainer(context: Context): Int = neutral(context, LIGHT.surfaceContainerHigh, DARK.surfaceContainerHigh)
+    fun surfaceContainer(context: Context): Int = tintedSurface(context, LIGHT.surfaceContainerHigh, DARK.surfaceContainerHigh)
 
     /** The page backdrop tint: the M3 "surface" role, used at an alpha over the blurred wallpaper. */
-    fun surface(context: Context): Int = neutral(context, LIGHT.surface, DARK.surface)
+    fun surface(context: Context): Int = tintedSurface(context, LIGHT.surface, DARK.surface)
 
     /** Primary text on a surface. */
     fun onSurface(context: Context): Int = neutral(context, LIGHT.onSurface, DARK.onSurface)
@@ -72,9 +74,49 @@ object CaddyMaterialYou {
      */
     private const val TONE_SEED = 40
 
+    /**
+     * How much of the accent hue is mixed into a surface. Enough that a change of wallpaper is
+     * visible at a glance, low enough that the card still reads as a surface behind its content.
+     */
+    private const val SURFACE_TINT = 0.22f
+
     private fun neutral(context: Context, lightTone: Int, darkTone: Int): Int {
         val tone = if (isNight(context)) darkTone else lightTone
         return schemeColor(context) { neutralColor(it, tone) } ?: fallbackSurface(context)
+    }
+
+    /**
+     * A surface that actually carries the wallpaper colour.
+     *
+     * The neutral swatch is generated with a chroma of 6, so a Material You surface is grey by
+     * design and moving the wallpaper barely shows. Take the accent hue (chroma 36) at the surface
+     * tone instead, then pull it back toward the neutral tone so the card still reads as a surface
+     * rather than as a coloured block.
+     */
+    private fun tintedSurface(context: Context, lightTone: Int, darkTone: Int): Int {
+        val tone = if (isNight(context)) darkTone else lightTone
+        val tinted = schemeColor(context) { accentHue(it, tone) }
+        if (tinted == null) return fallbackSurface(context)
+        return blendOklab(tinted, neutral(context, lightTone, darkTone), SURFACE_TINT)
+    }
+
+    /**
+     * Mixes the hue of [tint] into [base] while keeping the lightness of [base].
+     *
+     * Only the Oklab `a`/`b` (chroma) axes are blended. Blending `L` as well would move the tone of
+     * the surface, which is what the text contrast was computed against.
+     */
+    internal fun blendOklab(base: Int, tint: Int, amount: Float): Int {
+        val baseOklab = ComposeColor(base).convert(ColorSpaces.Oklab)
+        val tintOklab = ComposeColor(tint).convert(ColorSpaces.Oklab)
+        val mixed = ComposeColor(
+            baseOklab.red,
+            baseOklab.green * (1f - amount) + tintOklab.green * amount,
+            baseOklab.blue * (1f - amount) + tintOklab.blue * amount,
+            alpha = 1f,
+            colorSpace = ColorSpaces.Oklab,
+        )
+        return mixed.convert(ColorSpaces.Srgb).toArgb()
     }
 
     private fun neutralVariant(context: Context, lightTone: Int, darkTone: Int): Int {
@@ -91,6 +133,14 @@ object CaddyMaterialYou {
 
     /** The neutral-variant palette colour at [tone], used for text and hairlines. */
     internal fun neutralVariantColor(scheme: ColorScheme, tone: Int): Int = scheme.neutralVariant(TONE_SEED).setLuminance(tone.toFloat()).toArgb()
+
+    /**
+     * The accent hue at any [tone].
+     *
+     * `scheme.primary(tone)` resolves a fixed key of `1000 - 10 * tone` and throws for tones that
+     * are not on the palette grid, so the hue is taken at a known tone and moved to [tone].
+     */
+    internal fun accentHue(scheme: ColorScheme, tone: Int): Int = scheme.primary(TONE_SEED).setLuminance(tone.toFloat()).toArgb()
 
     /** The accent colour at [tone], used for selected states. */
     internal fun accentColor(scheme: ColorScheme, tone: Int): Int = scheme.primary(tone).toArgb()

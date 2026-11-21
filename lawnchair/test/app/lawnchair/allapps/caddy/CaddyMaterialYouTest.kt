@@ -16,6 +16,9 @@
 
 package app.lawnchair.allapps.caddy
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.colorspace.ColorSpaces
+import kotlin.math.sqrt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -125,5 +128,67 @@ class CaddyMaterialYouTest {
             )
             tones.forEach { assertTrue("tone $it out of range", it in 0..100) }
         }
+    }
+
+    @Test
+    fun surfaceTonesAreValidPaletteKeysForTheAccentLookup() {
+        // The accent hue is taken with setLuminance, so it must never go through scheme.primary(),
+        // which resolves a fixed key of 1000 - 10 * tone and throws for tones off the palette grid.
+        // Surface tones such as 92 map to key 80, which does not exist in the swatch.
+        for (night in listOf(false, true)) {
+            for (tone in listOf(CaddyMaterialYou.surfaceTone(night), CaddyMaterialYou.surfaceContainerTone(night))) {
+                val key = 1000 - 10 * tone
+                assertTrue(
+                    "tone $tone maps to palette key $key, which the swatch does not contain; " +
+                        "the accent hue must be resolved with setLuminance instead of scheme.primary()",
+                    key !in PALETTE_KEYS,
+                )
+            }
+        }
+    }
+
+    private fun chroma(color: Int): Double {
+        val oklab = Color(color).convert(ColorSpaces.Oklab)
+        return sqrt((oklab.green * oklab.green + oklab.blue * oklab.blue).toDouble())
+    }
+
+    @Test
+    fun surfaceCarriesTheWallpaperHue() {
+        // A grey surface is what the neutral swatch produces on its own (chroma 6), and it is the
+        // regression being fixed: the cards looked identical whatever the wallpaper.
+        val grey = 0xFFF2F2F2.toInt()
+        val blue = CaddyMaterialYou.blendOklab(grey, 0xFF1B6EF3.toInt(), SURFACE_TINT)
+        val red = CaddyMaterialYou.blendOklab(grey, 0xFFE8453C.toInt(), SURFACE_TINT)
+
+        assertTrue("the tinted surface must not stay grey", chroma(blue) > 0.02)
+        assertTrue("the tinted surface must not stay grey", chroma(red) > 0.02)
+        assertNotEquals("two wallpapers must give two surfaces", blue, red)
+    }
+
+    @Test
+    fun tintingKeepsTheSurfaceLightness() {
+        // Blending in Oklab keeps L, so a light surface stays light and text contrast is untouched.
+        val grey = 0xFFF2F2F2.toInt()
+        val tinted = CaddyMaterialYou.blendOklab(grey, 0xFF1B6EF3.toInt(), SURFACE_TINT)
+        val greyL = Color(grey).convert(ColorSpaces.Oklab).red
+        val tintedL = Color(tinted).convert(ColorSpaces.Oklab).red
+        assertEquals("tinting must not change the tone", greyL, tintedL, 0.02f)
+    }
+
+    @Test
+    fun tintingStaysSubtleEnoughToReadAsASurface() {
+        // The card must stay closer to the neutral surface than to the raw accent, otherwise the
+        // content loses its background and the card looks like a coloured block.
+        val grey = 0xFFF2F2F2.toInt()
+        val accent = 0xFF1B6EF3.toInt()
+        val tinted = CaddyMaterialYou.blendOklab(grey, accent, SURFACE_TINT)
+        assertTrue("the surface must stay mostly neutral", chroma(tinted) < chroma(accent) * 0.5)
+    }
+
+    private companion object {
+        const val SURFACE_TINT = 0.22f
+
+        /** The keys `Shades.of` publishes: tone 0, 10, 50, then every 100. */
+        val PALETTE_KEYS = setOf(0, 10, 50) + (1..10).map { it * 100 }
     }
 }
