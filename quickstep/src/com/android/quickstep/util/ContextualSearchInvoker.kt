@@ -248,10 +248,10 @@ internal constructor(
         if (recentsContainerInterface?.isInLiveTileMode() == true) {
             Log.i(TAG, "Contextual Search invocation attempted: live tile")
             endLiveTileMode(recentsContainerInterface) { startContextualSearch(entryPoint) }
-        } else {
-            startContextualSearch(entryPoint)
+            // endLiveTileMode is asynchronous, so the outcome is not known here.
+            return true
         }
-        return true
+        return startContextualSearch(entryPoint)
     }
 
     /**
@@ -260,9 +260,12 @@ internal constructor(
      * The check has to sit in the same method as the call: lint's MissingPermission analysis
      * does not follow guards across method boundaries or into lambda bodies, so extracting
      * either one re-triggers the error.
+     *
+     * @return false when the call was skipped, so callers can fall back to the regular
+     * assistant instead of reporting a success that never happened.
      */
     @SuppressLint("MissingPermission") // Guarded by the checkSelfPermission call below.
-    private fun startContextualSearch(entryPoint: Int) {
+    private fun startContextualSearch(entryPoint: Int): Boolean {
         val permissionGranted =
             context.checkSelfPermission(Manifest.permission.ACCESS_CONTEXTUAL_SEARCH) ==
                 PackageManager.PERMISSION_GRANTED
@@ -274,9 +277,10 @@ internal constructor(
             )
         ) {
             Log.i(TAG, "Contextual Search invocation failed: permission not granted")
-            return
+            return false
         }
         contextualSearchManager?.startContextualSearch(entryPoint)
+        return true
     }
 
     private fun isInSplitscreen(): Boolean {
