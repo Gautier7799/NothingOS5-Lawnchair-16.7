@@ -21,6 +21,7 @@ import static com.android.launcher3.Utilities.ATLEAST_Q;
 import android.appwidget.AppWidgetProviderInfo;
 import android.content.Context;
 import android.graphics.Rect;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Parcelable;
 import android.os.SystemClock;
@@ -49,6 +50,8 @@ import com.android.launcher3.util.Themes;
 import com.android.launcher3.views.ActivityContext;
 import com.android.launcher3.views.BaseDragLayer;
 import com.android.launcher3.views.BaseDragLayer.TouchCompleteListener;
+
+import app.lawnchair.util.PrivilegedPermissions;
 
 /**
  * {@inheritDoc}
@@ -109,7 +112,7 @@ public class LauncherAppWidgetHostView extends BaseLauncherAppWidgetHostView
     @Override
     public void setColorResources(@Nullable SparseIntArray colors) {
         if (colors == null || colors.size() == 0) {
-            resetColorResources();
+            resetColorResourcesIfSupported();
             return;
         }
 
@@ -119,7 +122,7 @@ public class LauncherAppWidgetHostView extends BaseLauncherAppWidgetHostView
             // Since Android 13 Initial
             RemoteViews.ColorResources colorResources = RemoteViews.ColorResources.create(getContext(), colors);
             if (colorResources == null) {
-                resetColorResources();
+                resetColorResourcesIfSupported();
                 return;
             }
             // LC-Note: Yes, this super also exists.
@@ -128,6 +131,14 @@ public class LauncherAppWidgetHostView extends BaseLauncherAppWidgetHostView
         } else {
             // LC-Note: Fall back for Android 12 impl
             super.setColorResources(colors);
+        }
+    }
+
+    // AppWidgetHostView.resetColorResources is API 31; minSdk is 26, so calling it
+    // unguarded throws NoSuchMethodError on Android 11 and older.
+    private void resetColorResourcesIfSupported() {
+        if (PrivilegedPermissions.INSTANCE.canResetColorResources(Build.VERSION.SDK_INT)) {
+            resetColorResources();
         }
     }
 

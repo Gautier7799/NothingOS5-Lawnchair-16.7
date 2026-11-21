@@ -36,6 +36,9 @@ allprojects {
             lint {
                 abortOnError true
                 checkReleaseBuilds false
+                // Records the pre-existing findings so abortOnError blocks new ones
+                // instead of staying permanently red on inherited AOSP debt.
+                baseline = file("lint-baseline.xml")
             }
             compileOptions {
                 sourceCompatibility = libs.versions.jdkRelease.get()

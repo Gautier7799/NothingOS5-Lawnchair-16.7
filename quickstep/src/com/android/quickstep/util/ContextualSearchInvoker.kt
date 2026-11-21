@@ -16,10 +16,13 @@
 
 package com.android.quickstep.util
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.contextualsearch.ContextualSearchManager
 import android.app.contextualsearch.ContextualSearchManager.ENTRYPOINT_LONG_PRESS_HOME
 import android.app.contextualsearch.ContextualSearchManager.FEATURE_CONTEXTUAL_SEARCH
 import android.content.Context
+import android.content.pm.PackageManager
 import android.util.Log
 import android.view.Display.DEFAULT_DISPLAY
 import androidx.annotation.VisibleForTesting
@@ -41,6 +44,7 @@ import com.android.quickstep.SystemUiProxy
 import com.android.quickstep.TopTaskTracker
 import com.android.quickstep.views.RecentsView
 import com.android.systemui.shared.system.QuickStepContract
+import app.lawnchair.util.PrivilegedPermissions
 import javax.inject.Inject
 
 /** Handles invocations and checks for Contextual Search. */
@@ -200,8 +204,24 @@ internal constructor(
             statsLogManager.logger().log(LAUNCHER_LAUNCH_OMNI_FAILED_NOT_AVAILABLE)
             return false
         }
+        if (!hasContextualSearchPermission()) {
+            Log.i(TAG, "Contextual Search invocation failed: permission not granted")
+            statsLogManager.logger().log(LAUNCHER_LAUNCH_ASSISTANT_FAILED_SERVICE_ERROR)
+            return false
+        }
 
         return true
+    }
+
+    /**
+     * ACCESS_CONTEXTUAL_SEARCH is a privileged permission. A launcher built from AOSP sources
+     * carries the platform signature and holds it, but Lawnchair is installed as a normal app
+     * and never does, so [ContextualSearchManager.startContextualSearch] throws
+     * SecurityException.
+     */
+    private fun hasContextualSearchPermission(): Boolean {
+        return context.checkSelfPermission(Manifest.permission.ACCESS_CONTEXTUAL_SEARCH) ==
+            PackageManager.PERMISSION_GRANTED
     }
 
     /**
@@ -227,13 +247,36 @@ internal constructor(
         val recentsContainerInterface = getRecentsContainerInterface()
         if (recentsContainerInterface?.isInLiveTileMode() == true) {
             Log.i(TAG, "Contextual Search invocation attempted: live tile")
-            endLiveTileMode(recentsContainerInterface) {
-                contextualSearchManager.startContextualSearch(entryPoint)
-            }
+            endLiveTileMode(recentsContainerInterface) { startContextualSearch(entryPoint) }
         } else {
-            contextualSearchManager.startContextualSearch(entryPoint)
+            startContextualSearch(entryPoint)
         }
         return true
+    }
+
+    /**
+     * Starts contextual search, checking the privileged permission first.
+     *
+     * The check has to sit in the same method as the call: lint's MissingPermission analysis
+     * does not follow guards across method boundaries or into lambda bodies, so extracting
+     * either one re-triggers the error.
+     */
+    @SuppressLint("MissingPermission") // Guarded by the checkSelfPermission call below.
+    private fun startContextualSearch(entryPoint: Int) {
+        val permissionGranted =
+            context.checkSelfPermission(Manifest.permission.ACCESS_CONTEXTUAL_SEARCH) ==
+                PackageManager.PERMISSION_GRANTED
+        if (
+            !PrivilegedPermissions.canStartContextualSearch(
+                hasSystemFeature =
+                    context.packageManager.hasSystemFeature(FEATURE_CONTEXTUAL_SEARCH),
+                permissionGranted = permissionGranted,
+            )
+        ) {
+            Log.i(TAG, "Contextual Search invocation failed: permission not granted")
+            return
+        }
+        contextualSearchManager?.startContextualSearch(entryPoint)
     }
 
     private fun isInSplitscreen(): Boolean {
