@@ -665,19 +665,25 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         host.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         int densityPadding = dp(14);
+        boolean darkMode = isCaddyDarkMode();
         int themeColor = resolveCaddyDynamicColor();
-        // Translucent Nothing-style glass, tinted by Lawnchair's existing folder /
-        // preview color so the user's selected and dynamic colors remain visible.
-        int glassRed = Math.round(Color.red(themeColor) * 0.30f + 28 * 0.70f);
-        int glassGreen = Math.round(Color.green(themeColor) * 0.30f + 31 * 0.70f);
-        int glassBlue = Math.round(Color.blue(themeColor) * 0.30f + 38 * 0.70f);
-        int topGlass = Color.argb(184, glassRed, glassGreen, glassBlue);
-        int bottomGlass = Color.argb(148,
-                Math.max(12, glassRed - 10),
-                Math.max(14, glassGreen - 10),
-                Math.max(18, glassBlue - 10));
-        int foreground = Color.WHITE;
-        int accentStroke = Color.argb(116, Color.red(themeColor),
+        int neutralSurface = resolveSystemPaletteColor(
+                darkMode ? "system_neutral1_900" : "system_neutral1_50",
+                darkMode ? Color.rgb(28, 28, 30) : Color.rgb(248, 247, 250));
+        int accentSurface = resolveSystemPaletteColor(
+                darkMode ? "system_accent1_800" : "system_accent1_100",
+                darkMode ? themeColor : blendColors(neutralSurface, themeColor, 0.22f));
+        int accentSurfaceVariant = resolveSystemPaletteColor(
+                darkMode ? "system_accent1_700" : "system_accent1_50",
+                accentSurface);
+        // Let the wallpaper-derived Monet palette define the card surface rather than
+        // mixing a small accent into a hard-coded charcoal background.
+        int topGlass = blendColors(neutralSurface, accentSurface, 0.68f);
+        int bottomGlass = blendColors(neutralSurface, accentSurfaceVariant, 0.58f);
+        int foreground = resolveSystemPaletteColor(
+                darkMode ? "system_neutral1_100" : "system_neutral1_900",
+                darkMode ? Color.WHITE : Color.rgb(28, 27, 31));
+        int accentStroke = Color.argb(150, Color.red(themeColor),
                 Color.green(themeColor), Color.blue(themeColor));
 
         LinearLayout card = new LinearLayout(mActivityContext);
@@ -767,10 +773,20 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         host.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         int accent = resolveCaddyDynamicColor();
+        boolean darkMode = isCaddyDarkMode();
+        int neutralSurface = resolveSystemPaletteColor(
+                darkMode ? "system_neutral1_900" : "system_neutral1_50",
+                darkMode ? Color.rgb(28, 28, 30) : Color.rgb(248, 247, 250));
+        int accentSurface = resolveSystemPaletteColor(
+                darkMode ? "system_accent1_800" : "system_accent1_100",
+                darkMode ? accent : blendColors(neutralSurface, accent, 0.22f));
+        int cardForeground = resolveSystemPaletteColor(
+                darkMode ? "system_neutral1_100" : "system_neutral1_900",
+                darkMode ? Color.WHITE : Color.rgb(28, 27, 31));
         GradientDrawable background = new GradientDrawable();
-        background.setColor(Color.rgb(31, 32, 34));
+        background.setColor(blendColors(neutralSurface, accentSurface, 0.68f));
         background.setCornerRadius(dp(28));
-        background.setStroke(dp(1), Color.argb(76,
+        background.setStroke(dp(1), Color.argb(150,
                 Color.red(accent), Color.green(accent), Color.blue(accent)));
 
         LinearLayout card = new LinearLayout(mActivityContext);
@@ -782,7 +798,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         TextView voice = createCaddySearchButton("Voice",
-                android.R.drawable.ic_btn_speak_now, accent);
+                android.R.drawable.ic_btn_speak_now, accent, cardForeground);
         LinearLayout.LayoutParams voiceParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
         voiceParams.bottomMargin = dp(12);
@@ -790,17 +806,18 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         voice.setOnClickListener(v -> launchCaddyVoiceSearch());
 
         TextView search = createCaddySearchButton("Search",
-                android.R.drawable.ic_menu_search, accent);
+                android.R.drawable.ic_menu_search, accent, cardForeground);
         card.addView(search, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
         search.setOnClickListener(v -> focusCaddyTextSearch(host));
         host.setContentDescription("Voice search and text search");
     }
 
-    private TextView createCaddySearchButton(String label, int iconResource, int accent) {
+    private TextView createCaddySearchButton(
+            String label, int iconResource, int accent, int foreground) {
         TextView button = new TextView(mActivityContext);
         button.setText(label);
-        button.setTextColor(Color.WHITE);
+        button.setTextColor(foreground);
         button.setTextSize(15);
         button.setTypeface(android.graphics.Typeface.create(
                 "sans-serif-medium", android.graphics.Typeface.NORMAL));
@@ -809,7 +826,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         android.graphics.drawable.Drawable icon =
                 mActivityContext.getDrawable(iconResource);
         if (icon != null) {
-            icon.setTint(Color.WHITE);
+            icon.setTint(foreground);
             button.setCompoundDrawablesWithIntrinsicBounds(icon, null, null, null);
         }
         GradientDrawable pill = new GradientDrawable();
@@ -1161,6 +1178,32 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         cell.setClipToPadding(false);
         icon.setClipToOutline(false);
         cell.addView(icon, iconParams);
+    }
+
+    private boolean isCaddyDarkMode() {
+        int nightMode = mActivityContext.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        return nightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private int resolveSystemPaletteColor(String name, int fallback) {
+        android.content.res.Resources resources = mActivityContext.getResources();
+        int colorId = resources.getIdentifier(name, "color", "android");
+        if (colorId == 0) return fallback;
+        try {
+            return resources.getColor(colorId, mActivityContext.getTheme());
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
+    }
+
+    private int blendColors(int base, int overlay, float overlayWeight) {
+        float weight = Math.max(0f, Math.min(1f, overlayWeight));
+        float baseWeight = 1f - weight;
+        return Color.rgb(
+                Math.round(Color.red(base) * baseWeight + Color.red(overlay) * weight),
+                Math.round(Color.green(base) * baseWeight + Color.green(overlay) * weight),
+                Math.round(Color.blue(base) * baseWeight + Color.blue(overlay) * weight));
     }
 
     /**
