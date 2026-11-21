@@ -23,7 +23,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
-import app.lawnchair.allapps.caddy.CaddyCategoryDialog
+import app.lawnchair.allapps.caddy.CaddyCategoryPanel
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
 import com.android.launcher3.BubbleTextView
@@ -203,8 +203,8 @@ class DossierCardView @JvmOverloads constructor(
     private fun openCard() {
         val info = bound ?: return
         val resolve = resolveApp ?: return
-        CaddyCategoryDialog.show(
-            context = context,
+        CaddyCategoryPanel.show(
+            launcher = Launcher.getLauncher(context),
             title = info.title?.toString().orEmpty(),
             apps = info.appKeys.mapNotNull(resolve),
         )

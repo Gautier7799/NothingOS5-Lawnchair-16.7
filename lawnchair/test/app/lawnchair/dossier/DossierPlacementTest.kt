@@ -91,4 +91,87 @@ class DossierPlacementTest {
         assertThat(span).isNotNull()
         assertThat(span!!.toList()).containsExactly(2, 2).inOrder()
     }
+
+    @Test
+    fun canPlace_acceptsACardFullyInsideTheGrid() {
+        assertThat(
+            DossierPlacement.canPlace(
+                screenId = 0, isDropTargetAScreen = true,
+                cellX = 1, cellY = 1, spanX = 2, spanY = 2,
+                gridCountX = 4, gridCountY = 4,
+            )
+        ).isTrue()
+    }
+
+    @Test
+    fun canPlace_acceptsACardThatExactlyFillsTheGrid() {
+        // The last valid position: the span ends on the final column and row.
+        assertThat(
+            DossierPlacement.canPlace(
+                screenId = 2, isDropTargetAScreen = true,
+                cellX = 2, cellY = 2, spanX = 2, spanY = 2,
+                gridCountX = 4, gridCountY = 4,
+            )
+        ).isTrue()
+    }
+
+    @Test
+    fun canPlace_rejectsACardThatOverflowsTheGrid() {
+        // This is the case addInScreen drops silently, leaving no layout params for
+        // onDropChild to write to.
+        assertThat(
+            DossierPlacement.canPlace(
+                screenId = 0, isDropTargetAScreen = true,
+                cellX = 3, cellY = 0, spanX = 2, spanY = 2,
+                gridCountX = 4, gridCountY = 4,
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun canPlace_rejectsAnUnknownScreenId() {
+        // getCellLayoutId returns -1 when the layout is not a known workspace screen.
+        assertThat(
+            DossierPlacement.canPlace(
+                screenId = -1, isDropTargetAScreen = true,
+                cellX = 0, cellY = 0, spanX = 2, spanY = 2,
+                gridCountX = 4, gridCountY = 4,
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun canPlace_rejectsTheDockAsATarget() {
+        // The dock reports a page index as its screen id, which is >= 0, so the
+        // screen check alone would accept it. A workspace card cannot live there.
+        assertThat(
+            DossierPlacement.canPlace(
+                screenId = 0, isDropTargetAScreen = false,
+                cellX = 0, cellY = 0, spanX = 2, spanY = 2,
+                gridCountX = 4, gridCountY = 4,
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun canPlace_rejectsANegativeCell() {
+        assertThat(
+            DossierPlacement.canPlace(
+                screenId = 0, isDropTargetAScreen = true,
+                cellX = -1, cellY = 0, spanX = 2, spanY = 2,
+                gridCountX = 4, gridCountY = 4,
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun canPlace_rejectsADegenerateSpan() {
+        assertThat(
+            DossierPlacement.canPlace(
+                screenId = 0, isDropTargetAScreen = true,
+                cellX = 0, cellY = 0, spanX = 0, spanY = 2,
+                gridCountX = 4, gridCountY = 4,
+            )
+        ).isFalse()
+    }
 }

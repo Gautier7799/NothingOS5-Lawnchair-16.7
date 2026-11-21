@@ -1861,8 +1861,12 @@ public class CellLayout extends ViewGroup {
     void onDropChild(View child) {
         mPlayDragHaptics = false;
         if (child != null) {
+            // A child that addInScreen could not attach (unknown screen, out-of-grid
+            // cell) carries no layout params. Writing the dropped flag would throw, so
+            // a drop that never reached the grid must be a no-op instead.
             CellLayoutLayoutParams
                     lp = (CellLayoutLayoutParams) child.getLayoutParams();
+            if (lp == null) return;
             lp.dropped = true;
             child.requestLayout();
             markCellsAsOccupiedForView(child);

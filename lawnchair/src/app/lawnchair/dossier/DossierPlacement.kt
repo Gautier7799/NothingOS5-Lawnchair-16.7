@@ -71,6 +71,35 @@ object DossierPlacement {
         return null
     }
 
+    /**
+     * Whether a resolved card can actually be attached to the drop target.
+     *
+     * `addInScreen` returns without attaching layout params when the screen id is
+     * unknown or the cell lies outside the grid, and the following `onDropChild`
+     * then writes to those missing params. Callers check this first so an
+     * unplaceable drop leaves the workspace untouched instead of crashing, and so
+     * no database row is written for a card that can never be shown.
+     *
+     * A Dossier card is a workspace item, so `isDropTargetAScreen` must be true: the
+     * dock is not a valid parent even though it reports a page index.
+     */
+    @JvmStatic
+    fun canPlace(
+        screenId: Int,
+        isDropTargetAScreen: Boolean,
+        cellX: Int,
+        cellY: Int,
+        spanX: Int,
+        spanY: Int,
+        gridCountX: Int,
+        gridCountY: Int,
+    ): Boolean {
+        if (screenId < 0 || !isDropTargetAScreen) return false
+        if (cellX < 0 || cellY < 0) return false
+        if (spanX < 1 || spanY < 1) return false
+        return cellX + spanX <= gridCountX && cellY + spanY <= gridCountY
+    }
+
     const val DEFAULT_SPAN_X = 2
     const val DEFAULT_SPAN_Y = 2
 }

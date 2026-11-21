@@ -42,6 +42,7 @@ import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 
 import com.android.launcher3.accessibility.DragAndDropAccessibilityDelegate;
+import com.android.launcher3.anim.AlphaUpdateListener;
 import com.android.launcher3.celllayout.CellLayoutLayoutParams;
 import com.android.launcher3.pageindicators.PageIndicatorDots;
 import com.android.launcher3.util.HorizontalInsettableView;
@@ -121,6 +122,8 @@ public class Hotseat extends FrameLayout implements Insettable {
 
     /** The floating glass search pill, when the dock search bar is off. May be null. */
     private View mSearchPill;
+    private float mSearchPillHostAlpha = 1f;
+    private float mSearchPillDynamicAlpha = 1f;
 
     private final ActivityContext mActivity;
 
@@ -234,10 +237,40 @@ public class Hotseat extends FrameLayout implements Insettable {
     /** Applies the dynamic search bar visibility, fading the bar (or pill) in or out. */
     public void setSearchBarDynamicAlpha(float alpha) {
         setQsbAlpha(alpha, ALPHA_CHANNEL_SEARCH_BAR_DYNAMIC);
+        mSearchPillDynamicAlpha = alpha;
         if (mSearchPill != null) {
             mSearchPill.animate().cancel();
-            mSearchPill.animate().alpha(alpha).setDuration(SEARCH_BAR_DYNAMIC_FADE_MS).start();
+            mSearchPill.animate().alpha(getSearchPillAlpha())
+                    .setDuration(SEARCH_BAR_DYNAMIC_FADE_MS)
+                    .withEndAction(this::applySearchPillVisibility)
+                    .start();
+            applySearchPillVisibility();
         }
+    }
+
+    /**
+     * The pill lives in the DragLayer, not in this view, so it does not inherit our alpha or
+     * visibility. Mirror both here so the pill fades with the dock (for example when All Apps
+     * opens) and stops taking touches once it is invisible.
+     */
+    @Override
+    public void setAlpha(float alpha) {
+        super.setAlpha(alpha);
+        mSearchPillHostAlpha = alpha;
+        if (mSearchPill != null) {
+            mSearchPill.setAlpha(getSearchPillAlpha());
+            applySearchPillVisibility();
+        }
+    }
+
+    private float getSearchPillAlpha() {
+        return mSearchPillHostAlpha * mSearchPillDynamicAlpha;
+    }
+
+    private void applySearchPillVisibility() {
+        if (mSearchPill == null) return;
+        mSearchPill.setVisibility(getSearchPillAlpha() > AlphaUpdateListener.ALPHA_CUTOFF_THRESHOLD
+                ? View.VISIBLE : View.INVISIBLE);
     }
 
     /** Returns the floating search pill, or null when the dock search bar is shown instead. */

@@ -1,85 +1,86 @@
-name: Build Lawnchair APK
+name: Build Lawnchair
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches:
       - foundation/lawnchair-16-dev
-      - feature/bundled-lawnicons
-      - fix/dock-auto-capsule-bounds
-      - fix/dock-ios-reference-proportions
-      - fix/ios-dock-capsule-slightly-larger
-      - feature/caddy-smart-drawer
-      - feature/caddy-smart-drawer-v76
-      - feature/caddy-smart-drawer-v78
-      - feature/caddy-smart-drawer-v79
-      - feature/caddy-smart-drawer-v80
-      - feature/caddy-smart-drawer-v82
-      - feature/caddy-smart-drawer-v83
-      - feature/caddy-smart-drawer-v84
-      - feature/caddy-smart-drawer-v85
-      - feature/caddy-smart-drawer-v86
-      - feature/caddy-smart-drawer-v87
-      - fix/suggestions-custom-apps
-      - openhands/remove-native-widget-library
-      - openhands/stabilize-drawer-suggestions
-      - openhands/caddy-cards-on-home-screen
-      - openhands/caddy-home
-      - fix/caddy-home-render-and-dock-clipping
-      - refactor/remove-caddy-home
-      - openhands/remove-caddy-home-clean
-      - openhands/remove-caddy-home-ios-dock
-      - openhands/dossier-workspace-cards
-      - fix/dossier-native-workspace-integration
-      - fix/dossier-cold-render-resize-2026-11-14
-      - openhands/dossier-interaction-fixes
-      - fix/dossier-interaction-regression-2026-11-15
-      - openhands/dossier-remaining-fixes
-      - fix/dossier-page-transfer-safe-delete-grid-resize-2026-11-15
-      - openhands/dossier-spacing-safe-2026-11-15
-      - openhands/dossier-stage2-hardening
-      - openhands/caddy-card-to-folder-stage2
-      - fix/caddy-folder-resize-cancel-2026-11-16
-      - openhands/caddy-resize-corner-handles
-      - openhands/caddy-resize-touch-path
-      - openhands/dossier-resize-touch-path
-      - openhands/caddy-card-drop-to-dossier
-      - openhands/consolidated-caddy-dossier-fixes
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  build-debug-apk:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source with submodules
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
           submodules: recursive
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: '21'
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+
       - name: Generate and bundle Lawnicons resources
         run: |
           git clone https://github.com/LawnchairLauncher/lawnicons.git /tmp/lawnicons
           git -C /tmp/lawnicons checkout "$(cat scripts/lawnicons-revision.txt)"
           /tmp/lawnicons/gradlew -p /tmp/lawnicons :svg-processor:run
           python3 scripts/merge_lawnicons.py /tmp/lawnicons
+
+      - name: Check formatting
+        run: ./gradlew spotlessCheck --stacktrace
+
       - name: Run Lawnchair unit tests
         run: ./gradlew testLawnWithQuickstepGithubDebugUnitTest --stacktrace
-      - name: Build Lawnchair GitHub Debug APK
+
+      - name: Build GitHub Debug APK
         run: ./gradlew assembleLawnWithQuickstepGithubDebug --stacktrace
-      - name: Upload APK artifact
+
+      # Verifies that R8 (minifyEnabled + shrinkResources) can actually shrink
+      # this project. It had never been exercised before, so the first failure
+      # would otherwise have surfaced during a real release.
+      # NOTE: without keystore.properties the release variant falls back to the
+      # debug signing config (see build.gradle). The APK is a shrink test, not a
+      # publishable artifact.
+      - name: Build GitHub Release APK
+        run: ./gradlew assembleLawnWithQuickstepGithubRelease --stacktrace
+
+      - name: Upload APKs
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: lawnchair-16-dev-github-debug
+          name: lawnchair-github-apks
           path: build/outputs/apk/**/*.apk
           if-no-files-found: error
+          retention-days: 14
+
+      # Advisory only: the project inherits ~2500 lint findings from the
+      # upstream AOSP tree (filtered by lint.xml). A hard gate would block every
+      # PR until that debt is paid down, so a non-zero exit here is reported as
+      # a warning instead of failing the job.
+      - name: Run lint (advisory)
+        run: |
+          ./gradlew :lintLawnWithQuickstepGithubDebug --stacktrace \
+            || echo "::warning::Lint reported findings (see the lint-report artifact)"
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: build/reports/lint-results-*.html
+          if-no-files-found: ignore
           retention-days: 14

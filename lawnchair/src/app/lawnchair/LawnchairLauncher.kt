@@ -48,6 +48,7 @@ import app.lawnchair.preferences2.firstCached
 import app.lawnchair.qsb.SearchBarDynamicsController
 import app.lawnchair.root.RootHelperManager
 import app.lawnchair.root.RootNotAvailableException
+import app.lawnchair.sidebar.SidebarCoordinator
 import app.lawnchair.theme.ThemeProvider
 import app.lawnchair.ui.popup.LauncherOptionsPopup
 import app.lawnchair.ui.popup.LawnchairShortcut
@@ -112,6 +113,7 @@ class LawnchairLauncher : QuickstepLauncher() {
 
     private val dossierCards by unsafeLazy { DossierCardCoordinator(this) }
     private val caddyHomeCards by unsafeLazy { CaddyHomeCardCoordinator(this) }
+    private val sidebar by unsafeLazy { SidebarCoordinator(this) }
     private val searchBarDynamics by unsafeLazy { SearchBarDynamicsController(this) }
 
     private val noStatusBarStateListener = object : StateManager.StateListener<LauncherState> {
@@ -172,6 +174,7 @@ class LawnchairLauncher : QuickstepLauncher() {
 
         dossierCards.start()
         caddyHomeCards.start()
+        sidebar.start()
 
         prefs.launcherTheme.subscribeChanges(this, ::updateTheme)
         prefs.feedProvider.subscribeChanges(this, defaultOverlay::reconnect)
@@ -520,6 +523,7 @@ class LawnchairLauncher : QuickstepLauncher() {
         super.onDestroy()
         dossierCards.stop()
         caddyHomeCards.stop()
+        sidebar.stop()
         // Only actually closes if required, safe to call if not enabled
         SmartspacerClient.close()
     }
@@ -528,6 +532,7 @@ class LawnchairLauncher : QuickstepLauncher() {
         super.finishBindingItems(pagesBoundFirst)
         dossierCards.onWorkspaceBound()
         caddyHomeCards.onWorkspaceBound()
+        sidebar.reload()
     }
 
     /** Re-renders bound Dossier cards after a Grille settings change, without a full rebind. */
