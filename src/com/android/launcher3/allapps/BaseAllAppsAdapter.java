@@ -754,12 +754,16 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         host.removeAllViews();
         host.setPadding(dp(4), dp(4), dp(4), dp(4));
 
-        int accent = resolveCaddyDynamicColor();
+        // Use the same wallpaper palette as the Caddy category renderer so this
+        // utility card follows the wallpaper in both light and dark themes.
+        app.lawnchair.allapps.caddy.CaddyMaterialYou.SearchCardPalette palette =
+                app.lawnchair.allapps.caddy.CaddyMaterialYou.INSTANCE
+                        .searchCardPalette(mActivityContext);
+
         GradientDrawable background = new GradientDrawable();
-        background.setColor(Color.rgb(31, 32, 34));
+        background.setColor(palette.getSurface());
         background.setCornerRadius(dp(28));
-        background.setStroke(dp(1), Color.argb(76,
-                Color.red(accent), Color.green(accent), Color.blue(accent)));
+        background.setStroke(dp(1), palette.getOutline());
 
         LinearLayout card = new LinearLayout(mActivityContext);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -769,26 +773,30 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         host.addView(card, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        TextView voice = createCaddySearchButton("Voice",
-                android.R.drawable.ic_btn_speak_now, accent);
+        TextView voice = createCaddySearchButton(
+                "Voice", android.R.drawable.ic_btn_speak_now, palette.getAccent(),
+                palette.getForeground(), palette.getButtonSurface(), palette.getOutline());
         LinearLayout.LayoutParams voiceParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
         voiceParams.bottomMargin = dp(12);
         card.addView(voice, voiceParams);
         voice.setOnClickListener(v -> launchCaddyVoiceSearch());
 
-        TextView search = createCaddySearchButton("Search",
-                android.R.drawable.ic_menu_search, accent);
+        TextView search = createCaddySearchButton(
+                "Search", android.R.drawable.ic_menu_search, palette.getAccent(),
+                palette.getForeground(), palette.getButtonSurface(), palette.getOutline());
         card.addView(search, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
         search.setOnClickListener(v -> focusCaddyTextSearch(host));
         host.setContentDescription("Voice search and text search");
     }
 
-    private TextView createCaddySearchButton(String label, int iconResource, int accent) {
+    private TextView createCaddySearchButton(
+            String label, int iconResource, int accent, int foreground,
+            int buttonSurface, int outline) {
         TextView button = new TextView(mActivityContext);
         button.setText(label);
-        button.setTextColor(Color.WHITE);
+        button.setTextColor(foreground);
         button.setTextSize(15);
         button.setTypeface(android.graphics.Typeface.create(
                 "sans-serif-medium", android.graphics.Typeface.NORMAL));
@@ -797,12 +805,13 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         android.graphics.drawable.Drawable icon =
                 mActivityContext.getDrawable(iconResource);
         if (icon != null) {
-            icon.setTint(Color.WHITE);
+            icon.setTint(accent);
             button.setCompoundDrawablesWithIntrinsicBounds(icon, null, null, null);
         }
         GradientDrawable pill = new GradientDrawable();
-        pill.setColor(accent);
+        pill.setColor(buttonSurface);
         pill.setCornerRadius(dp(30));
+        pill.setStroke(dp(1), outline);
         button.setBackground(pill);
         button.setClickable(true);
         button.setFocusable(true);
