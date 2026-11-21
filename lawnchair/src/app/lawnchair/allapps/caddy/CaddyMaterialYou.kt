@@ -53,6 +53,22 @@ object CaddyMaterialYou {
     /** The hairline outline drawn around surfaces. */
     fun outlineVariant(context: Context): Int = neutralVariant(context, LIGHT.outlineVariant, DARK.outlineVariant)
 
+    /** The palette roles of the Caddy search-actions card. */
+    data class SearchCardPalette(
+        val surface: Int,
+        val buttonSurface: Int,
+        val accent: Int,
+        val foreground: Int,
+        val outline: Int,
+    )
+
+    /** The search-actions card, resolved from the same wallpaper palette as the category cards. */
+    fun searchCardPalette(context: Context): SearchCardPalette {
+        val night = isNight(context)
+        return schemeColor(context) { searchCardPalette(it, night) }
+            ?: fallbackSearchCardPalette(context, night)
+    }
+
     /** The wallpaper accent, used for selected states and the "+ Add" card. */
     fun accent(context: Context): Int = schemeColor(context) { accentColor(it, accentTone(isNight(context))) }
         ?: frameworkColor(context, "system_accent1_600")
@@ -95,10 +111,17 @@ object CaddyMaterialYou {
      */
     private fun tintedSurface(context: Context, lightTone: Int, darkTone: Int): Int {
         val tone = if (isNight(context)) darkTone else lightTone
-        val tinted = schemeColor(context) { accentHue(it, tone) }
-        if (tinted == null) return fallbackSurface(context)
-        return blendOklab(tinted, neutral(context, lightTone, darkTone), SURFACE_TINT)
+        return schemeColor(context) { tintedSurface(it, tone) } ?: fallbackSurface(context)
     }
+
+    /**
+     * The neutral surface at [tone] with [SURFACE_TINT] of the accent hue mixed in.
+     *
+     * The blend starts from the neutral surface so the surface keeps the neutral tone and gains
+     * only a little of the wallpaper chroma. Starting from the accent instead would leave the card
+     * almost fully saturated.
+     */
+    internal fun tintedSurface(scheme: ColorScheme, tone: Int): Int = blendOklab(neutralColor(scheme, tone), accentHue(scheme, tone), SURFACE_TINT)
 
     /**
      * Mixes the hue of [tint] into [base] while keeping the lightness of [base].
@@ -124,7 +147,7 @@ object CaddyMaterialYou {
         return schemeColor(context) { neutralVariantColor(it, tone) } ?: fallbackSurface(context)
     }
 
-    private fun schemeColor(context: Context, pick: (ColorScheme) -> Int): Int? = runCatching {
+    private fun <T> schemeColor(context: Context, pick: (ColorScheme) -> T): T? = runCatching {
         pick(ThemeProvider.INSTANCE.get(context).colorScheme)
     }.getOrNull()
 
@@ -144,6 +167,27 @@ object CaddyMaterialYou {
 
     /** The accent colour at [tone], used for selected states. */
     internal fun accentColor(scheme: ColorScheme, tone: Int): Int = scheme.primary(tone).toArgb()
+
+    /** The search-actions card roles for a wallpaper-derived [scheme]. */
+    internal fun searchCardPalette(scheme: ColorScheme, night: Boolean): SearchCardPalette = SearchCardPalette(
+        surface = tintedSurface(scheme, surfaceContainerTone(night)),
+        buttonSurface = tintedSurface(scheme, surfaceTone(night)),
+        accent = accentColor(scheme, accentTone(night)),
+        foreground = neutralColor(scheme, onSurfaceTone(night)),
+        outline = neutralVariantColor(scheme, outlineVariantTone(night)),
+    )
+
+    private fun fallbackSearchCardPalette(context: Context, night: Boolean): SearchCardPalette {
+        val surface = fallbackSurface(context)
+        val accent = CaddyCardRenderer.resolveDynamicColor(context)
+        return SearchCardPalette(
+            surface = surface,
+            buttonSurface = surface,
+            accent = accent,
+            foreground = if (night) Color.WHITE else Color.BLACK,
+            outline = Color.argb(64, Color.red(accent), Color.green(accent), Color.blue(accent)),
+        )
+    }
 
     /** The surface container high tone for the current light/dark mode. */
     internal fun surfaceContainerTone(isNight: Boolean): Int = if (isNight) DARK.surfaceContainerHigh else LIGHT.surfaceContainerHigh
