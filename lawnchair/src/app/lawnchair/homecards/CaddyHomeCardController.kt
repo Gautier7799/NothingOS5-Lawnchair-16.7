@@ -98,7 +98,9 @@ class CaddyHomeCardController(
             // Release this card's previous footprint before validating its saved rectangle.
             // The CellLayout occupancy grid includes normal shortcuts/folders/widgets, so a
             // persisted Caddy rectangle must be checked against those items on every rebind.
-            if (existing != null) detach(card.id)
+            // Freeing only the occupancy keeps a live view on screen: detaching it here would drop
+            // it out of the layout pass and make the card blink on every app-list snapshot.
+            if (existing != null) releaseForSync(card.id)
 
             val saved = existing?.let {
                 card.copy(
@@ -346,6 +348,22 @@ class CaddyHomeCardController(
     private fun releaseFootprint(id: Int) {
         attached[id]?.let { view -> cellLayoutOf(view)?.markCellsAsUnoccupiedForView(view) }
         placement.releaseCells(id)
+    }
+
+    /**
+     * Frees a card's cells for a sync that is about to re-validate its saved rectangle.
+     *
+     * The view is left on the workspace whenever it is still hosted by a live page, because taking
+     * it out of the hierarchy makes the card disappear until the next layout pass. Only a view that
+     * is already orphaned (its page was discarded by a workspace rebind) is dropped.
+     */
+    private fun releaseForSync(id: Int) {
+        val view = attached[id]
+        val onLivePage = view != null && cellLayoutOf(view) != null
+        when (CaddyHomeCardAttachment.syncAction(view != null, onLivePage)) {
+            CaddyHomeCardAttachment.SyncAction.RELEASE_IN_PLACE -> releaseFootprint(id)
+            CaddyHomeCardAttachment.SyncAction.RELEASE_ORPHAN -> detach(id)
+        }
     }
 
     /**

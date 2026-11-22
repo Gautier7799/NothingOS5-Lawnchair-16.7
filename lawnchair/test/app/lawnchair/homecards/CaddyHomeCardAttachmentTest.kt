@@ -180,4 +180,26 @@ class CaddyHomeCardAttachmentTest {
         assertThat(CaddyHomeCardAttachment.resizeAction(hasView = true, viewOnTargetPage = false))
             .isEqualTo(CaddyHomeCardAttachment.ResizeAction.REATTACH)
     }
+
+    @Test
+    fun syncAction_keepsALiveViewOnScreen() {
+        // A live view must keep its cells freed but stay in the hierarchy: detaching it here is what
+        // made the cards blink on every app-list snapshot.
+        assertThat(CaddyHomeCardAttachment.syncAction(hasAttachedView = true, viewOnLivePage = true))
+            .isEqualTo(CaddyHomeCardAttachment.SyncAction.RELEASE_IN_PLACE)
+    }
+
+    @Test
+    fun syncAction_detachesWhenThereIsNoLiveView() {
+        // Nothing is on screen: there is no view to preserve, so the cells are freed and the
+        // (missing or orphaned) view token is dropped.
+        assertThat(CaddyHomeCardAttachment.syncAction(hasAttachedView = false, viewOnLivePage = false))
+            .isEqualTo(CaddyHomeCardAttachment.SyncAction.RELEASE_ORPHAN)
+        // A stale live-page flag must not be trusted without a view.
+        assertThat(CaddyHomeCardAttachment.syncAction(hasAttachedView = false, viewOnLivePage = true))
+            .isEqualTo(CaddyHomeCardAttachment.SyncAction.RELEASE_ORPHAN)
+        // The page was discarded by a workspace rebind: the view is orphaned and must be dropped.
+        assertThat(CaddyHomeCardAttachment.syncAction(hasAttachedView = true, viewOnLivePage = false))
+            .isEqualTo(CaddyHomeCardAttachment.SyncAction.RELEASE_ORPHAN)
+    }
 }

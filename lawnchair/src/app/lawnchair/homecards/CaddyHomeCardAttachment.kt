@@ -70,6 +70,30 @@ object CaddyHomeCardAttachment {
         else -> ResizeAction.REATTACH
     }
 
+    /** How a sync that re-validates a saved rectangle must free the card's old footprint. */
+    enum class SyncAction {
+        /** The view is live on a current page: free its cells and leave it on screen. */
+        RELEASE_IN_PLACE,
+
+        /** The view is already off the live pages: only its cells need freeing. */
+        RELEASE_ORPHAN,
+    }
+
+    /**
+     * Chooses how a sync releases a card's previous footprint before its saved rectangle is
+     * re-validated.
+     *
+     * A sync must never take a live card's view off the workspace. Detaching it drops the view out
+     * of the next layout and paint pass, so the card disappears and reappears on every app-list
+     * snapshot, which is what made the Caddy cards flicker. Freeing only the occupancy is enough:
+     * the card stops blocking its own rectangle and stays on screen, and [CaddyHomeCardController
+     * .attach] re-applies its position without re-adding it.
+     */
+    fun syncAction(hasAttachedView: Boolean, viewOnLivePage: Boolean): SyncAction = when {
+        hasAttachedView && viewOnLivePage -> SyncAction.RELEASE_IN_PLACE
+        else -> SyncAction.RELEASE_ORPHAN
+    }
+
     /**
      * Whether a new measurement changes what the card must draw, so its content has to be rebuilt.
      *
