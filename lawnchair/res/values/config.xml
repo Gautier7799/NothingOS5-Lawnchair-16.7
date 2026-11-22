@@ -119,9 +119,7 @@
     <bool name="config_default_show_dock_search_bar">false</bool>
     <bool name="config_default_search_bar_dynamic">false</bool>
     <bool name="config_default_dossier_enabled">true</bool>
-    <bool name="config_default_caddy_home_enabled">false</bool>
     <bool name="config_default_sidebar_enabled">false</bool>
-    <bool name="config_default_caddy_home_show_titles">true</bool>
     <bool name="config_default_always_reload_icons">true</bool>
     <bool name="config_default_dark_status_bar">false</bool>
     <bool name="config_default_show_notification_count">false</bool>
