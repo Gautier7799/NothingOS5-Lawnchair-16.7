@@ -48,6 +48,28 @@ object CaddyHomeCardAttachment {
         else -> Action.MOVE
     }
 
+    /** How a resize must move the card's view onto its new footprint. */
+    enum class ResizeAction {
+        /** The view stays on the same page: re-apply its span in place, without detaching it. */
+        IN_PLACE,
+
+        /** The view must leave its current page: detach and re-attach it. */
+        REATTACH,
+    }
+
+    /**
+     * Chooses how a resize repositions the card's view.
+     *
+     * A resize that keeps the card on its page must never detach the view. Removing it from the
+     * hierarchy drops it out of the next layout and paint pass, so the card visibly disappears for
+     * a frame and then reappears at its new size. Releasing only the occupancy is enough to stop
+     * the card blocking its own larger rectangle, and the view then stays on screen throughout.
+     */
+    fun resizeAction(hasView: Boolean, viewOnTargetPage: Boolean): ResizeAction = when {
+        hasView && viewOnTargetPage -> ResizeAction.IN_PLACE
+        else -> ResizeAction.REATTACH
+    }
+
     /**
      * The saved cards that must survive a sync even though their category is absent from the
      * current app list.

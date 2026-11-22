@@ -82,7 +82,8 @@ class CaddyHomeCardView @JvmOverloads constructor(
 
     private var boundCard: CaddyHomeCardInfo? = null
     private var appResolver: ((String) -> AppInfo?)? = null
-    private var lastCellPx = 0
+    private var lastGeometry: CardGeometry? = null
+    private var lastRenderKey: RenderKey? = null
 
     private val cornerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0x59FFFFFF
@@ -108,8 +109,30 @@ class CaddyHomeCardView @JvmOverloads constructor(
     fun bind(card: CaddyHomeCardInfo, resolveApp: (String) -> AppInfo?) {
         boundCard = card
         appResolver = resolveApp
+        // Rendering rebuilds every child view, so it must only run when something the card draws
+        // actually changed. A resize re-binds the same card to the same view, and rebuilding here
+        // would blank the card and repaint it twice (once at the old size, once after layout).
+        // Size changes are handled by [onSizeChanged], which re-renders when the cell size moves.
+        val key = RenderKey(
+            title = card.title,
+            appKeys = card.appKeys,
+            icons = card.appKeys.map { resolveApp(it)?.bitmap },
+            showTitle = showTitle,
+            columns = iconColumns,
+        )
+        if (key == lastRenderKey) return
+        lastRenderKey = key
         render()
     }
+
+    /** Everything that changes what the card draws, so [bind] can skip a redundant rebuild. */
+    private data class RenderKey(
+        val title: String,
+        val appKeys: List<String>,
+        val icons: List<Any?>,
+        val showTitle: Boolean,
+        val columns: Int,
+    )
 
     /**
      * Renders the card. The icon size is derived from the card's real measured span, so the
@@ -119,7 +142,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
         val card = boundCard ?: return
         val resolveApp = appResolver ?: return
         val geometry = geometryFor(width, height, card)
-        lastCellPx = geometry.cellPx
+        lastGeometry = geometry
         CaddyCardRenderer.renderCategoryCard(
             host = this,
             title = card.title,
@@ -190,7 +213,10 @@ class CaddyHomeCardView @JvmOverloads constructor(
         super.onSizeChanged(w, h, oldw, oldh)
         if (w > 0 && h > 0) {
             val card = boundCard ?: return
-            if (geometryFor(w, h, card).cellPx != lastCellPx) render()
+            // Compare the whole geometry, not just the cell size: a resize can keep the cell
+            // size identical while fitting a different number of rows, which changes how many
+            // icons the card must show.
+            if (geometryFor(w, h, card) != lastGeometry) render()
         }
     }
 

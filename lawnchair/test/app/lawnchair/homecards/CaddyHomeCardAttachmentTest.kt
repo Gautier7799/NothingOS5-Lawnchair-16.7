@@ -127,4 +127,26 @@ class CaddyHomeCardAttachmentTest {
         assertThat(carried.single().spanX).isEqualTo(4)
         assertThat(carried.single().spanY).isEqualTo(2)
     }
+
+    @Test
+    fun resizeAction_keepsTheViewAttachedWhenItStaysOnItsPage() {
+        // A resize on the same page must not detach the view. Detaching removed it from the
+        // hierarchy, so the card disappeared for a frame and came back at the new size, which the
+        // user saw as the card blinking on every resize.
+        assertThat(CaddyHomeCardAttachment.resizeAction(hasView = true, viewOnTargetPage = true))
+            .isEqualTo(CaddyHomeCardAttachment.ResizeAction.IN_PLACE)
+    }
+
+    @Test
+    fun resizeAction_reattachesWhenTheViewIsMissingOrOnAnotherPage() {
+        // No view yet: there is nothing on screen to preserve.
+        assertThat(CaddyHomeCardAttachment.resizeAction(hasView = false, viewOnTargetPage = false))
+            .isEqualTo(CaddyHomeCardAttachment.ResizeAction.REATTACH)
+        // A stale target-page flag must not be trusted without a view.
+        assertThat(CaddyHomeCardAttachment.resizeAction(hasView = false, viewOnTargetPage = true))
+            .isEqualTo(CaddyHomeCardAttachment.ResizeAction.REATTACH)
+        // Hosted on another page: the view must leave its owner, so a detach is required.
+        assertThat(CaddyHomeCardAttachment.resizeAction(hasView = true, viewOnTargetPage = false))
+            .isEqualTo(CaddyHomeCardAttachment.ResizeAction.REATTACH)
+    }
 }
