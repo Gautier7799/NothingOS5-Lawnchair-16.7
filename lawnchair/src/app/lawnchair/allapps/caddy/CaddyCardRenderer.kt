@@ -108,8 +108,6 @@ object CaddyCardRenderer {
         card.isClickable = true
         card.isFocusable = true
         card.setOnClickListener { cardClick?.invoke() }
-        // The card surface owns the long press so a card drag starts even when the press
-        // lands on one of the preview icons, which are themselves long-press targets.
         card.setOnLongClickListener { cardLongClick?.invoke() ?: false }
         val background = GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,

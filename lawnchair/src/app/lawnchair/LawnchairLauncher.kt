@@ -40,7 +40,6 @@ import app.lawnchair.gestures.GestureController
 import app.lawnchair.gestures.VerticalSwipeTouchController
 import app.lawnchair.gestures.config.GestureHandlerConfig
 import app.lawnchair.gestures.ui.LawnchairShortcutActivity
-import app.lawnchair.homecards.CaddyHomeCardCoordinator
 import app.lawnchair.nexuslauncher.OverlayCallbackImpl
 import app.lawnchair.preferences.PreferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
@@ -112,7 +111,6 @@ class LawnchairLauncher : QuickstepLauncher() {
     private val themeProvider by unsafeLazy { ThemeProvider.INSTANCE.get(this) }
 
     private val dossierCards by unsafeLazy { DossierCardCoordinator(this) }
-    private val caddyHomeCards by unsafeLazy { CaddyHomeCardCoordinator(this) }
     private val sidebar by unsafeLazy { SidebarCoordinator(this) }
     private val searchBarDynamics by unsafeLazy { SearchBarDynamicsController(this) }
 
@@ -173,7 +171,6 @@ class LawnchairLauncher : QuickstepLauncher() {
         super.onCreate(savedInstanceState)
 
         dossierCards.start()
-        caddyHomeCards.start()
         sidebar.start()
 
         prefs.launcherTheme.subscribeChanges(this, ::updateTheme)
@@ -522,7 +519,6 @@ class LawnchairLauncher : QuickstepLauncher() {
     override fun onDestroy() {
         super.onDestroy()
         dossierCards.stop()
-        caddyHomeCards.stop()
         sidebar.stop()
         // Only actually closes if required, safe to call if not enabled
         SmartspacerClient.close()
@@ -531,7 +527,6 @@ class LawnchairLauncher : QuickstepLauncher() {
     override fun finishBindingItems(pagesBoundFirst: IntSet?) {
         super.finishBindingItems(pagesBoundFirst)
         dossierCards.onWorkspaceBound()
-        caddyHomeCards.onWorkspaceBound()
         sidebar.reload()
     }
 
