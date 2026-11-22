@@ -71,6 +71,24 @@ object CaddyHomeCardAttachment {
     }
 
     /**
+     * Whether a new measurement changes what the card must draw, so its content has to be rebuilt.
+     *
+     * Both values matter. The cell size decides how large each icon is drawn, and the icon count
+     * decides how many rows appear. Comparing only the cell size misses a resize that keeps the
+     * cells the same size while fitting a different number of rows, which left the card showing the
+     * wrong number of icons after the resize.
+     */
+    fun needsRebuild(previous: CardGeometry?, next: CardGeometry): Boolean = previous == null || previous.cellPx != next.cellPx || previous.maxIcons != next.maxIcons
+
+    /** The icon grid a card must draw at its current measured size. */
+    data class CardGeometry(
+        val columns: Int,
+        val cellPx: Int,
+        val maxIcons: Int,
+        val rows: Int,
+    )
+
+    /**
      * The saved cards that must survive a sync even though their category is absent from the
      * current app list.
      *

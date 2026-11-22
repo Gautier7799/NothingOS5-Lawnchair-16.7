@@ -18,6 +18,7 @@ package app.lawnchair.homecards
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.util.AttributeSet
@@ -29,6 +30,8 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
 import app.lawnchair.allapps.caddy.CaddyCardRenderer
+import app.lawnchair.allapps.caddy.CaddyMaterialYou
+import app.lawnchair.homecards.CaddyHomeCardAttachment.CardGeometry
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
 import com.android.launcher3.BubbleTextView
@@ -83,7 +86,19 @@ class CaddyHomeCardView @JvmOverloads constructor(
     private var boundCard: CaddyHomeCardInfo? = null
     private var appResolver: ((String) -> AppInfo?)? = null
     private var lastGeometry: CardGeometry? = null
+    private var renderPending = false
     private var lastRenderKey: RenderKey? = null
+
+    // The card surface is painted by this view in [dispatchDraw], so it survives every content
+    // rebuild. The colours come from the same Material You roles the renderer uses.
+    private val surfacePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+    private val surfaceStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+    }
+    private var surfaceRadiusPx = 0f
+    private var surfaceStrokePx = 0f
 
     private val cornerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0x59FFFFFF
@@ -143,8 +158,22 @@ class CaddyHomeCardView @JvmOverloads constructor(
         val resolveApp = appResolver ?: return
         val geometry = geometryFor(width, height, card)
         lastGeometry = geometry
+        // Keep the host's own surface in sync with the same roles the content uses, so the card
+        // looks unchanged while the content below is replaced.
+        surfaceRadiusPx = dp(SURFACE_RADIUS_DP).toFloat()
+        surfaceStrokePx = dp(SURFACE_STROKE_DP).toFloat()
+        surfacePaint.color = CaddyMaterialYou.surfaceContainer(context)
+        surfaceStrokePaint.color = Color.argb(
+            90,
+            Color.red(CaddyMaterialYou.outlineVariant(context)),
+            Color.green(CaddyMaterialYou.outlineVariant(context)),
+            Color.blue(CaddyMaterialYou.outlineVariant(context)),
+        )
+        surfaceStrokePaint.strokeWidth = surfaceStrokePx
+        invalidate()
         CaddyCardRenderer.renderCategoryCard(
             host = this,
+            drawSurface = false,
             title = card.title,
             apps = card.appKeys.mapNotNull(resolveApp),
             cardClick = { onCardClick?.invoke() },
@@ -186,7 +215,7 @@ class CaddyHomeCardView @JvmOverloads constructor(
         // Never render more rows than actually fit in the measured area, so the bottom row can
         // never be drawn outside the card's content bounds.
         val rows = CaddyHomeCardLayout.visibleRows(iconArea, cellPx, requestedRows)
-        return CardGeometry(columns = columns, cellPx = cellPx, maxIcons = columns * rows)
+        return CardGeometry(columns = columns, cellPx = cellPx, maxIcons = columns * rows, rows = rows)
     }
 
     /**
@@ -207,21 +236,52 @@ class CaddyHomeCardView @JvmOverloads constructor(
         return title.measuredHeight
     }
 
-    private data class CardGeometry(val columns: Int, val cellPx: Int, val maxIcons: Int)
-
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        if (w > 0 && h > 0) {
-            val card = boundCard ?: return
-            // Compare the whole geometry, not just the cell size: a resize can keep the cell
-            // size identical while fitting a different number of rows, which changes how many
-            // icons the card must show.
-            if (geometryFor(w, h, card) != lastGeometry) render()
+        if (w <= 0 || h <= 0) return
+        val card = boundCard ?: return
+        val geometry = geometryFor(w, h, card)
+        if (!CaddyHomeCardAttachment.needsRebuild(lastGeometry, geometry)) return
+        // Never rebuild the content from inside the layout pass. Replacing every child there means
+        // the new children are added after this pass already measured and positioned the old ones,
+        // so the card is drawn with no background, no title and no icons for a whole frame: the
+        // user sees the card vanish. Deferring to the next message keeps the current content on
+        // screen until the replacement is ready to be laid out in a full pass.
+        lastGeometry = geometry
+        if (renderPending) return
+        renderPending = true
+        post {
+            renderPending = false
+            render()
         }
     }
 
-    /** Draws the two corner affordances: resize (bottom-right) and remove (top-right). */
+    /** Draws the card surface, then the two corner affordances. */
     override fun dispatchDraw(canvas: Canvas) {
+        // The surface is painted here, on the card's own view, and not by a child. The content
+        // below is rebuilt whenever the card is resized, and rebuilding replaces every child. If
+        // the surface lived in a child, the card would be drawn with no background and no outline
+        // until the replacement was laid out, which reads as the card disappearing.
+        canvas.drawRoundRect(
+            0f,
+            0f,
+            width.toFloat(),
+            height.toFloat(),
+            surfaceRadiusPx,
+            surfaceRadiusPx,
+            surfacePaint,
+        )
+        if (surfaceStrokePx > 0f) {
+            canvas.drawRoundRect(
+                surfaceStrokePx / 2f,
+                surfaceStrokePx / 2f,
+                width - surfaceStrokePx / 2f,
+                height - surfaceStrokePx / 2f,
+                surfaceRadiusPx,
+                surfaceRadiusPx,
+                surfaceStrokePaint,
+            )
+        }
         super.dispatchDraw(canvas)
         if (homeScreenLocked) return
         val inset = dp(CORNER_INSET_DP)
@@ -429,6 +489,8 @@ class CaddyHomeCardView @JvmOverloads constructor(
         /** How close to a corner a touch must start to hit that corner action. */
         const val CORNER_HIT_DP = 56f
 
+        const val SURFACE_RADIUS_DP = 30f
+        const val SURFACE_STROKE_DP = 1f
         const val CORNER_INSET_DP = 8f
         const val CORNER_ARC_DP = 22f
     }
