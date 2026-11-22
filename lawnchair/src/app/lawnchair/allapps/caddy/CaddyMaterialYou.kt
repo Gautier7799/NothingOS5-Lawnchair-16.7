@@ -38,20 +38,34 @@ import dev.kdrag0n.monet.theme.ColorScheme
  */
 object CaddyMaterialYou {
 
+    /**
+     * Memo for the roles that only depend on the wallpaper scheme and the light/dark mode.
+     *
+     * A drawer pass resolves the same four roles for every visible card, and each resolution costs
+     * a Cielab round trip, so the results are reused until the scheme or the mode changes.
+     */
+    private val roleCache = CaddyPaletteCache<Int>()
+    private val searchCardCache = CaddyPaletteCache<SearchCardPalette>()
+
     /** The card / sheet surface: the M3 "surface container high" role. */
-    fun surfaceContainer(context: Context): Int = tintedSurface(context, LIGHT.surfaceContainerHigh, DARK.surfaceContainerHigh)
+    fun surfaceContainer(context: Context): Int = cachedRole(context) { scheme, night -> tintedSurface(scheme, surfaceContainerTone(night)) }
+        ?: tintedSurface(context, LIGHT.surfaceContainerHigh, DARK.surfaceContainerHigh)
 
     /** The page backdrop tint: the M3 "surface" role, used at an alpha over the blurred wallpaper. */
-    fun surface(context: Context): Int = tintedSurface(context, LIGHT.surface, DARK.surface)
+    fun surface(context: Context): Int = cachedRole(context) { scheme, night -> tintedSurface(scheme, surfaceTone(night)) }
+        ?: tintedSurface(context, LIGHT.surface, DARK.surface)
 
     /** Primary text on a surface. */
-    fun onSurface(context: Context): Int = neutral(context, LIGHT.onSurface, DARK.onSurface)
+    fun onSurface(context: Context): Int = cachedRole(context) { scheme, night -> neutralColor(scheme, onSurfaceTone(night)) }
+        ?: neutral(context, LIGHT.onSurface, DARK.onSurface)
 
     /** Secondary text on a surface. */
-    fun onSurfaceVariant(context: Context): Int = neutralVariant(context, LIGHT.onSurfaceVariant, DARK.onSurfaceVariant)
+    fun onSurfaceVariant(context: Context): Int = cachedRole(context) { scheme, night -> neutralVariantColor(scheme, onSurfaceVariantTone(night)) }
+        ?: neutralVariant(context, LIGHT.onSurfaceVariant, DARK.onSurfaceVariant)
 
     /** The hairline outline drawn around surfaces. */
-    fun outlineVariant(context: Context): Int = neutralVariant(context, LIGHT.outlineVariant, DARK.outlineVariant)
+    fun outlineVariant(context: Context): Int = cachedRole(context) { scheme, night -> neutralVariantColor(scheme, outlineVariantTone(night)) }
+        ?: neutralVariant(context, LIGHT.outlineVariant, DARK.outlineVariant)
 
     /** The palette roles of the Caddy search-actions card. */
     data class SearchCardPalette(
@@ -65,8 +79,30 @@ object CaddyMaterialYou {
     /** The search-actions card, resolved from the same wallpaper palette as the category cards. */
     fun searchCardPalette(context: Context): SearchCardPalette {
         val night = isNight(context)
-        return schemeColor(context) { searchCardPalette(it, night) }
-            ?: fallbackSearchCardPalette(context, night)
+        val scheme = colorScheme(context)
+        if (scheme != null) {
+            return searchCardCache.getOrCompute(Key(scheme, night)) { searchCardPalette(scheme, night) }
+        }
+        return fallbackSearchCardPalette(context, night)
+    }
+
+    /**
+     * The cache key for a palette lookup: the wallpaper scheme plus the light/dark mode.
+     *
+     * Both are immutable for the lifetime of the scheme, so identity comparison is enough and no
+     * allocation per lookup is needed.
+     */
+    private class Key(val scheme: ColorScheme, val night: Boolean) {
+        override fun equals(other: Any?): Boolean = other is Key && other.scheme === scheme && other.night == night
+
+        override fun hashCode(): Int = System.identityHashCode(scheme) * 31 + night.hashCode()
+    }
+
+    /** Runs [pick] against the cached wallpaper scheme, or null when no scheme is available. */
+    private inline fun cachedRole(context: Context, crossinline pick: (ColorScheme, Boolean) -> Int): Int? {
+        val scheme = colorScheme(context) ?: return null
+        val night = isNight(context)
+        return roleCache.getOrCompute(Key(scheme, night)) { pick(scheme, night) }
     }
 
     /** The wallpaper accent, used for selected states and the "+ Add" card. */
@@ -167,6 +203,11 @@ object CaddyMaterialYou {
 
     /** The accent colour at [tone], used for selected states. */
     internal fun accentColor(scheme: ColorScheme, tone: Int): Int = scheme.primary(tone).toArgb()
+
+    /** The launcher's wallpaper scheme, or null when it cannot be resolved. */
+    private fun colorScheme(context: Context): ColorScheme? = runCatching {
+        ThemeProvider.INSTANCE.get(context).colorScheme
+    }.getOrNull()
 
     /** The search-actions card roles for a wallpaper-derived [scheme]. */
     internal fun searchCardPalette(scheme: ColorScheme, night: Boolean): SearchCardPalette = SearchCardPalette(
