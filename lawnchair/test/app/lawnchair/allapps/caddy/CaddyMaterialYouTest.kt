@@ -18,6 +18,7 @@ package app.lawnchair.allapps.caddy
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
+import dev.kdrag0n.colorkt.rgb.Srgb
 import kotlin.math.sqrt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -105,6 +106,57 @@ class CaddyMaterialYouTest {
             CaddyMaterialYou.outlineVariantTone(isNight = false),
         )
         assertEquals("each role needs its own tone, otherwise they render identically", 5, lightTones.size)
+    }
+
+    @Test
+    fun everyRoleResolvesToItsOwnColourForTheSameScheme() {
+        // The palette memo used to hold a single value keyed on (scheme, night) only, so the first
+        // role resolved answered every later lookup: onSurface returned the surface colour and the
+        // card title was drawn invisibly on its own background.
+        val scheme = WallpaperScheme(neutral = Srgb(0.95, 0.95, 0.95), accent = Srgb(0.10, 0.43, 0.95))
+        val light = CaddyMaterialYou.Role.entries.map { CaddyMaterialYou.roleColor(scheme, it, night = false) }
+        val dark = CaddyMaterialYou.Role.entries.map { CaddyMaterialYou.roleColor(scheme, it, night = true) }
+
+        assertEquals("every role must resolve to a distinct colour", 5, light.toSet().size)
+        assertEquals("every role must resolve to a distinct colour", 5, dark.toSet().size)
+    }
+
+    @Test
+    fun everyRoleOwnsAnIndependentMemoSlot() {
+        // The bug this pins: a single shared slot keyed only on (scheme, night) meant the first
+        // role resolved answered every later lookup, so the card title got the surface colour and
+        // became invisible. Distinct slots are what makes that impossible.
+        val slots = CaddyMaterialYou.Role.entries.map { CaddyMaterialYou.roleCache(it) }
+        assertEquals(
+            "each role needs its own memo slot",
+            CaddyMaterialYou.Role.entries.size,
+            slots.distinct().size,
+        )
+
+        val scheme = WallpaperScheme(neutral = Srgb(0.95, 0.95, 0.95), accent = Srgb(0.10, 0.43, 0.95))
+        // Filling one slot must not answer a lookup in another.
+        val surfaceSlot = CaddyMaterialYou.roleCache(CaddyMaterialYou.Role.SurfaceContainer)
+        surfaceSlot.getOrCompute(scheme) { 0x111111 }
+        val foreground = CaddyMaterialYou.roleCache(CaddyMaterialYou.Role.OnSurface)
+            .getOrCompute(scheme) { 0x222222 }
+        assertNotEquals("a filled slot must not leak into another role", 0x111111, foreground)
+    }
+
+    @Test
+    fun onSurfaceIsFarFromTheSurfaceItSitsOn() {
+        // Text is only legible when it is far from its background in luminance. This is the
+        // user-visible symptom of the shared-cache bug: the title vanished into the card.
+        val scheme = WallpaperScheme(neutral = Srgb(0.95, 0.95, 0.95), accent = Srgb(0.10, 0.43, 0.95))
+        for (night in listOf(false, true)) {
+            val surface = CaddyMaterialYou.roleColor(scheme, CaddyMaterialYou.Role.SurfaceContainer, night)
+            val foreground = CaddyMaterialYou.roleColor(scheme, CaddyMaterialYou.Role.OnSurface, night)
+            val surfaceL = Color(surface).convert(ColorSpaces.Oklab).red
+            val foregroundL = Color(foreground).convert(ColorSpaces.Oklab).red
+            assertTrue(
+                "on-surface must contrast with the card surface (night=$night)",
+                kotlin.math.abs(surfaceL - foregroundL) > 0.5f,
+            )
+        }
     }
 
     @Test
