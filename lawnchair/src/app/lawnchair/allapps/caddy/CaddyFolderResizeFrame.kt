@@ -325,11 +325,11 @@ class CaddyFolderResizeFrame @JvmOverloads constructor(
         val layout = cellLayout ?: return
         val folderInfo = info ?: return
         val lp = view.layoutParams as? CellLayoutLayoutParams ?: return
-        folderInfo.cellX = lp.cellX
-        folderInfo.cellY = lp.cellY
-        folderInfo.spanX = lp.cellHSpan
-        folderInfo.spanY = lp.cellVSpan
-        launcher.modelWriter.modifyItemInDatabase(
+        // The live view already holds the new geometry, applied while the finger moved. Writing it
+        // back with the notifying call would rebind the folder: the bound view is removed from its
+        // container and added again, so the folder vanishes for the length of the rebind. Persist
+        // quietly instead, and let the writer do the presenter-to-model cell mapping.
+        launcher.modelWriter.persistItemPlacementQuietly(
             folderInfo,
             folderInfo.container,
             folderInfo.screenId,

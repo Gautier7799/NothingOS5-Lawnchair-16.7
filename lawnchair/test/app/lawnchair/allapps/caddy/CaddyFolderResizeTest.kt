@@ -142,4 +142,57 @@ class CaddyFolderResizeTest {
         assertThat(result.cellX).isEqualTo(1)
         assertThat(result.spanX).isEqualTo(CaddyFolderResize.MIN_SPAN)
     }
+
+    /**
+     * A resize gesture is committed once, on touch-up, and the committed placement is what the
+     * model stores. Replaying the same deltas must therefore be stable: feeding the committed
+     * placement back in as the new start with a zero delta has to reproduce it exactly, otherwise
+     * the folder would jump (or collapse) the moment the finger is lifted.
+     */
+    @Test
+    fun committingAGestureIsStableAcrossTouchUp() {
+        val committed = CaddyFolderResize.resize(
+            start = start(cellX = 1, cellY = 1, spanX = 1, spanY = 1),
+            deltaCellsX = 1.0f,
+            deltaCellsY = 1.0f,
+            left = false, right = true, top = false, bottom = true,
+            countX = 4, countY = 4,
+        )
+
+        val atTouchUp = CaddyFolderResize.resize(
+            start = CaddyFolderResize.Placement(
+                committed.cellX,
+                committed.cellY,
+                committed.spanX,
+                committed.spanY,
+            ),
+            deltaCellsX = 0f,
+            deltaCellsY = 0f,
+            left = false, right = true, top = false, bottom = true,
+            countX = 4, countY = 4,
+        )
+
+        assertThat(atTouchUp).isEqualTo(committed)
+    }
+
+    /** The committed placement never leaves the grid, so the model write cannot be rejected. */
+    @Test
+    fun committedPlacementAlwaysFitsInsideTheGrid() {
+        for (delta in listOf(-10f, -3f, -1f, 0f, 1f, 3f, 10f)) {
+            val result = CaddyFolderResize.resize(
+                start = start(cellX = 2, cellY = 2, spanX = 2, spanY = 2),
+                deltaCellsX = delta,
+                deltaCellsY = delta,
+                left = false, right = true, top = false, bottom = true,
+                countX = 4, countY = 4,
+            )
+
+            assertThat(result.cellX).isAtLeast(0)
+            assertThat(result.cellY).isAtLeast(0)
+            assertThat(result.cellX + result.spanX).isAtMost(4)
+            assertThat(result.cellY + result.spanY).isAtMost(4)
+            assertThat(result.spanX).isAtLeast(CaddyFolderResize.MIN_SPAN)
+            assertThat(result.spanY).isAtLeast(CaddyFolderResize.MIN_SPAN)
+        }
+    }
 }
