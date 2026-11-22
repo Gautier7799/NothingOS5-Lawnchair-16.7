@@ -1,3 +1,12 @@
+# NothingOS5-Lawnchair-16.7
+
+A Lawnchair 16 build for Nothing OS 5, with a Caddy-style app library.
+
+- Project license: MIT — see [`LICENSE`](LICENSE)
+- Inherited AOSP / Lawnchair code: Apache 2.0 — see [`LICENSE.txt`](LICENSE.txt)
+
+---
+
 # Lawnchair 16
 
 [![Build debug APK](https://github.com/LawnchairLauncher/lawnchair/actions/workflows/ci.yml/badge.svg)](https://github.com/LawnchairLauncher/lawnchair/actions/workflows/ci.yml)
