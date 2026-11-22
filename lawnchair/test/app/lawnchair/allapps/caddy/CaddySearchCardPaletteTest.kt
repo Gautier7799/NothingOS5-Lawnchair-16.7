@@ -32,7 +32,7 @@ import org.junit.Test
  * A [ColorScheme] with a flat neutral swatch and a flat accent swatch, so a test can tell which
  * palette a surface was read from.
  */
-private class WallpaperScheme(neutral: Srgb, accent: Srgb) : ColorScheme() {
+internal class WallpaperScheme(neutral: Srgb, accent: Srgb) : ColorScheme() {
     private fun swatch(color: Srgb): ColorSwatch =
         (setOf(0, 10, 50) + (1..10).map { it * 100 }).associateWith { color as ColorKt }
 

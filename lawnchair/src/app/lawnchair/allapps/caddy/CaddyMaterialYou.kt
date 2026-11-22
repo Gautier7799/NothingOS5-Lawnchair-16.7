@@ -39,32 +39,44 @@ import dev.kdrag0n.monet.theme.ColorScheme
 object CaddyMaterialYou {
 
     /**
-     * Memo for the roles that only depend on the wallpaper scheme and the light/dark mode.
+     * The roles Caddy resolves from the wallpaper palette.
      *
-     * A drawer pass resolves the same four roles for every visible card, and each resolution costs
-     * a Cielab round trip, so the results are reused until the scheme or the mode changes.
+     * Each role owns its own [CaddyPaletteCache] slot. A shared slot is not an option: the memo
+     * holds one value, so the first role to be resolved would answer every later lookup and, for
+     * example, hand the surface colour back as the text colour.
      */
-    private val roleCache = CaddyPaletteCache<Int>()
+    internal enum class Role {
+        SurfaceContainer,
+        Surface,
+        OnSurface,
+        OnSurfaceVariant,
+        OutlineVariant,
+    }
+
+    private val roleCaches = Role.entries.associateWith { CaddyPaletteCache<Int>() }
     private val searchCardCache = CaddyPaletteCache<SearchCardPalette>()
 
+    /** The memo slot for [role]. Exposed so a test can assert the slots stay independent. */
+    internal fun roleCache(role: Role): CaddyPaletteCache<Int> = roleCaches.getValue(role)
+
     /** The card / sheet surface: the M3 "surface container high" role. */
-    fun surfaceContainer(context: Context): Int = cachedRole(context) { scheme, night -> tintedSurface(scheme, surfaceContainerTone(night)) }
+    fun surfaceContainer(context: Context): Int = cachedRole(context, Role.SurfaceContainer)
         ?: tintedSurface(context, LIGHT.surfaceContainerHigh, DARK.surfaceContainerHigh)
 
     /** The page backdrop tint: the M3 "surface" role, used at an alpha over the blurred wallpaper. */
-    fun surface(context: Context): Int = cachedRole(context) { scheme, night -> tintedSurface(scheme, surfaceTone(night)) }
+    fun surface(context: Context): Int = cachedRole(context, Role.Surface)
         ?: tintedSurface(context, LIGHT.surface, DARK.surface)
 
     /** Primary text on a surface. */
-    fun onSurface(context: Context): Int = cachedRole(context) { scheme, night -> neutralColor(scheme, onSurfaceTone(night)) }
+    fun onSurface(context: Context): Int = cachedRole(context, Role.OnSurface)
         ?: neutral(context, LIGHT.onSurface, DARK.onSurface)
 
     /** Secondary text on a surface. */
-    fun onSurfaceVariant(context: Context): Int = cachedRole(context) { scheme, night -> neutralVariantColor(scheme, onSurfaceVariantTone(night)) }
+    fun onSurfaceVariant(context: Context): Int = cachedRole(context, Role.OnSurfaceVariant)
         ?: neutralVariant(context, LIGHT.onSurfaceVariant, DARK.onSurfaceVariant)
 
     /** The hairline outline drawn around surfaces. */
-    fun outlineVariant(context: Context): Int = cachedRole(context) { scheme, night -> neutralVariantColor(scheme, outlineVariantTone(night)) }
+    fun outlineVariant(context: Context): Int = cachedRole(context, Role.OutlineVariant)
         ?: neutralVariant(context, LIGHT.outlineVariant, DARK.outlineVariant)
 
     /** The palette roles of the Caddy search-actions card. */
@@ -98,11 +110,25 @@ object CaddyMaterialYou {
         override fun hashCode(): Int = System.identityHashCode(scheme) * 31 + night.hashCode()
     }
 
-    /** Runs [pick] against the cached wallpaper scheme, or null when no scheme is available. */
-    private inline fun cachedRole(context: Context, crossinline pick: (ColorScheme, Boolean) -> Int): Int? {
+    /**
+     * The single definition of each role's colour for a wallpaper-derived [scheme].
+     *
+     * Both [cachedRole] and [searchCardPalette] resolve through here, so a role can never mean one
+     * colour in a category card and a different one on the search card.
+     */
+    internal fun roleColor(scheme: ColorScheme, role: Role, night: Boolean): Int = when (role) {
+        Role.SurfaceContainer -> tintedSurface(scheme, surfaceContainerTone(night))
+        Role.Surface -> tintedSurface(scheme, surfaceTone(night))
+        Role.OnSurface -> neutralColor(scheme, onSurfaceTone(night))
+        Role.OnSurfaceVariant -> neutralVariantColor(scheme, onSurfaceVariantTone(night))
+        Role.OutlineVariant -> neutralVariantColor(scheme, outlineVariantTone(night))
+    }
+
+    /** Runs [roleColor] against the cached wallpaper scheme, or null when none is available. */
+    private fun cachedRole(context: Context, role: Role): Int? {
         val scheme = colorScheme(context) ?: return null
         val night = isNight(context)
-        return roleCache.getOrCompute(Key(scheme, night)) { pick(scheme, night) }
+        return roleCaches.getValue(role).getOrCompute(Key(scheme, night)) { roleColor(scheme, role, night) }
     }
 
     /** The wallpaper accent, used for selected states and the "+ Add" card. */
@@ -211,11 +237,11 @@ object CaddyMaterialYou {
 
     /** The search-actions card roles for a wallpaper-derived [scheme]. */
     internal fun searchCardPalette(scheme: ColorScheme, night: Boolean): SearchCardPalette = SearchCardPalette(
-        surface = tintedSurface(scheme, surfaceContainerTone(night)),
-        buttonSurface = tintedSurface(scheme, surfaceTone(night)),
+        surface = roleColor(scheme, Role.SurfaceContainer, night),
+        buttonSurface = roleColor(scheme, Role.Surface, night),
         accent = accentColor(scheme, accentTone(night)),
-        foreground = neutralColor(scheme, onSurfaceTone(night)),
-        outline = neutralVariantColor(scheme, outlineVariantTone(night)),
+        foreground = roleColor(scheme, Role.OnSurface, night),
+        outline = roleColor(scheme, Role.OutlineVariant, night),
     )
 
     private fun fallbackSearchCardPalette(context: Context, night: Boolean): SearchCardPalette {
