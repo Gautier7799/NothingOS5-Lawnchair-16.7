@@ -156,8 +156,16 @@ class CaddyHomeCardController(
         val requestedY = spanY.coerceIn(MIN_SPAN, minOf(maxSpanY(), cellLayout.countY))
         if (requestedX == current.spanX && requestedY == current.spanY) return true
 
-        // Release the old footprint before looking for a larger one.
-        detach(id)
+        // Free the old footprint so the card cannot block its own larger rectangle. The view stays
+        // on screen: only the occupancy is released. Detaching the view here (as this used to do)
+        // removed it from the hierarchy, so it vanished for a frame and then reappeared at its new
+        // size, which read as the card blinking on every resize.
+        val view = attached[id]
+        val onTargetPage = view != null && cellLayoutOf(view) === cellLayout
+        when (CaddyHomeCardAttachment.resizeAction(view != null, onTargetPage)) {
+            CaddyHomeCardAttachment.ResizeAction.IN_PLACE -> releaseFootprint(id)
+            CaddyHomeCardAttachment.ResizeAction.REATTACH -> detach(id)
+        }
 
         val sizes = buildList {
             for (x in requestedX downTo MIN_SPAN) {
@@ -190,6 +198,8 @@ class CaddyHomeCardController(
         }
 
         if (placement == null || !attach(placement)) {
+            // Nothing changed on screen: the view was never detached, so it only needs its old
+            // footprint back. Re-binding here would rebuild a card that is already correct.
             attach(current)
             return false
         }
@@ -323,6 +333,19 @@ class CaddyHomeCardController(
             }
         }
         return placement.isRegionFree(screenId, x, y, spanX, spanY, cellLayout.countX, cellLayout.countY)
+    }
+
+    /**
+     * Frees the cells a card occupies without taking its view off the workspace.
+     *
+     * Used while a resize searches for a new footprint: the card must not collide with its own old
+     * cells, but removing the view from the hierarchy would make it disappear for a frame before it
+     * reappears at the new size. Both the launcher's occupancy grid and [placement] are cleared, so
+     * the search sees the space as free.
+     */
+    private fun releaseFootprint(id: Int) {
+        attached[id]?.let { view -> cellLayoutOf(view)?.markCellsAsUnoccupiedForView(view) }
+        placement.releaseCells(id)
     }
 
     /**
