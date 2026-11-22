@@ -68,6 +68,7 @@ object CaddyCardRenderer {
         iconFillRatio: Float = ICON_FILL_RATIO,
         showTitle: Boolean = true,
         titleAtBottom: Boolean = false,
+        drawSurface: Boolean = true,
     ) {
         val context = host.context
         host.removeAllViews()
@@ -116,7 +117,9 @@ object CaddyCardRenderer {
         )
         background.cornerRadius = dp(context, if (fitGridToHost) 30f else 28f).toFloat()
         background.setStroke(dp(context, if (fitGridToHost) 1f else 1f), strokeColor)
-        card.background = background
+        // The workspace card paints its own surface so it survives content rebuilds; drawing a
+        // second surface here would stack two rounded rectangles and double the outline.
+        if (drawSurface) card.background = background
         // Drawer previews stay clipped to their rounded outline. Workspace previews use
         // native-size BubbleTextView children scaled into smaller cells; clipping those
         // transformed children to the rounded outline crops adaptive-icon edges. Keep the

@@ -138,6 +138,37 @@ class CaddyHomeCardAttachmentTest {
     }
 
     @Test
+    fun needsRebuild_trueWhenThereIsNoPreviousGeometry() {
+        val next = CaddyHomeCardAttachment.CardGeometry(columns = 2, cellPx = 100, maxIcons = 4, rows = 2)
+        assertThat(CaddyHomeCardAttachment.needsRebuild(null, next)).isTrue()
+    }
+
+    @Test
+    fun needsRebuild_falseWhenCellSizeAndIconCountAreUnchanged() {
+        // A resize that lands on the same geometry must not rebuild, or the card would be torn
+        // down and repainted for nothing.
+        val previous = CaddyHomeCardAttachment.CardGeometry(columns = 2, cellPx = 100, maxIcons = 4, rows = 2)
+        val next = previous.copy()
+        assertThat(CaddyHomeCardAttachment.needsRebuild(previous, next)).isFalse()
+    }
+
+    @Test
+    fun needsRebuild_trueWhenTheCellSizeChanges() {
+        val previous = CaddyHomeCardAttachment.CardGeometry(columns = 2, cellPx = 100, maxIcons = 4, rows = 2)
+        val next = previous.copy(cellPx = 140)
+        assertThat(CaddyHomeCardAttachment.needsRebuild(previous, next)).isTrue()
+    }
+
+    @Test
+    fun needsRebuild_trueWhenOnlyTheIconCountChanges() {
+        // This is the case a cell-size-only comparison missed: the cells stay the same size but
+        // more rows fit, so the card must show more icons.
+        val previous = CaddyHomeCardAttachment.CardGeometry(columns = 2, cellPx = 100, maxIcons = 4, rows = 2)
+        val next = previous.copy(maxIcons = 6, rows = 3)
+        assertThat(CaddyHomeCardAttachment.needsRebuild(previous, next)).isTrue()
+    }
+
+    @Test
     fun resizeAction_reattachesWhenTheViewIsMissingOrOnAnotherPage() {
         // No view yet: there is nothing on screen to preserve.
         assertThat(CaddyHomeCardAttachment.resizeAction(hasView = false, viewOnTargetPage = false))
