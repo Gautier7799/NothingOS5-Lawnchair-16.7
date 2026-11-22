@@ -351,6 +351,32 @@ public class ModelWriter {
     }
 
     /**
+     * Persists a move/resize without notifying the UI.
+     *
+     * [modifyItemInDatabase] broadcasts the change, and the broadcast path rebinds the item: the
+     * bound view is removed from its container and added again. For an interactive resize that
+     * happens on the gesture's touch-up, so the icon the user just resized disappears for the
+     * duration of the rebind and then reappears. Callers that have already applied the new
+     * geometry to the live view (the Caddy resize frame does) use this instead: the database and
+     * the model stay authoritative, and the view that is already on screen keeps its identity.
+     */
+    public void persistItemPlacementQuietly(final ItemInfo item,
+            int container, int screenId, int cellX, int cellY, int spanX, int spanY) {
+        updateItemInfoProps(item, container, screenId, cellX, cellY);
+        item.spanX = spanX;
+        item.spanY = spanY;
+        new UpdateItemRunnable(item, () -> new ContentWriter(mContext)
+                .put(Favorites.CONTAINER, item.container)
+                .put(Favorites.CELLX, item.cellX)
+                .put(Favorites.CELLY, item.cellY)
+                .put(Favorites.RANK, item.rank)
+                .put(Favorites.SPANX, item.spanX)
+                .put(Favorites.SPANY, item.spanY)
+                .put(Favorites.SCREEN, item.screenId))
+                .executeOnModelThread();
+    }
+
+    /**
      * Update an item to the database in a specified container.
      */
     public void updateItemInDatabase(ItemInfo item) {
