@@ -29,7 +29,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.speech.RecognizerIntent;
-import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.widget.ImageView;
@@ -486,29 +485,20 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 }
                 break;
             case VIEW_TYPE_FOLDER:
-                // Recalculate height on every bind so recycled holders follow the active drawer mode.
-                boolean isCaddyDrawer =
-                        !PreferenceManager.getInstance(mActivityContext).getDrawerList().get();
+                // Folders are only produced in the default (list) drawer; Caddy mode emits
+                // VIEW_TYPE_CADDY_CATEGORY instead, so this branch is never a Caddy card.
                 ViewGroup.LayoutParams folderItemParams = holder.itemView.getLayoutParams();
                 if (folderItemParams != null) {
-                    int normalHeight = mActivityContext.getDeviceProfile()
+                    folderItemParams.height = mActivityContext.getDeviceProfile()
                             .getAllAppsProfile().getCellHeightPx();
-                    folderItemParams.height = isCaddyDrawer
-                            ? Math.max(normalHeight, dp(168)) : normalHeight;
                     holder.itemView.setLayoutParams(folderItemParams);
                 }
-                // Caddy uses a dedicated category-card presentation while retaining FolderIcon
-                // as the interaction host, so folder opening and accessibility stay native.
                 FolderInfo folderInfo = mApps.getAdapterItems().get(position).folderInfo;
                 ViewGroup container = (ViewGroup) holder.itemView;
                 container.removeAllViews();
                 FolderIcon folderIcon = FolderIcon.inflateFolderAndIcon(
                         R.layout.all_apps_folder_icon, mActivityContext, container, folderInfo);
                 folderIcon.setOnLongClickListener(mOnIconLongClickListener);
-                if (!PreferenceManager.getInstance(mActivityContext).getDrawerList().get()) {
-                    folderIcon.setCaddyCard(true);
-                    bindCaddyCategoryCard(folderIcon, folderInfo);
-                }
                 container.addView(folderIcon);
                 break;
             default:
@@ -519,139 +509,7 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
     }
 
 
-    /**
-     * Renders a Caddy category card while keeping FolderIcon as the native
-     * interaction host. App shortcuts retain their own click targets.
-     */
-    private void bindCaddyCategoryCard(FolderIcon folderIcon, FolderInfo folderInfo) {
-        folderIcon.setIconVisible(false);
-        folderIcon.setTextVisible(false);
-        folderIcon.setPadding(dp(14), dp(12), dp(14), dp(12));
 
-        GradientDrawable background = new GradientDrawable();
-        int cardColor = resolveCaddyDynamicColor();
-        // Reuse Lawnchair's folder color and preview-opacity preferences. The card
-        // foreground follows that color so custom/dynamic colors remain legible.
-        int cardForeground = Color.luminance(cardColor) > 0.48f
-                ? Color.BLACK : Color.WHITE;
-        background.setColor(cardColor);
-        background.setCornerRadius(dp(24));
-        background.setStroke(dp(1), Color.argb(0x38,
-                Color.red(cardForeground), Color.green(cardForeground),
-                Color.blue(cardForeground)));
-        folderIcon.setBackground(background);
-        folderIcon.setClipToOutline(true);
-        // Use native View elevation for a subtle card shadow without adding a new UI dependency.
-        folderIcon.setElevation(dp(2));
-        folderIcon.setMinimumHeight(dp(168));
-
-        LinearLayout content = new LinearLayout(mActivityContext);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setGravity(Gravity.CENTER_VERTICAL);
-        content.setClickable(true);
-        content.setFocusable(true);
-        // Delegate to the real FolderIcon; the standard click handler expects
-        // a FolderIcon, not a LinearLayout tagged with FolderInfo.
-        content.setOnClickListener(v -> folderIcon.performClick());
-        content.setOnLongClickListener(v -> folderIcon.performLongClick());
-
-        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT);
-        folderIcon.addView(content, contentParams);
-
-        TextView title = new TextView(mActivityContext);
-        title.setText(folderInfo.title);
-        title.setTextColor(cardForeground);
-        title.setTextSize(13.5f);
-        title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
-        title.setMaxLines(1);
-        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        content.addView(title, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        java.util.ArrayList<ItemInfoWithIcon> apps = new java.util.ArrayList<>();
-        for (ItemInfo item : folderInfo.getContents()) {
-            if (item instanceof ItemInfoWithIcon) {
-                apps.add((ItemInfoWithIcon) item);
-            }
-        }
-
-        LinearLayout topRow = new LinearLayout(mActivityContext);
-        topRow.setOrientation(LinearLayout.HORIZONTAL);
-        topRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
-        rowParams.topMargin = dp(8);
-        content.addView(topRow, rowParams);
-        addCaddyBigSlot(topRow, apps, 0);
-        addCaddyBigSlot(topRow, apps, 1);
-
-        LinearLayout bottomRow = new LinearLayout(mActivityContext);
-        bottomRow.setOrientation(LinearLayout.HORIZONTAL);
-        bottomRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams bottomParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
-        bottomParams.topMargin = dp(5);
-        content.addView(bottomRow, bottomParams);
-        addCaddyBigSlot(bottomRow, apps, 2);
-        addCaddyMiniCluster(bottomRow, apps, folderIcon);
-    }
-
-    private void addCaddyBigSlot(LinearLayout row,
-            java.util.ArrayList<ItemInfoWithIcon> apps, int index) {
-        FrameLayout slot = new FrameLayout(mActivityContext);
-        LinearLayout.LayoutParams slotParams = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        row.addView(slot, slotParams);
-        if (index >= apps.size()) return;
-
-        ItemInfoWithIcon app = apps.get(index);
-        ImageView icon = new ImageView(mActivityContext);
-        icon.setImageDrawable(app.newIcon(mActivityContext));
-        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        icon.setTag(app);
-        icon.setContentDescription(app.title);
-        icon.setFocusable(true);
-        FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(
-                dp(44), dp(44), Gravity.CENTER);
-        slot.addView(icon, iconParams);
-        icon.setOnClickListener(mOnIconClickListener);
-        icon.setOnLongClickListener(mOnIconLongClickListener);
-    }
-
-    private void addCaddyMiniCluster(LinearLayout row,
-            java.util.ArrayList<ItemInfoWithIcon> apps, FolderIcon folderIcon) {
-        FrameLayout cluster = new FrameLayout(mActivityContext);
-        LinearLayout.LayoutParams clusterParams = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        row.addView(cluster, clusterParams);
-
-        android.widget.GridLayout miniGrid = new android.widget.GridLayout(mActivityContext);
-        miniGrid.setColumnCount(2);
-        miniGrid.setRowCount(2);
-        miniGrid.setUseDefaultMargins(false);
-        FrameLayout.LayoutParams gridParams = new FrameLayout.LayoutParams(
-                dp(44), dp(44), Gravity.CENTER);
-        cluster.addView(miniGrid, gridParams);
-        for (int i = 3; i < Math.min(apps.size(), 7); i++) {
-            ImageView miniIcon = new ImageView(mActivityContext);
-            miniIcon.setImageDrawable(apps.get(i).newIcon(mActivityContext));
-            miniIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            android.widget.GridLayout.LayoutParams miniParams =
-                    new android.widget.GridLayout.LayoutParams();
-            miniParams.width = dp(18);
-            miniParams.height = dp(18);
-            miniParams.setMargins(dp(1), dp(1), dp(1), dp(1));
-            miniGrid.addView(miniIcon, miniParams);
-        }
-        // The preview cluster represents the remaining category apps.
-        cluster.setClickable(true);
-        cluster.setFocusable(true);
-        cluster.setContentDescription(folderIcon.getContentDescription());
-        cluster.setOnClickListener(v -> folderIcon.performClick());
-        cluster.setOnLongClickListener(v -> folderIcon.performLongClick());
-    }
 
     /**
      * Caddy card renderer. This view is deliberately independent from FolderIcon,
@@ -986,16 +844,6 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                         android.widget.Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    /**
-     * Resolve Android's themed accent so Caddy follows the system Monet palette
-     * (including wallpaper-based colors on Android 12+). Keep Lawnchair's folder
-     * tint as a compatibility fallback for themes that do not expose colorAccent.
-     */
-    private int resolveCaddyDynamicColor() {
-        return app.lawnchair.allapps.caddy.CaddyCardRenderer.INSTANCE
-                .resolveDynamicColor(mActivityContext);
     }
 
     private int dp(float value) {
