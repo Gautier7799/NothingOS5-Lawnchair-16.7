@@ -1,0 +1,372 @@
+/*
+ * Copyright 2022, Lawnchair
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package app.lawnchair.ui.preferences.destinations
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import app.lawnchair.LawnchairApp
+import app.lawnchair.data.iconoverride.IconOverrideRepository
+import app.lawnchair.homecards.CaddyHomeCardGrouping
+import app.lawnchair.nexuslauncher.OverlayCallbackImpl
+import app.lawnchair.preferences.getAdapter
+import app.lawnchair.preferences.preferenceManager
+import app.lawnchair.preferences2.PreferenceManager2
+import app.lawnchair.preferences2.preferenceManager2
+import app.lawnchair.sidebar.SidebarMetrics
+import app.lawnchair.theme.color.ColorMode
+import app.lawnchair.ui.preferences.LocalIsExpandedScreen
+import app.lawnchair.ui.preferences.components.FeedPreference
+import app.lawnchair.ui.preferences.components.GestureHandlerPreference
+import app.lawnchair.ui.preferences.components.HomeLayoutSettings
+import app.lawnchair.ui.preferences.components.NavigationActionPreference
+import app.lawnchair.ui.preferences.components.OverlayHandlerPreference
+import app.lawnchair.ui.preferences.components.controls.ClickablePreference
+import app.lawnchair.ui.preferences.components.controls.ListPreference
+import app.lawnchair.ui.preferences.components.controls.ListPreferenceEntry
+import app.lawnchair.ui.preferences.components.controls.SliderPreference
+import app.lawnchair.ui.preferences.components.controls.SwitchPreference
+import app.lawnchair.ui.preferences.components.layout.ExpandAndShrink
+import app.lawnchair.ui.preferences.components.layout.PreferenceGroup
+import app.lawnchair.ui.preferences.components.layout.PreferenceLayout
+import app.lawnchair.ui.preferences.navigation.HomeScreenGrid
+import app.lawnchair.ui.preferences.navigation.HomeScreenSidebarApps
+import app.lawnchair.util.collectAsStateBlocking
+import com.android.launcher3.R
+import com.android.launcher3.Utilities
+import kotlinx.coroutines.launch
+
+object HomeScreenRoutes {
+    const val GRID = "grid"
+    const val POPUP_EDITOR = "popup_editor"
+}
+
+@Composable
+fun HomeScreenPreferences(
+    modifier: Modifier = Modifier,
+) {
+    val prefs = preferenceManager()
+    val prefs2 = preferenceManager2()
+    val scope = rememberCoroutineScope()
+    PreferenceLayout(
+        label = stringResource(id = R.string.home_screen_label),
+        backArrowVisible = !LocalIsExpandedScreen.current,
+        modifier = modifier,
+    ) {
+        val lockHomeScreenAdapter = prefs2.lockHomeScreen.getAdapter()
+        val showDeckLayout = prefs2.showDeckLayout.getAdapter().state.value
+
+        if (showDeckLayout) {
+            HomeLayoutSettings()
+        }
+
+        PreferenceGroup(heading = stringResource(id = R.string.general_label)) {
+            val addIconToHomeAdapter = prefs.addIconToHome.getAdapter()
+            val isDeckLayoutAdapter = prefs2.deckLayout.getAdapter()
+            ExpandAndShrink(visible = !isDeckLayoutAdapter.state.value) {
+                SwitchPreference(
+                    checked = (!lockHomeScreenAdapter.state.value && addIconToHomeAdapter.state.value) || isDeckLayoutAdapter.state.value,
+                    onCheckedChange = addIconToHomeAdapter::onChange,
+                    label = stringResource(id = R.string.auto_add_shortcuts_label),
+                    description = if (lockHomeScreenAdapter.state.value) stringResource(id = R.string.home_screen_locked) else null,
+                    enabled = lockHomeScreenAdapter.state.value.not(),
+                )
+            }
+            GestureHandlerPreference(
+                adapter = prefs2.doubleTapGestureHandler.getAdapter(),
+                label = stringResource(id = R.string.gesture_double_tap),
+            )
+            SwitchPreference(
+                prefs.infiniteScrolling.getAdapter(),
+                label = stringResource(id = R.string.infinite_scrolling_label),
+                description = stringResource(id = R.string.infinite_scrolling_description),
+            )
+        }
+        PreferenceGroup(heading = stringResource(id = R.string.home_screen_actions)) {
+            SwitchPreference(
+                adapter = prefs2.hideWorkspaceSmartspace.getAdapter(),
+                label = stringResource(R.string.hide_workspace_smartspace_label),
+                description = stringResource(R.string.hide_workspace_smartspace_description),
+            )
+        }
+        val dossierEnabledAdapter = prefs2.dossierEnabled.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.caddy)) {
+            SwitchPreference(
+                adapter = prefs2.caddyHomeEnabled.getAdapter(),
+                label = stringResource(R.string.caddy_home_enabled_label),
+                description = stringResource(R.string.caddy_home_enabled_description),
+            )
+            SwitchPreference(
+                adapter = prefs2.caddyHomeShowTitles.getAdapter(),
+                label = stringResource(R.string.caddy_home_show_titles_label),
+            )
+            SliderPreference(
+                adapter = prefs2.caddyHomeColumns.getAdapter(),
+                label = stringResource(R.string.caddy_home_columns_label),
+                step = 1,
+                valueRange = 1..5,
+            )
+            ListPreference(
+                adapter = prefs2.caddyMergeMode.getAdapter(),
+                entries = caddyMergeModeEntries(),
+                label = stringResource(R.string.caddy_merge_mode_label),
+            )
+        }
+        val sidebarEnabledAdapter = prefs2.sidebarEnabled.getAdapter()
+        val sidebarOnRightEdgeAdapter = prefs2.sidebarOnRightEdge.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.sidebar_section_title)) {
+            SwitchPreference(
+                adapter = sidebarEnabledAdapter,
+                label = stringResource(R.string.sidebar_enabled_label),
+                description = stringResource(R.string.sidebar_enabled_description),
+            )
+            ExpandAndShrink(visible = sidebarEnabledAdapter.state.value) {
+                NavigationActionPreference(
+                    label = stringResource(R.string.sidebar_apps_label),
+                    subtitle = stringResource(R.string.sidebar_apps_description),
+                    destination = HomeScreenSidebarApps,
+                )
+                SliderPreference(
+                    label = stringResource(R.string.sidebar_columns_label),
+                    adapter = prefs2.sidebarColumns.getAdapter(),
+                    valueRange = SidebarMetrics.MIN_COLUMNS..SidebarMetrics.MAX_COLUMNS,
+                    step = 1,
+                )
+                SliderPreference(
+                    label = stringResource(R.string.sidebar_opacity_label),
+                    adapter = prefs2.sidebarOpacity.getAdapter(),
+                    valueRange = SidebarMetrics.MIN_OPACITY_PERCENT..100,
+                    step = 10,
+                    showAsPercentage = true,
+                )
+                SliderPreference(
+                    label = stringResource(R.string.sidebar_handle_position_label),
+                    adapter = prefs2.sidebarHandlePosition.getAdapter(),
+                    valueRange = 0f..1f,
+                    step = 0.05f,
+                    showAsPercentage = true,
+                )
+                SwitchPreference(
+                    adapter = sidebarOnRightEdgeAdapter,
+                    label = stringResource(R.string.sidebar_on_right_edge_label),
+                    description = stringResource(R.string.sidebar_on_right_edge_description),
+                )
+                SwitchPreference(
+                    adapter = prefs2.sidebarHaptics.getAdapter(),
+                    label = stringResource(R.string.sidebar_haptics_label),
+                    description = stringResource(R.string.sidebar_haptics_description),
+                )
+            }
+        }
+        PreferenceGroup(heading = stringResource(id = R.string.dossier)) {
+            SwitchPreference(
+                adapter = dossierEnabledAdapter,
+                label = stringResource(R.string.dossier_enabled_label),
+                description = stringResource(R.string.dossier_enabled_description),
+            )
+            ExpandAndShrink(visible = dossierEnabledAdapter.state.value) {
+                SliderPreference(
+                    label = stringResource(id = R.string.columns),
+                    adapter = prefs2.dossierGridColumns.getAdapter(),
+                    step = 1,
+                    valueRange = 1..8,
+                )
+                SliderPreference(
+                    label = stringResource(id = R.string.rows),
+                    adapter = prefs2.dossierGridRows.getAdapter(),
+                    step = 1,
+                    valueRange = 1..8,
+                )
+            }
+        }
+        val feedAvailable = OverlayCallbackImpl.minusOneAvailable(LocalContext.current)
+        val enableFeedAdapter = prefs2.enableFeed.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.minus_one)) {
+            SwitchPreference(
+                adapter = enableFeedAdapter,
+                label = stringResource(id = R.string.minus_one_enable),
+                description = if (feedAvailable) null else stringResource(id = R.string.minus_one_unavailable),
+                enabled = feedAvailable,
+            )
+            ExpandAndShrink(visible = feedAvailable && enableFeedAdapter.state.value) {
+                FeedPreference()
+            }
+        }
+        PreferenceGroup(heading = stringResource(R.string.style)) {
+            HomeScreenTextColorPreference()
+            OverlayHandlerPreference(
+                adapter = prefs2.closingAppOverlay.getAdapter(),
+                label = stringResource(id = R.string.app_closing_animation),
+            )
+        }
+        PreferenceGroup(heading = stringResource(id = R.string.wallpaper)) {
+            SwitchPreference(
+                prefs.wallpaperScrolling.getAdapter(),
+                label = stringResource(id = R.string.wallpaper_scrolling_label),
+            )
+            ExpandAndShrink(visible = Utilities.ATLEAST_R) {
+                SwitchPreference(
+                    prefs2.wallpaperDepthEffect.getAdapter(),
+                    label = stringResource(id = R.string.wallpaper_depth_effect_label),
+                    description = stringResource(id = R.string.wallpaper_depth_effect_description),
+                )
+            }
+            SwitchPreference(
+                adapter = prefs2.showTopShadow.getAdapter(),
+                label = stringResource(id = R.string.show_sys_ui_scrim),
+            )
+        }
+        val columns by prefs.workspaceColumns.getAdapter()
+        val rows by prefs.workspaceRows.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.layout)) {
+            NavigationActionPreference(
+                label = stringResource(id = R.string.home_screen_grid),
+                destination = HomeScreenGrid,
+                subtitle = stringResource(id = R.string.x_by_y, columns, rows),
+            )
+            SliderPreference(
+                label = stringResource(id = R.string.horizontal_padding_label),
+                adapter = prefs2.workspacePaddingHorizontalFactor.getAdapter(),
+                step = 0.05f,
+                valueRange = 0F..2F,
+                showAsPercentage = true,
+            )
+            SliderPreference(
+                label = stringResource(id = R.string.vertical_padding_label),
+                adapter = prefs2.workspacePaddingVerticalFactor.getAdapter(),
+                step = 0.05f,
+                valueRange = 0F..2F,
+                showAsPercentage = true,
+            )
+            SwitchPreference(
+                adapter = lockHomeScreenAdapter,
+                label = stringResource(id = R.string.home_screen_lock),
+                description = stringResource(id = R.string.home_screen_lock_description),
+            )
+        }
+        PreferenceGroup(heading = stringResource(id = R.string.popup_menu)) {
+            LauncherPopupPreferenceItem()
+        }
+        val showStatusBarAdapter = prefs2.showStatusBar.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.status_bar_label)) {
+            SwitchPreference(
+                adapter = showStatusBarAdapter,
+                label = stringResource(id = R.string.show_status_bar),
+            )
+            ExpandAndShrink(visible = showStatusBarAdapter.state.value) {
+                SwitchPreference(
+                    adapter = prefs2.darkStatusBar.getAdapter(),
+                    label = stringResource(id = R.string.dark_status_bar_label),
+                )
+            }
+            ExpandAndShrink(visible = showStatusBarAdapter.state.value && LawnchairApp.isRecentsEnabled) {
+                SwitchPreference(
+                    adapter = prefs2.statusBarClock.getAdapter(),
+                    label = stringResource(id = R.string.status_bar_clock_label),
+                    description = stringResource(id = R.string.status_bar_clock_description),
+                )
+            }
+        }
+        val homeScreenLabelsAdapter = prefs2.showIconLabelsOnHomeScreen.getAdapter()
+        PreferenceGroup(heading = stringResource(id = R.string.icons)) {
+            SliderPreference(
+                label = stringResource(id = R.string.icon_sizes),
+                adapter = prefs2.homeIconSizeFactor.getAdapter(),
+                step = 0.1f,
+                valueRange = 0.5F..1.5F,
+                showAsPercentage = true,
+            )
+            SwitchPreference(
+                adapter = homeScreenLabelsAdapter,
+                label = stringResource(id = R.string.show_labels),
+            )
+            ExpandAndShrink(visible = homeScreenLabelsAdapter.state.value) {
+                SliderPreference(
+                    label = stringResource(id = R.string.label_size),
+                    adapter = prefs2.homeIconLabelSizeFactor.getAdapter(),
+                    step = 0.1f,
+                    valueRange = 0.5F..1.5F,
+                    showAsPercentage = true,
+                )
+            }
+        }
+        val overrideRepo = IconOverrideRepository.INSTANCE.get(LocalContext.current)
+        val customIconsCount by remember { overrideRepo.observeCount() }.collectAsStateBlocking()
+        if (customIconsCount > 0) {
+            PreferenceGroup {
+                ClickablePreference(
+                    label = stringResource(id = R.string.reset_custom_icons),
+                    confirmationText = stringResource(id = R.string.reset_custom_icons_confirmation),
+                    onClick = { scope.launch { overrideRepo.deleteAll() } },
+                )
+            }
+        }
+        PreferenceGroup(heading = stringResource(id = R.string.widget_button_text)) {
+            SwitchPreference(
+                adapter = prefs2.roundedWidgets.getAdapter(),
+                label = stringResource(id = R.string.force_rounded_widgets),
+            )
+            SwitchPreference(
+                adapter = prefs2.allowWidgetOverlap.getAdapter(),
+                label = stringResource(id = R.string.allow_widget_overlap),
+            )
+            SwitchPreference(
+                adapter = prefs2.widgetUnlimitedSize.getAdapter(),
+                label = stringResource(id = R.string.widget_unlimited_size_label),
+                description = stringResource(id = R.string.widget_unlimited_size_description),
+            )
+            SwitchPreference(
+                adapter = prefs2.forceWidgetResize.getAdapter(),
+                label = stringResource(id = R.string.force_widget_resize_label),
+                description = stringResource(id = R.string.force_widget_resize_description),
+            )
+            SliderPreference(
+                label = stringResource(id = R.string.widget_padding_label),
+                adapter = prefs2.widgetPaddingFactor.getAdapter(),
+                step = 0.05f,
+                valueRange = 0F..2F,
+                showAsPercentage = true,
+            )
+        }
+    }
+}
+
+@Composable
+fun HomeScreenTextColorPreference(
+    modifier: Modifier = Modifier,
+) {
+    ListPreference(
+        adapter = preferenceManager2().workspaceTextColor.getAdapter(),
+        entries = ColorMode.entries(),
+        label = stringResource(id = R.string.home_screen_text_color),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun caddyMergeModeEntries(): List<ListPreferenceEntry<String>> = listOf(
+    ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_STACK) {
+        stringResource(R.string.caddy_merge_mode_stack)
+    },
+    ListPreferenceEntry(value = CaddyHomeCardGrouping.MODE_COMBINE) {
+        stringResource(R.string.caddy_merge_mode_combine)
+    },
+)
