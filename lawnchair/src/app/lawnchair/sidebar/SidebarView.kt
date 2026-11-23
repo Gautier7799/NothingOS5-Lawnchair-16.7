@@ -18,6 +18,9 @@ package app.lawnchair.sidebar
 
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
+import android.text.Editable
+import android.text.InputType
+import android.text.TextWatcher
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
@@ -27,6 +30,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -70,6 +75,13 @@ class SidebarView @JvmOverloads constructor(
     private val panel = LinearLayout(context)
     private val scroll = ScrollView(context)
     private val column = LinearLayout(context)
+    private val quickControls = QuickControlStrip(context)
+    private val volumePanel = VolumePanel(context)
+    private val brightnessPanel = BrightnessPanel(context)
+    private val appRows = LinearLayout(context)
+    private var searchField: EditText? = null
+    private var allApps: List<AppInfo> = emptyList()
+    private var extrasCount = 0
 
     private var itemCount = 0
     private var onRightEdge = true
@@ -99,6 +111,13 @@ class SidebarView @JvmOverloads constructor(
             dp(SidebarMetrics.PANEL_PADDING_V_DP),
             dp(SidebarMetrics.PANEL_PADDING_H_DP),
             dp(SidebarMetrics.PANEL_PADDING_V_DP),
+        )
+        column.addView(
+            appRows,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
         )
         scroll.addView(
             column,
@@ -148,34 +167,165 @@ class SidebarView @JvmOverloads constructor(
         scrim.alpha = 0f
     }
 
+    /**
+     * Adds the volume slider row when its preference is on.
+     *
+     * A device whose streams all report a zero maximum gets no row, and then the panel height
+     * arithmetic must not count one, which is why the result is reported back to [bind].
+     */
+    private fun bindVolumePanel(): Boolean {
+        val prefs = PreferenceManager2.getInstance(launcher)
+        val enabled = prefs.sidebarVolumeSliders.firstCached()
+        if (!enabled) return false
+        val panel = volumePanel.build(VolumeState.ordered) ?: return false
+        column.addView(panel)
+        return true
+    }
+
+    /**
+     * Adds the brightness slider when its preference is on.
+     *
+     * A device that cannot report a usable brightness range returns null and gets no row, which
+     * is why the result is reported back to [bind].
+     */
+    private fun bindBrightness(): Boolean {
+        val enabled = PreferenceManager2.getInstance(launcher)
+            .sidebarBrightnessSlider
+            .firstCached()
+        if (!enabled) return false
+        val row = brightnessPanel.build() ?: return false
+        column.addView(row)
+        return true
+    }
+
+    /**
+     * Adds the quick-control strip above the app column when the preference is on.
+     *
+     * The strip is rebuilt on every bind so a toggle added while the panel was closed shows up,
+     * and it is refreshed on attach so a tile never shows a stale state from the last time the
+     * panel was open.
+     *
+     * @return whether the strip was added, which the caller needs for the height arithmetic.
+     */
+    private fun bindQuickControls(): Boolean {
+        val prefs = PreferenceManager2.getInstance(launcher)
+        if (!prefs.sidebarQuickControls.firstCached()) return false
+        val selected = QuickControlSelection.resolve(
+            prefs.sidebarQuickControlList.firstCached(),
+        )
+        // An empty selection is a valid choice, but a strip with no tiles is just a blank gap.
+        if (selected.isEmpty()) return false
+        val strip = quickControls.build(selected) ?: return false
+        column.addView(strip)
+        return true
+    }
+
     /** Fills the panel with [apps], laid out in rows of the configured column count. */
     fun bind(apps: List<AppInfo>) {
+        allApps = apps
         column.removeAllViews()
-        itemCount = apps.size
+        // Evaluate both: `||` would short-circuit and skip the volume panel whenever the
+        // quick-control strip is enabled.
+        val hasTiles = bindQuickControls()
+        val hasVolume = bindVolumePanel()
+        val hasBrightness = bindBrightness()
+        val hasSearch = bindSearch()
+        bindAppRows()
+        // Each extra row takes about one cell of vertical space, so it counts as one app when
+        // the panel height is computed. That keeps the sizing arithmetic in SidebarMetrics.
+        extrasCount = (if (hasTiles) 1 else 0) + (if (hasVolume) 1 else 0) +
+            (if (hasBrightness) 1 else 0) + (if (hasSearch) 1 else 0)
+    }
 
-        if (apps.isEmpty()) {
-            val empty = TextView(context)
-            empty.text = context.getString(R.string.sidebar_empty)
-            empty.setTextColor(CaddyMaterialYou.onSurfaceVariant(context))
-            empty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            empty.gravity = Gravity.CENTER
-            empty.setPadding(dp(4), dp(16), dp(4), dp(16))
-            column.addView(
+    /**
+     * Adds the search field when its preference is on, and returns whether it was added.
+     *
+     * The field filters the already-chosen sidebar apps rather than the whole installed set,
+     * because this panel is a shortlist, not an app drawer. Filtering happens on every
+     * keystroke against the cached list, so opening the panel stays instant.
+     */
+    private fun bindSearch(): Boolean {
+        val enabled = PreferenceManager2.getInstance(launcher)
+            .sidebarSearch
+            .firstCached()
+        if (!enabled) return false
+        val field = EditText(context).apply {
+            hint = context.getString(R.string.sidebar_search_hint)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(CaddyMaterialYou.onSurface(context))
+            setHintTextColor(CaddyMaterialYou.onSurfaceVariant(context))
+            background = GradientDrawable().apply {
+                setColor(CaddyMaterialYou.surface(context))
+                cornerRadius = dp(SidebarMetrics.TILE_RADIUS_DP).toFloat()
+                setStroke(dp(1), CaddyMaterialYou.outlineVariant(context))
+            }
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+            maxLines = 1
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_NONE
+            addTextChangedListener(
+                object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+                    override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+                    override fun afterTextChanged(s: Editable?) {
+                        bindAppRows()
+                    }
+                },
+            )
+        }
+        searchField = field
+        column.addView(
+            field,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(6) },
+        )
+        return true
+    }
+
+    /**
+     * Repaints the app rows for the current query.
+     *
+     * Only the rows are touched, so the search field keeps its focus and the caret keeps its
+     * position while the user types.
+     */
+    private fun bindAppRows() {
+        appRows.removeAllViews()
+        val apps = allApps
+        val query = searchField?.text?.toString().orEmpty()
+        val filtered = SidebarSearch.rank(apps, query) { it.title.toString() }
+        itemCount = filtered.size + extrasCount
+
+        if (filtered.isEmpty()) {
+            val message = if (apps.isEmpty()) {
+                context.getString(R.string.sidebar_empty)
+            } else {
+                context.getString(R.string.sidebar_no_results)
+            }
+            val empty = TextView(context).apply {
+                text = message
+                setTextColor(CaddyMaterialYou.onSurfaceVariant(context))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                gravity = Gravity.CENTER
+                setPadding(dp(4), dp(16), dp(4), dp(16))
+            }
+            appRows.addView(
                 empty,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                 ),
             )
-            return
+        } else {
+            val columns = SidebarMetrics.clampColumns(
+                PreferenceManager2.getInstance(launcher).sidebarColumns.firstCached(),
+            )
+            filtered.chunked(columns).forEach { row ->
+                appRows.addView(buildRow(row, columns))
+            }
         }
-
-        val columns = SidebarMetrics.clampColumns(
-            PreferenceManager2.getInstance(launcher).sidebarColumns.firstCached(),
-        )
-        apps.chunked(columns).forEach { row ->
-            column.addView(buildRow(row, columns))
-        }
+        requestLayout()
     }
 
     /**
@@ -274,6 +424,8 @@ class SidebarView @JvmOverloads constructor(
         super.onAttachedToWindow()
         mIsOpen = true
         if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        quickControls.refresh()
+        volumePanel.refresh()
         scrim.animate().alpha(1f).setDuration(OPEN_DURATION_MS).start()
         panel.animate()
             .alpha(
@@ -326,9 +478,11 @@ class SidebarView @JvmOverloads constructor(
             val view = SidebarView(launcher)
             view.applyAppearance()
             view.bind(apps)
+            // The DragLayer casts every child's params to InsettableFrameLayout.LayoutParams
+            // when it dispatches insets, so a plain LayoutParams here crashes the launcher.
             dragLayer.addView(
                 view,
-                ViewGroup.LayoutParams(
+                BaseDragLayer.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 ),

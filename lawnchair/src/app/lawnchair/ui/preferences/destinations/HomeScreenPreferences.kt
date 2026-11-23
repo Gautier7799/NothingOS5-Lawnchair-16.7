@@ -30,6 +30,8 @@ import app.lawnchair.preferences.getAdapter
 import app.lawnchair.preferences.preferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.preferenceManager2
+import app.lawnchair.sidebar.QuickControl
+import app.lawnchair.sidebar.QuickControlSelection
 import app.lawnchair.sidebar.SidebarMetrics
 import app.lawnchair.theme.color.ColorMode
 import app.lawnchair.ui.preferences.LocalIsExpandedScreen
@@ -150,6 +152,57 @@ fun HomeScreenPreferences(
                     adapter = prefs2.sidebarHaptics.getAdapter(),
                     label = stringResource(R.string.sidebar_haptics_label),
                     description = stringResource(R.string.sidebar_haptics_description),
+                )
+                val quickControlsAdapter = prefs2.sidebarQuickControls.getAdapter()
+                val quickControlListAdapter = prefs2.sidebarQuickControlList.getAdapter()
+                SwitchPreference(
+                    adapter = quickControlsAdapter,
+                    label = stringResource(R.string.sidebar_quick_controls_label),
+                    description = stringResource(R.string.sidebar_quick_controls_description),
+                )
+                ExpandAndShrink(visible = quickControlsAdapter.state.value) {
+                    // One switch per tile. The stored value is a name list, so toggling means
+                    // re-serialising the current selection rather than flipping a boolean.
+                    QuickControl.defaultOrder.forEach { control ->
+                        SwitchPreference(
+                            checked = QuickControlSelection.isEnabled(
+                                QuickControlSelection.resolve(quickControlListAdapter.state.value),
+                                control,
+                            ),
+                            label = stringResource(control.labelRes),
+                            description = stringResource(
+                                R.string.sidebar_quick_control_toggle_description,
+                            ),
+                            onCheckedChange = { checked ->
+                                val current = QuickControlSelection.resolve(
+                                    quickControlListAdapter.state.value,
+                                )
+                                val next = if (checked) {
+                                    current + control
+                                } else {
+                                    current - control
+                                }
+                                quickControlListAdapter.onChange(
+                                    QuickControlSelection.serialise(next),
+                                )
+                            },
+                        )
+                    }
+                }
+                SwitchPreference(
+                    adapter = prefs2.sidebarVolumeSliders.getAdapter(),
+                    label = stringResource(R.string.sidebar_volume_sliders_label),
+                    description = stringResource(R.string.sidebar_volume_sliders_description),
+                )
+                SwitchPreference(
+                    adapter = prefs2.sidebarSearch.getAdapter(),
+                    label = stringResource(R.string.sidebar_search_label),
+                    description = stringResource(R.string.sidebar_search_description),
+                )
+                SwitchPreference(
+                    adapter = prefs2.sidebarBrightnessSlider.getAdapter(),
+                    label = stringResource(R.string.sidebar_brightness_slider_label),
+                    description = stringResource(R.string.sidebar_brightness_slider_description),
                 )
             }
         }

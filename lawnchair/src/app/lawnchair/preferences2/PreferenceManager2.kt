@@ -391,6 +391,40 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = true,
     )
 
+    /** Whether the sidebar shows the quick-control tiles above its apps. */
+    val sidebarQuickControls = preference(
+        key = booleanPreferencesKey(name = "sidebar_quick_controls"),
+        defaultValue = false,
+    )
+
+    /** Whether the sidebar shows volume sliders above its apps. */
+    val sidebarVolumeSliders = preference(
+        key = booleanPreferencesKey(name = "sidebar_volume_sliders"),
+        defaultValue = false,
+    )
+
+    /** Whether the sidebar shows a search field above its apps. */
+    val sidebarSearch = preference(
+        key = booleanPreferencesKey(name = "sidebar_search"),
+        defaultValue = false,
+    )
+
+    /**
+     * Which quick controls the strip shows, as a comma-separated list of enum names.
+     *
+     * Unset means "all of them", so a fresh install gets a full strip.
+     */
+    val sidebarQuickControlList = preference(
+        key = stringPreferencesKey(name = "sidebar_quick_control_list"),
+        defaultValue = "",
+    )
+
+    /** Whether the sidebar shows a brightness slider above its apps. */
+    val sidebarBrightnessSlider = preference(
+        key = booleanPreferencesKey(name = "sidebar_brightness_slider"),
+        defaultValue = false,
+    )
+
     val hotseatQsbProvider = preference(
         key = stringPreferencesKey(name = "dock_search_bar_provider"),
         defaultValue = getRemoteDefault("dock_search_bar_provider")?.let {
