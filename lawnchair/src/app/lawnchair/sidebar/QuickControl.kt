@@ -16,18 +16,21 @@
 
 package app.lawnchair.sidebar
 
+import androidx.annotation.StringRes
+import com.android.launcher3.R
+
 /**
  * The quick-control tiles the sidebar can show above its app column.
  *
  * Ported from the standalone "Samart sidebar" app (MIT), which draws the same tiles in an
  * overlay window. Here they live inside the sidebar panel, so they need no overlay service.
  */
-enum class QuickControl {
-    TORCH,
-    AUTO_ROTATE,
-    AUTO_BRIGHTNESS,
-    DND,
-    RINGER,
+enum class QuickControl(@StringRes val labelRes: Int) {
+    TORCH(R.string.sidebar_quick_control_torch),
+    AUTO_ROTATE(R.string.sidebar_quick_control_auto_rotate),
+    AUTO_BRIGHTNESS(R.string.sidebar_quick_control_auto_brightness),
+    DND(R.string.sidebar_quick_control_dnd),
+    RINGER(R.string.sidebar_quick_control_ringer),
     ;
 
     companion object {

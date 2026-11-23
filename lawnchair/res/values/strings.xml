@@ -165,6 +165,12 @@
     <string name="sidebar_search_description">Show a search field that filters the sidebar apps as you type.</string>
     <string name="sidebar_search_hint">Search apps</string>
     <string name="sidebar_brightness_label">Brightness</string>
+    <string name="sidebar_quick_control_torch">Torch</string>
+    <string name="sidebar_quick_control_auto_rotate">Auto-rotate</string>
+    <string name="sidebar_quick_control_auto_brightness">Auto-brightness</string>
+    <string name="sidebar_quick_control_dnd">Do not disturb</string>
+    <string name="sidebar_quick_control_ringer">Ringer</string>
+    <string name="sidebar_quick_control_toggle_description">Show this tile in the sidebar quick controls.</string>
     <string name="sidebar_brightness_slider_label">Brightness slider</string>
     <string name="sidebar_brightness_slider_description">Show a brightness slider above the apps. Needs the modify-system-settings permission.</string>
     <string name="sidebar_no_results">No matching apps</string>
