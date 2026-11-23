@@ -77,6 +77,7 @@ class SidebarView @JvmOverloads constructor(
     private val column = LinearLayout(context)
     private val quickControls = QuickControlStrip(context)
     private val volumePanel = VolumePanel(context)
+    private val brightnessPanel = BrightnessPanel(context)
     private val appRows = LinearLayout(context)
     private var searchField: EditText? = null
     private var allApps: List<AppInfo> = emptyList()
@@ -182,6 +183,22 @@ class SidebarView @JvmOverloads constructor(
     }
 
     /**
+     * Adds the brightness slider when its preference is on.
+     *
+     * A device that cannot report a usable brightness range returns null and gets no row, which
+     * is why the result is reported back to [bind].
+     */
+    private fun bindBrightness(): Boolean {
+        val enabled = PreferenceManager2.getInstance(launcher)
+            .sidebarBrightnessSlider
+            .firstCached()
+        if (!enabled) return false
+        val row = brightnessPanel.build() ?: return false
+        column.addView(row)
+        return true
+    }
+
+    /**
      * Adds the quick-control strip above the app column when the preference is on.
      *
      * The strip is rebuilt on every bind so a toggle added while the panel was closed shows up,
@@ -208,12 +225,13 @@ class SidebarView @JvmOverloads constructor(
         // quick-control strip is enabled.
         val hasTiles = bindQuickControls()
         val hasVolume = bindVolumePanel()
+        val hasBrightness = bindBrightness()
         val hasSearch = bindSearch()
         bindAppRows()
         // Each extra row takes about one cell of vertical space, so it counts as one app when
         // the panel height is computed. That keeps the sizing arithmetic in SidebarMetrics.
         extrasCount = (if (hasTiles) 1 else 0) + (if (hasVolume) 1 else 0) +
-            (if (hasSearch) 1 else 0)
+            (if (hasBrightness) 1 else 0) + (if (hasSearch) 1 else 0)
     }
 
     /**

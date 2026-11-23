@@ -164,6 +164,9 @@
     <string name="sidebar_search_label">Search field</string>
     <string name="sidebar_search_description">Show a search field that filters the sidebar apps as you type.</string>
     <string name="sidebar_search_hint">Search apps</string>
+    <string name="sidebar_brightness_label">Brightness</string>
+    <string name="sidebar_brightness_slider_label">Brightness slider</string>
+    <string name="sidebar_brightness_slider_description">Show a brightness slider above the apps. Needs the modify-system-settings permission.</string>
     <string name="sidebar_no_results">No matching apps</string>
     <string name="sidebar_quick_torch">Torch</string>
     <string name="sidebar_quick_rotate">Rotate</string>

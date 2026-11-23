@@ -166,6 +166,11 @@ fun HomeScreenPreferences(
                     label = stringResource(R.string.sidebar_search_label),
                     description = stringResource(R.string.sidebar_search_description),
                 )
+                SwitchPreference(
+                    adapter = prefs2.sidebarBrightnessSlider.getAdapter(),
+                    label = stringResource(R.string.sidebar_brightness_slider_label),
+                    description = stringResource(R.string.sidebar_brightness_slider_description),
+                )
             }
         }
         PreferenceGroup(heading = stringResource(id = R.string.dossier)) {

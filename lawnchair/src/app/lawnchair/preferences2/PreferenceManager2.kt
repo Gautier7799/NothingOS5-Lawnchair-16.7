@@ -409,6 +409,12 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = false,
     )
 
+    /** Whether the sidebar shows a brightness slider above its apps. */
+    val sidebarBrightnessSlider = preference(
+        key = booleanPreferencesKey(name = "sidebar_brightness_slider"),
+        defaultValue = false,
+    )
+
     val hotseatQsbProvider = preference(
         key = stringPreferencesKey(name = "dock_search_bar_provider"),
         defaultValue = getRemoteDefault("dock_search_bar_provider")?.let {
