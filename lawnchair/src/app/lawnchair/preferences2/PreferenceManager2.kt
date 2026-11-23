@@ -409,6 +409,16 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = false,
     )
 
+    /**
+     * Which quick controls the strip shows, as a comma-separated list of enum names.
+     *
+     * Unset means "all of them", so a fresh install gets a full strip.
+     */
+    val sidebarQuickControlList = preference(
+        key = stringPreferencesKey(name = "sidebar_quick_control_list"),
+        defaultValue = "",
+    )
+
     /** Whether the sidebar shows a brightness slider above its apps. */
     val sidebarBrightnessSlider = preference(
         key = booleanPreferencesKey(name = "sidebar_brightness_slider"),

@@ -208,11 +208,14 @@ class SidebarView @JvmOverloads constructor(
      * @return whether the strip was added, which the caller needs for the height arithmetic.
      */
     private fun bindQuickControls(): Boolean {
-        val enabled = PreferenceManager2.getInstance(launcher)
-            .sidebarQuickControls
-            .firstCached()
-        if (!enabled) return false
-        val strip = quickControls.build(QuickControl.defaultOrder) ?: return false
+        val prefs = PreferenceManager2.getInstance(launcher)
+        if (!prefs.sidebarQuickControls.firstCached()) return false
+        val selected = QuickControlSelection.resolve(
+            prefs.sidebarQuickControlList.firstCached(),
+        )
+        // An empty selection is a valid choice, but a strip with no tiles is just a blank gap.
+        if (selected.isEmpty()) return false
+        val strip = quickControls.build(selected) ?: return false
         column.addView(strip)
         return true
     }
