@@ -223,6 +223,9 @@ class SidebarView @JvmOverloads constructor(
     /** Fills the panel with [apps], laid out in rows of the configured column count. */
     fun bind(apps: List<AppInfo>) {
         allApps = apps
+        // removeAllViews detaches every child, including appRows. It must be re-attached below
+        // or the icons are added to a view that is no longer in the window and the panel renders
+        // empty.
         column.removeAllViews()
         // Evaluate both: `||` would short-circuit and skip the volume panel whenever the
         // quick-control strip is enabled.
@@ -230,11 +233,19 @@ class SidebarView @JvmOverloads constructor(
         val hasVolume = bindVolumePanel()
         val hasBrightness = bindBrightness()
         val hasSearch = bindSearch()
-        bindAppRows()
         // Each extra row takes about one cell of vertical space, so it counts as one app when
         // the panel height is computed. That keeps the sizing arithmetic in SidebarMetrics.
+        // Set before bindAppRows(), which folds it into itemCount for the measure pass.
         extrasCount = (if (hasTiles) 1 else 0) + (if (hasVolume) 1 else 0) +
             (if (hasBrightness) 1 else 0) + (if (hasSearch) 1 else 0)
+        column.addView(
+            appRows,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+        bindAppRows()
     }
 
     /**
