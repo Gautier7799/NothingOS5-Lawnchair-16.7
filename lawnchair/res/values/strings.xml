@@ -159,6 +159,8 @@
     <string name="sidebar_haptics_description">A short vibration when the panel opens.</string>
     <string name="sidebar_quick_controls_label">Quick controls</string>
     <string name="sidebar_quick_controls_description">Show torch, rotation, brightness, do-not-disturb and ringer tiles above the apps.</string>
+    <string name="sidebar_volume_sliders_label">Volume sliders</string>
+    <string name="sidebar_volume_sliders_description">Show media, ring, notification and alarm volume sliders above the apps.</string>
     <string name="sidebar_quick_torch">Torch</string>
     <string name="sidebar_quick_rotate">Rotate</string>
     <string name="sidebar_quick_brightness">Brightness</string>

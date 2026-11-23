@@ -397,6 +397,12 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = false,
     )
 
+    /** Whether the sidebar shows volume sliders above its apps. */
+    val sidebarVolumeSliders = preference(
+        key = booleanPreferencesKey(name = "sidebar_volume_sliders"),
+        defaultValue = false,
+    )
+
     val hotseatQsbProvider = preference(
         key = stringPreferencesKey(name = "dock_search_bar_provider"),
         defaultValue = getRemoteDefault("dock_search_bar_provider")?.let {

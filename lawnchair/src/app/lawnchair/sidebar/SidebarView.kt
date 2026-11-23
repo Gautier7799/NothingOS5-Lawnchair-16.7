@@ -71,6 +71,7 @@ class SidebarView @JvmOverloads constructor(
     private val scroll = ScrollView(context)
     private val column = LinearLayout(context)
     private val quickControls = QuickControlStrip(context)
+    private val volumePanel = VolumePanel(context)
 
     private var itemCount = 0
     private var onRightEdge = true
@@ -150,6 +151,21 @@ class SidebarView @JvmOverloads constructor(
     }
 
     /**
+     * Adds the volume slider row when its preference is on.
+     *
+     * A device whose streams all report a zero maximum gets no row, and then the panel height
+     * arithmetic must not count one, which is why the result is reported back to [bind].
+     */
+    private fun bindVolumePanel(): Boolean {
+        val prefs = PreferenceManager2.getInstance(launcher)
+        val enabled = prefs.sidebarVolumeSliders.firstCached()
+        if (!enabled) return false
+        val panel = volumePanel.build(VolumeState.ordered) ?: return false
+        column.addView(panel)
+        return true
+    }
+
+    /**
      * Adds the quick-control strip above the app column when the preference is on.
      *
      * The strip is rebuilt on every bind so a toggle added while the panel was closed shows up,
@@ -171,10 +187,13 @@ class SidebarView @JvmOverloads constructor(
     /** Fills the panel with [apps], laid out in rows of the configured column count. */
     fun bind(apps: List<AppInfo>) {
         column.removeAllViews()
-        val hasQuickControls = bindQuickControls()
-        // The tile strip takes about one cell of vertical space, so it counts as one row when
+        // Evaluate both: `||` would short-circuit and skip the volume panel whenever the
+        // quick-control strip is enabled.
+        val hasTiles = bindQuickControls()
+        val hasVolume = bindVolumePanel()
+        // Each extra row takes about one cell of vertical space, so it counts as one app when
         // the panel height is computed. That keeps the sizing arithmetic in SidebarMetrics.
-        itemCount = apps.size + if (hasQuickControls) 1 else 0
+        itemCount = apps.size + (if (hasTiles) 1 else 0) + (if (hasVolume) 1 else 0)
 
         if (apps.isEmpty()) {
             val empty = TextView(context)
@@ -298,6 +317,7 @@ class SidebarView @JvmOverloads constructor(
         mIsOpen = true
         if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
         quickControls.refresh()
+        volumePanel.refresh()
         scrim.animate().alpha(1f).setDuration(OPEN_DURATION_MS).start()
         panel.animate()
             .alpha(
