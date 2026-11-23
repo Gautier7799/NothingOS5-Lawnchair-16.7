@@ -90,10 +90,18 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
      *
      * A saved app can be uninstalled or moved to another profile, so keys that no longer
      * resolve are dropped rather than shown as blanks.
+     *
+     * When nothing has been chosen yet the sidebar falls back to every installed app. That
+     * makes the panel useful the moment it is enabled: an empty column with no explanation
+     * looks like the feature is broken rather than unconfigured.
      */
     private fun resolveApps(saved: String): List<AppInfo> {
-        if (saved.isBlank()) return emptyList()
         val store = launcher.appsView?.appsStore ?: return emptyList()
+        if (saved.isBlank()) {
+            return store.apps
+                .filter { it.componentName != null }
+                .sortedBy { it.title.toString().lowercase() }
+        }
         return saved.split(',').mapNotNull { key ->
             ComponentKey.fromString(key.trim())?.let { store.getApp(it) }
         }
