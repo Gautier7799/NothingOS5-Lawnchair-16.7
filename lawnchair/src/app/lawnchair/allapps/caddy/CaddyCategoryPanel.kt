@@ -377,9 +377,11 @@ class CaddyCategoryPanel @JvmOverloads constructor(
             view.alpha = 0f
             view.panel.scaleX = 0.965f
             view.panel.scaleY = 0.965f
+            // The DragLayer casts child params to InsettableFrameLayout.LayoutParams during
+            // inset dispatch, so a plain LayoutParams here crashes the launcher.
             dragLayer.addView(
                 view,
-                ViewGroup.LayoutParams(
+                BaseDragLayer.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 ),

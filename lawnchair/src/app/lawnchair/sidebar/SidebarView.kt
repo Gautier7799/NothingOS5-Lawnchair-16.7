@@ -475,9 +475,11 @@ class SidebarView @JvmOverloads constructor(
             val view = SidebarView(launcher)
             view.applyAppearance()
             view.bind(apps)
+            // The DragLayer casts every child's params to InsettableFrameLayout.LayoutParams
+            // when it dispatches insets, so a plain LayoutParams here crashes the launcher.
             dragLayer.addView(
                 view,
-                ViewGroup.LayoutParams(
+                BaseDragLayer.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 ),
