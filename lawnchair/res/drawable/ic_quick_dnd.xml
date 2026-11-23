@@ -1,0 +1,19 @@
+<!--
+  ~ Copyright 2026, Lawnchair
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:tint="#000000"
+    android:viewportHeight="960"
+    android:viewportWidth="960"
+    android:width="24dp">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M480,880Q447,880 423.5,856.5Q400,833 400,800L560,800Q560,833 536.5,856.5Q513,880 480,880ZM160,760L160,680L800,680L800,760L160,760ZM160,640Q160,507 244,406Q328,305 456,283L456,80L504,80L504,283Q632,305 716,406Q800,507 800,640L160,640Z" />
+</vector>

@@ -70,6 +70,7 @@ class SidebarView @JvmOverloads constructor(
     private val panel = LinearLayout(context)
     private val scroll = ScrollView(context)
     private val column = LinearLayout(context)
+    private val quickControls = QuickControlStrip(context)
 
     private var itemCount = 0
     private var onRightEdge = true
@@ -148,10 +149,32 @@ class SidebarView @JvmOverloads constructor(
         scrim.alpha = 0f
     }
 
+    /**
+     * Adds the quick-control strip above the app column when the preference is on.
+     *
+     * The strip is rebuilt on every bind so a toggle added while the panel was closed shows up,
+     * and it is refreshed on attach so a tile never shows a stale state from the last time the
+     * panel was open.
+     *
+     * @return whether the strip was added, which the caller needs for the height arithmetic.
+     */
+    private fun bindQuickControls(): Boolean {
+        val enabled = PreferenceManager2.getInstance(launcher)
+            .sidebarQuickControls
+            .firstCached()
+        if (!enabled) return false
+        val strip = quickControls.build(QuickControl.defaultOrder) ?: return false
+        column.addView(strip)
+        return true
+    }
+
     /** Fills the panel with [apps], laid out in rows of the configured column count. */
     fun bind(apps: List<AppInfo>) {
         column.removeAllViews()
-        itemCount = apps.size
+        val hasQuickControls = bindQuickControls()
+        // The tile strip takes about one cell of vertical space, so it counts as one row when
+        // the panel height is computed. That keeps the sizing arithmetic in SidebarMetrics.
+        itemCount = apps.size + if (hasQuickControls) 1 else 0
 
         if (apps.isEmpty()) {
             val empty = TextView(context)
@@ -274,6 +297,7 @@ class SidebarView @JvmOverloads constructor(
         super.onAttachedToWindow()
         mIsOpen = true
         if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        quickControls.refresh()
         scrim.animate().alpha(1f).setDuration(OPEN_DURATION_MS).start()
         panel.animate()
             .alpha(

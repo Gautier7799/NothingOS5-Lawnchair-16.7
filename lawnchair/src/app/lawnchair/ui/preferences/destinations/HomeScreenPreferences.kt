@@ -151,6 +151,11 @@ fun HomeScreenPreferences(
                     label = stringResource(R.string.sidebar_haptics_label),
                     description = stringResource(R.string.sidebar_haptics_description),
                 )
+                SwitchPreference(
+                    adapter = prefs2.sidebarQuickControls.getAdapter(),
+                    label = stringResource(R.string.sidebar_quick_controls_label),
+                    description = stringResource(R.string.sidebar_quick_controls_description),
+                )
             }
         }
         PreferenceGroup(heading = stringResource(id = R.string.dossier)) {

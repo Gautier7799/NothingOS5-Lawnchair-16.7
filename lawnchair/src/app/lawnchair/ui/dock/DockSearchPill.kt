@@ -5,7 +5,6 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -13,6 +12,7 @@ import app.lawnchair.qsb.LauncherSearch
 import com.android.launcher3.Hotseat
 import com.android.launcher3.Launcher
 import com.android.launcher3.R
+import com.android.launcher3.views.BaseDragLayer
 import kotlin.math.roundToInt
 
 /**
@@ -45,11 +45,15 @@ class DockSearchPill private constructor(private val host: Hotseat) {
         pill.gravity = Gravity.CENTER
         pill.setPadding(horizontalPadding, 0, horizontalPadding, 0)
         pill.background = glassBackground(height)
-        pill.layoutParams = FrameLayout.LayoutParams(
+        // The pill is a direct child of the DragLayer, which requires BaseDragLayer.LayoutParams.
+        // FrameLayout.LayoutParams is a different type, so DragLayer's inset dispatch would throw
+        // ClassCastException while setting insets on it.
+        pill.layoutParams = BaseDragLayer.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             height,
-            Gravity.TOP or Gravity.CENTER_HORIZONTAL,
-        )
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        }
 
         val icon = ImageView(context).apply {
             setImageResource(R.drawable.ic_search)

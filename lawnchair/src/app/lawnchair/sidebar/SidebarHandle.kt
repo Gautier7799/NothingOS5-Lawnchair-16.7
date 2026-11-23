@@ -30,6 +30,7 @@ import android.widget.FrameLayout
 import app.lawnchair.allapps.caddy.CaddyMaterialYou
 import app.lawnchair.preferences2.firstCached
 import com.android.launcher3.Launcher
+import com.android.launcher3.views.BaseDragLayer
 
 /**
  * The thin tab on the right edge that opens the [SidebarView].
@@ -124,14 +125,16 @@ class SidebarHandle(context: Context) : View(context) {
      * The tab is anchored to the top and offset, rather than centred, because the offset is
      * what makes a vertical position meaningful: `CENTER_VERTICAL` would ignore it.
      */
-    fun layoutParamsFor(launcher: Launcher): FrameLayout.LayoutParams {
+    fun layoutParamsFor(launcher: Launcher): BaseDragLayer.LayoutParams {
         val prefs = app.lawnchair.preferences2.PreferenceManager2.getInstance(launcher)
         val onRight = prefs.sidebarOnRightEdge.firstCached(prefs)
         val fraction = prefs.sidebarHandlePosition.firstCached(prefs)
         val hostHeight = launcher.dragLayer?.height ?: resources.displayMetrics.heightPixels
         val handleHeight = dp(SidebarMetrics.HANDLE_HEIGHT_DP)
         val centre = SidebarMetrics.handleCenterPx(fraction, hostHeight, handleHeight)
-        return FrameLayout.LayoutParams(
+        // The handle is added straight into the DragLayer, so its params must be the DragLayer's
+        // own type; a FrameLayout.LayoutParams child makes inset dispatch throw ClassCastException.
+        return BaseDragLayer.LayoutParams(
             dp(SidebarMetrics.HANDLE_WIDTH_DP),
             handleHeight,
         ).apply {

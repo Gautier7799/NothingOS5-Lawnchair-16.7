@@ -391,6 +391,12 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = true,
     )
 
+    /** Whether the sidebar shows the quick-control tiles above its apps. */
+    val sidebarQuickControls = preference(
+        key = booleanPreferencesKey(name = "sidebar_quick_controls"),
+        defaultValue = false,
+    )
+
     val hotseatQsbProvider = preference(
         key = stringPreferencesKey(name = "dock_search_bar_provider"),
         defaultValue = getRemoteDefault("dock_search_bar_provider")?.let {
