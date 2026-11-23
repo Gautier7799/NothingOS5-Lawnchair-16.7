@@ -161,6 +161,10 @@
     <string name="sidebar_quick_controls_description">Show torch, rotation, brightness, do-not-disturb and ringer tiles above the apps.</string>
     <string name="sidebar_volume_sliders_label">Volume sliders</string>
     <string name="sidebar_volume_sliders_description">Show media, ring, notification and alarm volume sliders above the apps.</string>
+    <string name="sidebar_search_label">Search field</string>
+    <string name="sidebar_search_description">Show a search field that filters the sidebar apps as you type.</string>
+    <string name="sidebar_search_hint">Search apps</string>
+    <string name="sidebar_no_results">No matching apps</string>
     <string name="sidebar_quick_torch">Torch</string>
     <string name="sidebar_quick_rotate">Rotate</string>
     <string name="sidebar_quick_brightness">Brightness</string>

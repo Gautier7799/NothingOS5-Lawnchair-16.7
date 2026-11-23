@@ -403,6 +403,12 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = false,
     )
 
+    /** Whether the sidebar shows a search field above its apps. */
+    val sidebarSearch = preference(
+        key = booleanPreferencesKey(name = "sidebar_search"),
+        defaultValue = false,
+    )
+
     val hotseatQsbProvider = preference(
         key = stringPreferencesKey(name = "dock_search_bar_provider"),
         defaultValue = getRemoteDefault("dock_search_bar_provider")?.let {

@@ -18,6 +18,9 @@ package app.lawnchair.sidebar
 
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
+import android.text.Editable
+import android.text.InputType
+import android.text.TextWatcher
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
@@ -27,6 +30,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -72,6 +77,10 @@ class SidebarView @JvmOverloads constructor(
     private val column = LinearLayout(context)
     private val quickControls = QuickControlStrip(context)
     private val volumePanel = VolumePanel(context)
+    private val appRows = LinearLayout(context)
+    private var searchField: EditText? = null
+    private var allApps: List<AppInfo> = emptyList()
+    private var extrasCount = 0
 
     private var itemCount = 0
     private var onRightEdge = true
@@ -101,6 +110,13 @@ class SidebarView @JvmOverloads constructor(
             dp(SidebarMetrics.PANEL_PADDING_V_DP),
             dp(SidebarMetrics.PANEL_PADDING_H_DP),
             dp(SidebarMetrics.PANEL_PADDING_V_DP),
+        )
+        column.addView(
+            appRows,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
         )
         scroll.addView(
             column,
@@ -186,38 +202,109 @@ class SidebarView @JvmOverloads constructor(
 
     /** Fills the panel with [apps], laid out in rows of the configured column count. */
     fun bind(apps: List<AppInfo>) {
+        allApps = apps
         column.removeAllViews()
         // Evaluate both: `||` would short-circuit and skip the volume panel whenever the
         // quick-control strip is enabled.
         val hasTiles = bindQuickControls()
         val hasVolume = bindVolumePanel()
+        val hasSearch = bindSearch()
+        bindAppRows()
         // Each extra row takes about one cell of vertical space, so it counts as one app when
         // the panel height is computed. That keeps the sizing arithmetic in SidebarMetrics.
-        itemCount = apps.size + (if (hasTiles) 1 else 0) + (if (hasVolume) 1 else 0)
+        extrasCount = (if (hasTiles) 1 else 0) + (if (hasVolume) 1 else 0) +
+            (if (hasSearch) 1 else 0)
+    }
 
-        if (apps.isEmpty()) {
-            val empty = TextView(context)
-            empty.text = context.getString(R.string.sidebar_empty)
-            empty.setTextColor(CaddyMaterialYou.onSurfaceVariant(context))
-            empty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            empty.gravity = Gravity.CENTER
-            empty.setPadding(dp(4), dp(16), dp(4), dp(16))
-            column.addView(
+    /**
+     * Adds the search field when its preference is on, and returns whether it was added.
+     *
+     * The field filters the already-chosen sidebar apps rather than the whole installed set,
+     * because this panel is a shortlist, not an app drawer. Filtering happens on every
+     * keystroke against the cached list, so opening the panel stays instant.
+     */
+    private fun bindSearch(): Boolean {
+        val enabled = PreferenceManager2.getInstance(launcher)
+            .sidebarSearch
+            .firstCached()
+        if (!enabled) return false
+        val field = EditText(context).apply {
+            hint = context.getString(R.string.sidebar_search_hint)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextColor(CaddyMaterialYou.onSurface(context))
+            setHintTextColor(CaddyMaterialYou.onSurfaceVariant(context))
+            background = GradientDrawable().apply {
+                setColor(CaddyMaterialYou.surface(context))
+                cornerRadius = dp(SidebarMetrics.TILE_RADIUS_DP).toFloat()
+                setStroke(dp(1), CaddyMaterialYou.outlineVariant(context))
+            }
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+            maxLines = 1
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_NONE
+            addTextChangedListener(
+                object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+                    override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+                    override fun afterTextChanged(s: Editable?) {
+                        bindAppRows()
+                    }
+                },
+            )
+        }
+        searchField = field
+        column.addView(
+            field,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(6) },
+        )
+        return true
+    }
+
+    /**
+     * Repaints the app rows for the current query.
+     *
+     * Only the rows are touched, so the search field keeps its focus and the caret keeps its
+     * position while the user types.
+     */
+    private fun bindAppRows() {
+        appRows.removeAllViews()
+        val apps = allApps
+        val query = searchField?.text?.toString().orEmpty()
+        val filtered = SidebarSearch.rank(apps, query) { it.title.toString() }
+        itemCount = filtered.size + extrasCount
+
+        if (filtered.isEmpty()) {
+            val message = if (apps.isEmpty()) {
+                context.getString(R.string.sidebar_empty)
+            } else {
+                context.getString(R.string.sidebar_no_results)
+            }
+            val empty = TextView(context).apply {
+                text = message
+                setTextColor(CaddyMaterialYou.onSurfaceVariant(context))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                gravity = Gravity.CENTER
+                setPadding(dp(4), dp(16), dp(4), dp(16))
+            }
+            appRows.addView(
                 empty,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                 ),
             )
-            return
+        } else {
+            val columns = SidebarMetrics.clampColumns(
+                PreferenceManager2.getInstance(launcher).sidebarColumns.firstCached(),
+            )
+            filtered.chunked(columns).forEach { row ->
+                appRows.addView(buildRow(row, columns))
+            }
         }
-
-        val columns = SidebarMetrics.clampColumns(
-            PreferenceManager2.getInstance(launcher).sidebarColumns.firstCached(),
-        )
-        apps.chunked(columns).forEach { row ->
-            column.addView(buildRow(row, columns))
-        }
+        requestLayout()
     }
 
     /**
