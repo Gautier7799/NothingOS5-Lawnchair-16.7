@@ -410,6 +410,17 @@ class PreferenceManager2 @Inject constructor(
     )
 
     /**
+     * Whether the sidebar appends the most used apps after the pinned ones.
+     *
+     * Requires usage access. Off by default so the panel shows exactly what the user chose
+     * until they ask for suggestions.
+     */
+    val sidebarSuggestions = preference(
+        key = booleanPreferencesKey(name = "sidebar_suggestions"),
+        defaultValue = false,
+    )
+
+    /**
      * Which quick controls the strip shows, as a comma-separated list of enum names.
      *
      * Unset means "all of them", so a fresh install gets a full strip.

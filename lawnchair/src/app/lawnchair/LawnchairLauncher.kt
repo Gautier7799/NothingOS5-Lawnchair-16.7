@@ -527,7 +527,7 @@ class LawnchairLauncher : QuickstepLauncher() {
     override fun finishBindingItems(pagesBoundFirst: IntSet?) {
         super.finishBindingItems(pagesBoundFirst)
         dossierCards.onWorkspaceBound()
-        sidebar.reload()
+        sidebar.onWorkspaceBound()
     }
 
     /** Re-renders bound Dossier cards after a Grille settings change, without a full rebind. */

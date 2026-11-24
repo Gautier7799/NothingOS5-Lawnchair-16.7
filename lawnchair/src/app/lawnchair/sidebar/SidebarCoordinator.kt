@@ -16,12 +16,15 @@
 
 package app.lawnchair.sidebar
 
+import android.app.AppOpsManager
+import android.os.Process
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.firstCached
 import com.android.launcher3.Launcher
 import com.android.launcher3.LauncherState
+import com.android.launcher3.allapps.AllAppsStore
 import com.android.launcher3.model.data.AppInfo
 import com.android.launcher3.statemanager.StateManager
 import com.android.launcher3.util.ComponentKey
@@ -40,9 +43,15 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
 
     private var apps: List<AppInfo> = emptyList()
     private var prefsJob: Job? = null
+    private var listeningToApps = false
+    private var workspaceReady = false
+
+    /** Re-resolves the sidebar apps when the model publishes a new app list. */
+    private val appsListener = AllAppsStore.OnUpdateListener { onAppsChanged() }
 
     fun start() {
         launcher.stateManager.addStateListener(this)
+        attachAppsListener()
         reload()
         observePreferences()
     }
@@ -51,10 +60,52 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
         launcher.stateManager.removeStateListener(this)
         prefsJob?.cancel()
         prefsJob = null
+        detachAppsListener()
+        workspaceReady = false
         SidebarHandle.detach(launcher)
     }
 
-    /** Re-binds the tab whenever either sidebar preference changes. */
+    /**
+     * Subscribes to model updates so an app that is installed, uninstalled or renamed while the
+     * launcher is running shows up without a restart.
+     *
+     * `onCreate` can run before `AppsView` is inflated, in which case there is no store yet;
+     * [onWorkspaceBound] retries once the workspace has bound.
+     */
+    private fun attachAppsListener() {
+        if (listeningToApps) return
+        val store = launcher.appsView?.appsStore ?: return
+        store.addUpdateListener(appsListener)
+        listeningToApps = true
+    }
+
+    private fun detachAppsListener() {
+        if (!listeningToApps) return
+        launcher.appsView?.appsStore?.removeUpdateListener(appsListener)
+        listeningToApps = false
+    }
+
+    /** Called after the workspace has bound, when the app store is guaranteed to exist. */
+    fun onWorkspaceBound() {
+        attachAppsListener()
+        workspaceReady = true
+        reload()
+    }
+
+    private fun onAppsChanged() {
+        if (!workspaceReady) return
+        reload()
+    }
+
+    /**
+     * Re-binds the tab whenever a preference that changes what the panel shows or where it sits
+     * changes.
+     *
+     * Only `sidebarEnabled` and `sidebarApps` were observed before, so changing the edge, the
+     * vertical position or the column count updated the preference store but left the tab and an
+     * already open panel in their old geometry — the setting appeared to do nothing until the
+     * launcher was restarted.
+     */
     private fun observePreferences() {
         val prefs = PreferenceManager2.getInstance(launcher)
         val owner = launcher as LifecycleOwner
@@ -62,6 +113,12 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
         prefsJob = owner.lifecycleScope.launch {
             launch { prefs.sidebarEnabled.get().collect { reload() } }
             launch { prefs.sidebarApps.get().collect { reload() } }
+            launch { prefs.sidebarOnRightEdge.get().collect { reload() } }
+            launch { prefs.sidebarHandlePosition.get().collect { reload() } }
+            launch { prefs.sidebarColumns.get().collect { reload() } }
+            launch { prefs.sidebarOpacity.get().collect { reload() } }
+            launch { prefs.sidebarHaptics.get().collect { reload() } }
+            launch { prefs.sidebarSuggestions.get().collect { reload() } }
         }
     }
 
@@ -74,6 +131,9 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
         }
         apps = resolveApps(prefs.sidebarApps.firstCached())
         SidebarHandle.attach(launcher) { SidebarView.show(launcher, apps) }
+        // Keep an already open panel in step with the new list or geometry instead of leaving
+        // stale icons on screen until it is closed and reopened.
+        SidebarView.refresh(launcher, apps)
         syncVisibility(launcher.stateManager.state)
     }
 
@@ -86,24 +146,59 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
     }
 
     /**
-     * Maps the saved component keys to live [AppInfo]s.
+     * Maps the saved component keys to live [AppInfo]s, then appends usage-ranked suggestions.
      *
      * A saved app can be uninstalled or moved to another profile, so keys that no longer
      * resolve are dropped rather than shown as blanks.
      *
-     * When nothing has been chosen yet the sidebar falls back to every installed app. That
-     * makes the panel useful the moment it is enabled: an empty column with no explanation
-     * looks like the feature is broken rather than unconfigured.
+     * When nothing has been chosen yet and suggestions are off, the sidebar falls back to every
+     * installed app. That makes the panel useful the moment it is enabled: an empty column with
+     * no explanation looks like the feature is broken rather than unconfigured.
      */
     private fun resolveApps(saved: String): List<AppInfo> {
         val store = launcher.appsView?.appsStore ?: return emptyList()
-        if (saved.isBlank()) {
+        val suggestionsEnabled = PreferenceManager2.getInstance(launcher)
+            .sidebarSuggestions.firstCached()
+        if (saved.isBlank() && !suggestionsEnabled) {
             return store.apps
                 .filter { it.componentName != null }
                 .sortedBy { it.title.toString().lowercase() }
         }
-        return saved.split(',').mapNotNull { key ->
-            ComponentKey.fromString(key.trim())?.let { store.getApp(it) }
+
+        val pinned = saved.split(',')
+            .mapNotNull { key -> ComponentKey.fromString(key.trim())?.let { store.getApp(it) } }
+        if (!suggestionsEnabled) return pinned
+
+        val pinnedPackages = pinned.mapNotNull { it.componentName?.packageName }.toSet()
+        val suggestions = suggestionPackages(exclude = pinnedPackages).mapNotNull { pkg ->
+            store.apps.firstOrNull { it.componentName?.packageName == pkg }
         }
+        return pinned + suggestions
+    }
+
+    /**
+     * Package names of the most used apps, most used first.
+     *
+     * Reads the same usage data the launcher's prediction engine uses, but only when the user
+     * has granted usage access: without it the platform returns an empty result rather than an
+     * error, so the permission has to be checked up front. Returns an empty list when the
+     * feature is off or the permission is missing, which degrades to the pinned apps alone.
+     */
+    private fun suggestionPackages(exclude: Set<String>): List<String> {
+        if (!hasUsageAccess()) return emptyList()
+        return SidebarUsageRanker.query(
+            context = launcher,
+            exclude = exclude,
+            limit = SidebarSuggestions.DEFAULT_SUGGESTION_COUNT,
+        )
+    }
+
+    private fun hasUsageAccess(): Boolean {
+        val appOps = launcher.getSystemService(AppOpsManager::class.java) ?: return false
+        return appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            launcher.packageName,
+        ) == AppOpsManager.MODE_ALLOWED
     }
 }

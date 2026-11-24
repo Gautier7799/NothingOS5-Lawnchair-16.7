@@ -143,6 +143,8 @@
     <!-- Home-screen sidebar -->
     <string name="sidebar_section_title">Sidebar</string>
     <string name="sidebar_enabled_label">Show the sidebar</string>
+    <string name="sidebar_suggestions_label">Suggest most used apps</string>
+    <string name="sidebar_suggestions_description">Adds up to four of your most used apps below the ones you picked. Needs usage access.</string>
     <string name="sidebar_enabled_description">A pull-out column of apps on the right edge of the home screen. Drag the tab to open it.</string>
     <string name="sidebar_apps_label">Apps in the sidebar</string>
     <string name="sidebar_apps_description">Choose which apps appear in the column.</string>

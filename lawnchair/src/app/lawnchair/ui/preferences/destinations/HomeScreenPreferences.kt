@@ -16,10 +16,17 @@
 
 package app.lawnchair.ui.preferences.destinations
 
+import android.app.AppOpsManager
+import android.content.Intent
+import android.net.Uri
+import android.os.Process
+import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -40,6 +47,7 @@ import app.lawnchair.ui.preferences.components.GestureHandlerPreference
 import app.lawnchair.ui.preferences.components.HomeLayoutSettings
 import app.lawnchair.ui.preferences.components.NavigationActionPreference
 import app.lawnchair.ui.preferences.components.OverlayHandlerPreference
+import app.lawnchair.ui.preferences.components.PermissionDialog
 import app.lawnchair.ui.preferences.components.controls.ClickablePreference
 import app.lawnchair.ui.preferences.components.controls.ListPreference
 import app.lawnchair.ui.preferences.components.controls.ListPreferenceEntry
@@ -148,6 +156,57 @@ fun HomeScreenPreferences(
                     label = stringResource(R.string.sidebar_on_right_edge_label),
                     description = stringResource(R.string.sidebar_on_right_edge_description),
                 )
+                val suggestionsAdapter = prefs2.sidebarSuggestions.getAdapter()
+                val context = LocalContext.current
+                val appOps = remember { context.getSystemService(AppOpsManager::class.java) }
+                val hasUsageAccess = remember {
+                    appOps.checkOpNoThrow(
+                        AppOpsManager.OPSTR_GET_USAGE_STATS,
+                        Process.myUid(),
+                        context.packageName,
+                    ) == AppOpsManager.MODE_ALLOWED
+                }
+                var showUsageDialog by remember { mutableStateOf(false) }
+                SwitchPreference(
+                    checked = suggestionsAdapter.state.value && hasUsageAccess,
+                    onCheckedChange = { newValue ->
+                        if (newValue && !hasUsageAccess) {
+                            showUsageDialog = true
+                        } else {
+                            suggestionsAdapter.onChange(newValue)
+                        }
+                    },
+                    label = stringResource(R.string.sidebar_suggestions_label),
+                    description = stringResource(R.string.sidebar_suggestions_description),
+                )
+                if (showUsageDialog) {
+                    PermissionDialog(
+                        title = stringResource(R.string.missing_usage_access_label),
+                        text = stringResource(
+                            R.string.missing_usage_access_desc,
+                            stringResource(R.string.derived_app_name),
+                        ),
+                        isPermanentlyDenied = true,
+                        onConfirm = {},
+                        onDismiss = { showUsageDialog = false },
+                        onGoToSettings = {
+                            showUsageDialog = false
+                            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                            try {
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                try {
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS),
+                                    )
+                                } catch (_: Exception) {
+                                }
+                            }
+                        },
+                    )
+                }
                 SwitchPreference(
                     adapter = prefs2.sidebarHaptics.getAdapter(),
                     label = stringResource(R.string.sidebar_haptics_label),

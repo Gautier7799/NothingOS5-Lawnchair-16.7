@@ -162,9 +162,19 @@ class SidebarView @JvmOverloads constructor(
             setStroke(dp(1), CaddyMaterialYou.outlineVariant(context))
         }
 
-        panel.alpha = 0f
-        panel.translationX = SidebarMetrics.slideDistancePx(onRightEdge, density)
-        scrim.alpha = 0f
+        // Only arm the open animation when the panel is closed. Re-applying the appearance on a
+        // panel that is already showing — which now happens whenever a layout preference
+        // changes — used to reset it to fully transparent and slid off screen, leaving a blank
+        // gap where the panel had been.
+        if (isOpen) {
+            panel.alpha = SidebarMetrics.opacityFraction(prefs.sidebarOpacity.firstCached())
+            panel.translationX = 0f
+            scrim.alpha = 1f
+        } else {
+            panel.alpha = 0f
+            panel.translationX = SidebarMetrics.slideDistancePx(onRightEdge, density)
+            scrim.alpha = 0f
+        }
     }
 
     /**
@@ -498,6 +508,23 @@ class SidebarView @JvmOverloads constructor(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 ),
             )
+        }
+
+        /**
+         * Re-binds an already open panel after the app list or a layout preference changed.
+         *
+         * A closed panel needs nothing: the next [show] binds it fresh. Without this, changing a
+         * sidebar setting while the panel was open left the old icons and geometry on screen
+         * until it was closed and reopened.
+         */
+        @JvmStatic
+        fun refresh(launcher: Launcher, apps: List<AppInfo>) {
+            val open = AbstractFloatingView.getOpenView<SidebarView>(
+                launcher,
+                AbstractFloatingView.TYPE_SIDEBAR,
+            ) ?: return
+            open.applyAppearance()
+            open.bind(apps)
         }
     }
 }
