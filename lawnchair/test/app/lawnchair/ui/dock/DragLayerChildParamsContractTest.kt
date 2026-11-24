@@ -103,44 +103,6 @@ class DragLayerChildParamsContractTest {
     }
 
     @Test
-    fun sidebarHandleUsesDragLayerParams() {
-        val source = sourceFile("src/app/lawnchair/sidebar/SidebarHandle.kt")
-        val text = source.readText()
-
-        // The handle is added straight into the DragLayer with layoutParamsFor(...).
-        assertTrue(
-            "the sidebar handle must be added to the DragLayer",
-            text.contains("dragLayer.addView(created, created.layoutParamsFor(launcher))"),
-        )
-        assertTrue(
-            "layoutParamsFor must return BaseDragLayer.LayoutParams",
-            text.contains("fun layoutParamsFor(launcher: Launcher): BaseDragLayer.LayoutParams"),
-        )
-        assertTrue(
-            "layoutParamsFor must not build FrameLayout.LayoutParams",
-            !text.contains("return FrameLayout.LayoutParams("),
-        )
-    }
-
-    @Test
-    fun sidebarViewUsesDragLayerParams() {
-        val source = sourceFile("src/app/lawnchair/sidebar/SidebarView.kt")
-        val text = source.readText()
-
-        // The panel itself is added straight into the DragLayer, so its params must match the
-        // type the inset dispatch casts to. This was the second instance of the same crash:
-        // the tab was fixed first, then the panel it opens reproduced it.
-        assertTrue(
-            "the sidebar panel must use BaseDragLayer.LayoutParams",
-            text.contains("BaseDragLayer.LayoutParams("),
-        )
-        assertTrue(
-            "the sidebar panel must not be added with a plain ViewGroup.LayoutParams",
-            !text.contains("dragLayer.addView(\n                view,\n                ViewGroup.LayoutParams("),
-        )
-    }
-
-    @Test
     fun caddyCategoryPanelUsesDragLayerParams() {
         val source = sourceFile("src/app/lawnchair/allapps/caddy/CaddyCategoryPanel.kt")
         val text = source.readText()

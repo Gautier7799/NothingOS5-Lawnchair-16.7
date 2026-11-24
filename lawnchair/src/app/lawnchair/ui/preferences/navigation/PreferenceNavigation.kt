@@ -51,7 +51,6 @@ import app.lawnchair.ui.preferences.destinations.QuickstepPreferences
 import app.lawnchair.ui.preferences.destinations.SearchPreferences
 import app.lawnchair.ui.preferences.destinations.SearchProviderPreferences
 import app.lawnchair.ui.preferences.destinations.SelectAppsForDrawerFolder
-import app.lawnchair.ui.preferences.destinations.SelectAppsForSidebar
 import app.lawnchair.ui.preferences.destinations.SelectIconPreference
 import app.lawnchair.ui.preferences.destinations.ShapePreference
 import app.lawnchair.ui.preferences.destinations.SmartspacePreferences
@@ -154,7 +153,6 @@ fun PreferenceNavigation(
         composable<Dock>(
             deepLinks = getDeepLink(Dock),
         ) { DockPreferences() }
-        composable<HomeScreenSidebarApps> { SelectAppsForSidebar() }
         composable<DockSearchProvider>(
             deepLinks = getDeepLink(DockSearchProvider),
         ) { SearchProviderPreferences() }
