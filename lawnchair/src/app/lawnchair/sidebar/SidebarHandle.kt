@@ -62,6 +62,9 @@ class SidebarHandle(context: Context) : View(context) {
         isClickable = true
     }
 
+    private val doubleTap = DoubleTapDetector()
+    private var gestureThresholdPx: Float = 0f
+
     fun setOnOpen(listener: () -> Unit) {
         onOpen = listener
     }
@@ -88,10 +91,11 @@ class SidebarHandle(context: Context) : View(context) {
             }
 
             MotionEvent.ACTION_UP -> {
+                val threshold = gestureThreshold()
                 val gesture = SidebarGesture.classify(
                     dx = event.rawX - downX,
                     dy = event.rawY - downY,
-                    thresholdPx = touchSlop.toFloat(),
+                    thresholdPx = threshold,
                     onRightEdge = onRightEdge,
                 )
                 val handler = onGesture
@@ -102,6 +106,10 @@ class SidebarHandle(context: Context) : View(context) {
                     gesture != SidebarGesture.NONE && handler != null -> handler(gesture)
 
                     dragging || draggedFarEnough(event.rawX) -> onOpen?.invoke()
+
+                    // A tap carries no direction, so it can only be a double tap or a plain
+                    // click; the detector decides which.
+                    handler != null && doubleTap.onTap(event.eventTime) -> handler(SidebarGesture.DOUBLE_TAP)
 
                     else -> performClick()
                 }
@@ -119,7 +127,13 @@ class SidebarHandle(context: Context) : View(context) {
      * The tab is pulled inward, so the opening direction is leftwards on the right edge and
      * rightwards on the left edge; using a single sign would make the left-edge tab inert.
      */
-    private fun draggedFarEnough(rawX: Float): Boolean = SidebarMetrics.isOpenPull(rawX - downX, onRightEdge, touchSlop.toFloat())
+    private fun draggedFarEnough(rawX: Float): Boolean = SidebarMetrics.isOpenPull(rawX - downX, onRightEdge, gestureThreshold())
+
+    /** Drag distance a gesture needs, scaled by the user's sensitivity preference. */
+    private fun gestureThreshold(): Float {
+        if (gestureThresholdPx <= 0f) return touchSlop.toFloat()
+        return gestureThresholdPx
+    }
 
     override fun performClick(): Boolean {
         super.performClick()
@@ -135,6 +149,11 @@ class SidebarHandle(context: Context) : View(context) {
         val prefs = app.lawnchair.preferences2.PreferenceManager2.getInstance(launcher)
         hapticsEnabled = prefs.sidebarHaptics.firstCached(prefs)
         onRightEdge = prefs.sidebarOnRightEdge.firstCached(prefs)
+        gestureThresholdPx = SidebarGesture.thresholdForSensitivity(
+            prefs.sidebarSwipeSensitivity.firstCached(prefs),
+            touchSlop.toFloat(),
+        )
+        doubleTap.reset()
         layoutParams = layoutParamsFor(launcher)
         requestLayout()
     }
