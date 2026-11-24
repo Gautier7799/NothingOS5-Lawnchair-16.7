@@ -16,13 +16,11 @@
 
 package app.lawnchair.ui.preferences.destinations
 
-import android.app.AppOpsManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Process
 import android.provider.Settings
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,17 +32,10 @@ import androidx.compose.ui.res.stringResource
 import app.lawnchair.LawnchairApp
 import app.lawnchair.data.iconoverride.IconOverrideRepository
 import app.lawnchair.nexuslauncher.OverlayCallbackImpl
-import app.lawnchair.preferences.PreferenceAdapter
 import app.lawnchair.preferences.getAdapter
 import app.lawnchair.preferences.preferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.preferenceManager2
-import app.lawnchair.sidebar.QuickControl
-import app.lawnchair.sidebar.QuickControlSelection
-import app.lawnchair.sidebar.SidebarGestureAction
-import app.lawnchair.sidebar.SidebarGestureBindings
-import app.lawnchair.sidebar.SidebarMetrics
-import app.lawnchair.sidebar.SidebarTheme
 import app.lawnchair.theme.color.ColorMode
 import app.lawnchair.ui.preferences.LocalIsExpandedScreen
 import app.lawnchair.ui.preferences.components.FeedPreference
@@ -62,7 +53,6 @@ import app.lawnchair.ui.preferences.components.layout.ExpandAndShrink
 import app.lawnchair.ui.preferences.components.layout.PreferenceGroup
 import app.lawnchair.ui.preferences.components.layout.PreferenceLayout
 import app.lawnchair.ui.preferences.navigation.HomeScreenGrid
-import app.lawnchair.ui.preferences.navigation.HomeScreenSidebarApps
 import app.lawnchair.util.collectAsStateBlocking
 import com.android.launcher3.R
 import com.android.launcher3.Utilities
@@ -122,224 +112,6 @@ fun HomeScreenPreferences(
             )
         }
         val dossierEnabledAdapter = prefs2.dossierEnabled.getAdapter()
-        val sidebarEnabledAdapter = prefs2.sidebarEnabled.getAdapter()
-        val sidebarOnRightEdgeAdapter = prefs2.sidebarOnRightEdge.getAdapter()
-        PreferenceGroup(heading = stringResource(id = R.string.sidebar_section_title)) {
-            SwitchPreference(
-                adapter = sidebarEnabledAdapter,
-                label = stringResource(R.string.sidebar_enabled_label),
-                description = stringResource(R.string.sidebar_enabled_description),
-            )
-            ExpandAndShrink(visible = sidebarEnabledAdapter.state.value) {
-                NavigationActionPreference(
-                    label = stringResource(R.string.sidebar_apps_label),
-                    subtitle = stringResource(R.string.sidebar_apps_description),
-                    destination = HomeScreenSidebarApps,
-                )
-                SliderPreference(
-                    label = stringResource(R.string.sidebar_columns_label),
-                    adapter = prefs2.sidebarColumns.getAdapter(),
-                    valueRange = SidebarMetrics.MIN_COLUMNS..SidebarMetrics.MAX_COLUMNS,
-                    step = 1,
-                )
-                SliderPreference(
-                    label = stringResource(R.string.sidebar_opacity_label),
-                    adapter = prefs2.sidebarOpacity.getAdapter(),
-                    valueRange = SidebarMetrics.MIN_OPACITY_PERCENT..100,
-                    step = 10,
-                    showAsPercentage = true,
-                )
-                SliderPreference(
-                    label = stringResource(R.string.sidebar_handle_position_label),
-                    adapter = prefs2.sidebarHandlePosition.getAdapter(),
-                    valueRange = 0f..1f,
-                    step = 0.05f,
-                    showAsPercentage = true,
-                )
-                SwitchPreference(
-                    adapter = sidebarOnRightEdgeAdapter,
-                    label = stringResource(R.string.sidebar_on_right_edge_label),
-                    description = stringResource(R.string.sidebar_on_right_edge_description),
-                )
-                val suggestionsAdapter = prefs2.sidebarSuggestions.getAdapter()
-                val context = LocalContext.current
-                val appOps = remember { context.getSystemService(AppOpsManager::class.java) }
-                val hasUsageAccess = remember {
-                    appOps.checkOpNoThrow(
-                        AppOpsManager.OPSTR_GET_USAGE_STATS,
-                        Process.myUid(),
-                        context.packageName,
-                    ) == AppOpsManager.MODE_ALLOWED
-                }
-                var showUsageDialog by remember { mutableStateOf(false) }
-                SwitchPreference(
-                    checked = suggestionsAdapter.state.value && hasUsageAccess,
-                    onCheckedChange = { newValue ->
-                        if (newValue && !hasUsageAccess) {
-                            showUsageDialog = true
-                        } else {
-                            suggestionsAdapter.onChange(newValue)
-                        }
-                    },
-                    label = stringResource(R.string.sidebar_suggestions_label),
-                    description = stringResource(R.string.sidebar_suggestions_description),
-                )
-                if (showUsageDialog) {
-                    PermissionDialog(
-                        title = stringResource(R.string.missing_usage_access_label),
-                        text = stringResource(
-                            R.string.missing_usage_access_desc,
-                            stringResource(R.string.derived_app_name),
-                        ),
-                        isPermanentlyDenied = true,
-                        onConfirm = {},
-                        onDismiss = { showUsageDialog = false },
-                        onGoToSettings = {
-                            showUsageDialog = false
-                            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-                                data = Uri.fromParts("package", context.packageName, null)
-                            }
-                            try {
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
-                                try {
-                                    context.startActivity(
-                                        Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS),
-                                    )
-                                } catch (_: Exception) {
-                                }
-                            }
-                        },
-                    )
-                }
-                SwitchPreference(
-                    adapter = prefs2.sidebarHaptics.getAdapter(),
-                    label = stringResource(R.string.sidebar_haptics_label),
-                    description = stringResource(R.string.sidebar_haptics_description),
-                )
-                val quickControlsAdapter = prefs2.sidebarQuickControls.getAdapter()
-                val quickControlListAdapter = prefs2.sidebarQuickControlList.getAdapter()
-                SwitchPreference(
-                    adapter = quickControlsAdapter,
-                    label = stringResource(R.string.sidebar_quick_controls_label),
-                    description = stringResource(R.string.sidebar_quick_controls_description),
-                )
-                ExpandAndShrink(visible = quickControlsAdapter.state.value) {
-                    // One switch per tile. The stored value is a name list, so toggling means
-                    // re-serialising the current selection rather than flipping a boolean.
-                    QuickControl.defaultOrder.forEach { control ->
-                        SwitchPreference(
-                            checked = QuickControlSelection.isEnabled(
-                                QuickControlSelection.resolve(quickControlListAdapter.state.value),
-                                control,
-                            ),
-                            label = stringResource(control.labelRes),
-                            description = stringResource(
-                                R.string.sidebar_quick_control_toggle_description,
-                            ),
-                            onCheckedChange = { checked ->
-                                val current = QuickControlSelection.resolve(
-                                    quickControlListAdapter.state.value,
-                                )
-                                val next = if (checked) {
-                                    current + control
-                                } else {
-                                    current - control
-                                }
-                                quickControlListAdapter.onChange(
-                                    QuickControlSelection.serialise(next),
-                                )
-                            },
-                        )
-                    }
-                }
-                SwitchPreference(
-                    adapter = prefs2.sidebarVolumeSliders.getAdapter(),
-                    label = stringResource(R.string.sidebar_volume_sliders_label),
-                    description = stringResource(R.string.sidebar_volume_sliders_description),
-                )
-                SwitchPreference(
-                    adapter = prefs2.sidebarSearch.getAdapter(),
-                    label = stringResource(R.string.sidebar_search_label),
-                    description = stringResource(R.string.sidebar_search_description),
-                )
-                SwitchPreference(
-                    adapter = prefs2.sidebarBrightnessSlider.getAdapter(),
-                    label = stringResource(R.string.sidebar_brightness_slider_label),
-                    description = stringResource(R.string.sidebar_brightness_slider_description),
-                )
-                SwitchPreference(
-                    adapter = prefs2.sidebarShowLabels.getAdapter(),
-                    label = stringResource(R.string.sidebar_show_labels_label),
-                    description = stringResource(R.string.sidebar_show_labels_description),
-                )
-                SwitchPreference(
-                    adapter = prefs2.sidebarShowOutline.getAdapter(),
-                    label = stringResource(R.string.sidebar_show_outline_label),
-                    description = stringResource(R.string.sidebar_show_outline_description),
-                )
-                SwitchPreference(
-                    adapter = prefs2.sidebarAutoHideFullscreen.getAdapter(),
-                    label = stringResource(R.string.sidebar_auto_hide_fullscreen_label),
-                    description = stringResource(R.string.sidebar_auto_hide_fullscreen_description),
-                )
-                ListPreference(
-                    adapter = prefs2.sidebarTheme.getAdapter(),
-                    entries = sidebarThemeEntries,
-                    label = stringResource(R.string.sidebar_theme_label),
-                    description = stringResource(R.string.sidebar_theme_description),
-                )
-                val gesturesEnabledAdapter = prefs2.sidebarGesturesEnabled.getAdapter()
-                SwitchPreference(
-                    adapter = gesturesEnabledAdapter,
-                    label = stringResource(R.string.sidebar_gestures_enabled_label),
-                    description = stringResource(R.string.sidebar_gestures_enabled_description),
-                )
-                ExpandAndShrink(visible = gesturesEnabledAdapter.state.value) {
-                    SliderPreference(
-                        label = stringResource(R.string.sidebar_swipe_sensitivity_label),
-                        adapter = prefs2.sidebarSwipeSensitivity.getAdapter(),
-                        valueRange = 0..100,
-                        step = 10,
-                        showAsPercentage = true,
-                    )
-                }
-            }
-        }
-        val gestureBindingsAdapter = prefs2.sidebarGestureBindings.getAdapter()
-        PreferenceGroup(heading = stringResource(id = R.string.sidebar_gestures_heading)) {
-            SidebarGestureBindings.directions.forEach { direction ->
-                ListPreference(
-                    adapter = object : PreferenceAdapter<String> {
-                        // The stored value is the shared bindings string; this adapter projects
-                        // one direction out of it and writes the whole string back.
-                        override val state = object : State<String> {
-                            override val value: String
-                                get() {
-                                    val resolved = SidebarGestureBindings.resolve(
-                                        gestureBindingsAdapter.state.value,
-                                    )
-                                    return SidebarGestureBindings.actionFor(resolved, direction).name
-                                }
-                        }
-
-                        override fun onChange(newValue: String) {
-                            val current = SidebarGestureBindings.resolve(
-                                gestureBindingsAdapter.state.value,
-                            )
-                            val action = SidebarGestureAction.entries.firstOrNull {
-                                it.name.equals(newValue, ignoreCase = true)
-                            } ?: return
-                            gestureBindingsAdapter.onChange(
-                                SidebarGestureBindings.serialise(current + (direction to action)),
-                            )
-                        }
-                    },
-                    entries = sidebarGestureActionEntries,
-                    label = stringResource(direction.labelRes),
-                )
-            }
-        }
         PreferenceGroup(heading = stringResource(id = R.string.dossier)) {
             SwitchPreference(
                 adapter = dossierEnabledAdapter,
@@ -524,36 +296,3 @@ fun HomeScreenTextColorPreference(
         modifier = modifier,
     )
 }
-
-private val sidebarThemeEntries = listOf(
-    ListPreferenceEntry(SidebarTheme.TONAL.name) { stringResource(R.string.sidebar_theme_tonal) },
-    ListPreferenceEntry(SidebarTheme.OPAQUE.name) { stringResource(R.string.sidebar_theme_opaque) },
-    ListPreferenceEntry(SidebarTheme.TRANSPARENT.name) { stringResource(R.string.sidebar_theme_transparent) },
-)
-
-private val sidebarGestureActionEntries = listOf(
-    ListPreferenceEntry(SidebarGestureAction.NONE.name) {
-        stringResource(R.string.sidebar_gesture_action_none)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_PANEL.name) {
-        stringResource(R.string.sidebar_gesture_action_open_panel)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_ALL_APPS.name) {
-        stringResource(R.string.sidebar_gesture_action_open_all_apps)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_SEARCH.name) {
-        stringResource(R.string.sidebar_gesture_action_open_search)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_ASSISTANT.name) {
-        stringResource(R.string.sidebar_gesture_action_open_assistant)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_NOTIFICATIONS.name) {
-        stringResource(R.string.sidebar_gesture_action_open_notifications)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_QUICK_SETTINGS.name) {
-        stringResource(R.string.sidebar_gesture_action_open_quick_settings)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_POWER_MENU.name) {
-        stringResource(R.string.sidebar_gesture_action_open_power_menu)
-    },
-)

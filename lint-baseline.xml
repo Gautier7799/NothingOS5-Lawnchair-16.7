@@ -14928,17 +14928,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.sidebar_close` appears to be unused"
-        errorLine1="    &lt;string name=&quot;sidebar_close&quot;>Close sidebar&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="lawnchair/res/values/strings.xml"
-            line="153"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.item_added_to_workspace` appears to be unused"
         errorLine1="    &lt;string name=&quot;item_added_to_workspace&quot; msgid=&quot;4211073925752213539&quot;>&quot;‎‏‎‎‎‎‎‏‎‏‏‏‎‎‎‎‎‎‏‎‎‎‏‏‎‏‏‏‏‏‏‏‎‏‏‏‎‏‎‎‏‏‏‎‎‎‎‏‎‏‏‏‏‎‏‎‏‏‎‏‏‎‎‏‎‎‏‏‎‏‏‎‏‎‏‏‏‏‎‏‏‎‏‎‎‎‎‎‎‏‎‎‎‏‏‎Item added to home screen‎‏‎‎‏‎&quot;&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -14950,44 +14939,11 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.sidebar_opacity_description` appears to be unused"
-        errorLine1="    &lt;string name=&quot;sidebar_opacity_description&quot;>How solid the panel looks. Lower values let the wallpaper show through.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="lawnchair/res/values/strings.xml"
-            line="156"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.sidebar_appearance_section_title` appears to be unused"
-        errorLine1="    &lt;string name=&quot;sidebar_appearance_section_title&quot;>Appearance&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="lawnchair/res/values/strings.xml"
-            line="162"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.launcher_default_color` appears to be unused"
         errorLine1="    &lt;string name=&quot;launcher_default_color&quot;>Inasimamiwa na Lawnchair&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="lawnchair/res/values-sw/strings.xml"
-            line="163"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.sidebar_behavior_section_title` appears to be unused"
-        errorLine1="    &lt;string name=&quot;sidebar_behavior_section_title&quot;>Behaviour&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="lawnchair/res/values/strings.xml"
             line="163"
             column="13"/>
     </issue>

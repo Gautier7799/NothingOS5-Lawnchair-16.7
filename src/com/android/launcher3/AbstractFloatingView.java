@@ -80,7 +80,6 @@ public abstract class AbstractFloatingView extends LinearLayout implements Touch
             TYPE_ONE_GRID_MIGRATION_EDU,
             TYPE_NUDGE,
             TYPE_CADDY_PANEL,
-            TYPE_SIDEBAR,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface FloatingViewType {}
@@ -118,8 +117,6 @@ public abstract class AbstractFloatingView extends LinearLayout implements Touch
     /** Caddy category panel: an app grid shown inside the DragLayer so its icons can be dragged. */
     public static final int TYPE_CADDY_PANEL = 1 << 26;
 
-    /** Home-screen sidebar: an edge panel of apps shown inside the DragLayer. */
-    public static final int TYPE_SIDEBAR = 1 << 27;
 
     public static final int TYPE_ALL = TYPE_FOLDER | TYPE_ACTION_POPUP
             | TYPE_WIDGETS_BOTTOM_SHEET | TYPE_WIDGET_RESIZE_FRAME | TYPE_WIDGETS_FULL_SHEET
@@ -129,7 +126,7 @@ public abstract class AbstractFloatingView extends LinearLayout implements Touch
             | TYPE_TASKBAR_EDUCATION_DIALOG | TYPE_TASKBAR_ALL_APPS | TYPE_OPTIONS_POPUP_DIALOG
             | TYPE_ADD_TO_HOME_CONFIRMATION | TYPE_TASKBAR_OVERLAY_PROXY
             | TYPE_TASKBAR_PINNING_POPUP | TYPE_PIN_IME_POPUP | TYPE_ONE_GRID_MIGRATION_EDU
-            | TYPE_NUDGE | TYPE_COMPOSE_VIEW | TYPE_CADDY_PANEL | TYPE_SIDEBAR;
+            | TYPE_NUDGE | TYPE_COMPOSE_VIEW | TYPE_CADDY_PANEL;
 
     // Type of popups which should be kept open during launcher rebind
     public static final int TYPE_REBIND_SAFE = TYPE_WIDGETS_FULL_SHEET
