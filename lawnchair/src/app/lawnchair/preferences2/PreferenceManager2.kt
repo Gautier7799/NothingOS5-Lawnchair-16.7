@@ -421,6 +421,17 @@ class PreferenceManager2 @Inject constructor(
     )
 
     /**
+     * Gesture bindings for the sidebar handle, as `direction:ACTION` pairs.
+     *
+     * Blank means the defaults in [app.lawnchair.sidebar.SidebarGestureBindings], so an upgrade
+     * that adds a direction does not silently unbind it.
+     */
+    val sidebarGestureBindings = preference(
+        key = stringPreferencesKey(name = "sidebar_gesture_bindings"),
+        defaultValue = "",
+    )
+
+    /**
      * Which quick controls the strip shows, as a comma-separated list of enum names.
      *
      * Unset means "all of them", so a fresh install gets a full strip.
