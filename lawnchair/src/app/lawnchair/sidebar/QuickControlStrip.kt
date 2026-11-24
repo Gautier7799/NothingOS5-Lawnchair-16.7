@@ -188,6 +188,11 @@ class QuickControlStrip(private val context: Context) {
         }
 
         QuickControl.RINGER -> audioManager.ringerMode
+
+        // Momentary actions hold no state, so they always report "off".
+        QuickControl.QUICK_SHARE, QuickControl.QR_SCANNER,
+        QuickControl.POWER_MENU, QuickControl.SCREENSHOT,
+        -> 0
     }
 
     private fun settingInt(key: String, default: Int): Int = try {
@@ -219,6 +224,11 @@ class QuickControlStrip(private val context: Context) {
         }
     }
 
+    /** Fires a momentary action and lets the user know when the platform has no handler. */
+    private fun runAction(action: QuickControlAction.Kind) {
+        action.execute(context)
+    }
+
     private fun onTileClicked(control: QuickControl) {
         when (control) {
             QuickControl.TORCH -> toggleTorch()
@@ -226,6 +236,10 @@ class QuickControlStrip(private val context: Context) {
             QuickControl.AUTO_BRIGHTNESS -> toggleAutoBrightness()
             QuickControl.DND -> toggleDnd()
             QuickControl.RINGER -> toggleRinger()
+            QuickControl.QUICK_SHARE -> runAction(QuickControlAction.Kind.QUICK_SHARE)
+            QuickControl.QR_SCANNER -> runAction(QuickControlAction.Kind.QR_SCANNER)
+            QuickControl.POWER_MENU -> runAction(QuickControlAction.Kind.POWER_MENU)
+            QuickControl.SCREENSHOT -> runAction(QuickControlAction.Kind.SCREENSHOT)
         }
         // Toggling is asynchronous in the framework, so repaint on the next turn of the loop
         // rather than reading the old value straight away.
@@ -331,6 +345,10 @@ class QuickControlStrip(private val context: Context) {
         QuickControl.AUTO_BRIGHTNESS -> R.drawable.ic_quick_brightness
         QuickControl.DND -> R.drawable.ic_quick_dnd
         QuickControl.RINGER -> R.drawable.ic_quick_ringer
+        QuickControl.QUICK_SHARE -> R.drawable.ic_quick_dnd
+        QuickControl.QR_SCANNER -> R.drawable.ic_quick_torch
+        QuickControl.POWER_MENU -> R.drawable.ic_quick_brightness
+        QuickControl.SCREENSHOT -> R.drawable.ic_quick_rotate
     }
 
     private fun labelFor(control: QuickControl): String = when (control) {
@@ -339,6 +357,10 @@ class QuickControlStrip(private val context: Context) {
         QuickControl.AUTO_BRIGHTNESS -> context.getString(R.string.sidebar_quick_brightness)
         QuickControl.DND -> context.getString(R.string.sidebar_quick_dnd)
         QuickControl.RINGER -> context.getString(R.string.sidebar_quick_ringer)
+        QuickControl.QUICK_SHARE -> context.getString(R.string.sidebar_quick_control_quick_share)
+        QuickControl.QR_SCANNER -> context.getString(R.string.sidebar_quick_control_qr_scanner)
+        QuickControl.POWER_MENU -> context.getString(R.string.sidebar_quick_control_power_menu)
+        QuickControl.SCREENSHOT -> context.getString(R.string.sidebar_quick_control_screenshot)
     }
 
     private companion object {

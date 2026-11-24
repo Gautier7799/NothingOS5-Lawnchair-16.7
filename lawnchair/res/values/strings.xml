@@ -172,6 +172,11 @@
     <string name="sidebar_quick_control_auto_brightness">Auto-brightness</string>
     <string name="sidebar_quick_control_dnd">Do not disturb</string>
     <string name="sidebar_quick_control_ringer">Ringer</string>
+    <string name="sidebar_quick_control_quick_share">Share</string>
+    <string name="sidebar_quick_control_qr_scanner">Scan</string>
+    <string name="sidebar_quick_control_power_menu">Power</string>
+    <string name="sidebar_quick_control_screenshot">Shot</string>
+    <string name="sidebar_action_unavailable">Not available on this device</string>
     <string name="sidebar_quick_control_toggle_description">Show this tile in the sidebar quick controls.</string>
     <string name="sidebar_brightness_slider_label">Brightness slider</string>
     <string name="sidebar_brightness_slider_description">Show a brightness slider above the apps. Needs the modify-system-settings permission.</string>

@@ -44,8 +44,10 @@ import com.android.launcher3.views.BaseDragLayer
 class SidebarHandle(context: Context) : View(context) {
 
     private var onOpen: (() -> Unit)? = null
+    private var onGesture: ((SidebarGesture) -> Unit)? = null
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var downX = 0f
+    private var downY = 0f
     private var dragging = false
     private var hapticsEnabled = true
     private var onRightEdge = true
@@ -64,10 +66,16 @@ class SidebarHandle(context: Context) : View(context) {
         onOpen = listener
     }
 
+    /** Receives every classified drag. Set alongside [setOnOpen] by the coordinator. */
+    fun setOnGesture(listener: (SidebarGesture) -> Unit) {
+        onGesture = listener
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = event.rawX
+                downY = event.rawY
                 dragging = false
                 return true
             }
@@ -80,10 +88,22 @@ class SidebarHandle(context: Context) : View(context) {
             }
 
             MotionEvent.ACTION_UP -> {
-                if (dragging || draggedFarEnough(event.rawX)) {
-                    onOpen?.invoke()
-                } else {
-                    performClick()
+                val gesture = SidebarGesture.classify(
+                    dx = event.rawX - downX,
+                    dy = event.rawY - downY,
+                    thresholdPx = touchSlop.toFloat(),
+                    onRightEdge = onRightEdge,
+                )
+                val handler = onGesture
+                when {
+                    // A classified drag goes to the gesture handler, which decides what the
+                    // binding does. Without one, a pull inward still opens the panel so the
+                    // handle keeps working before the settings screen is visited.
+                    gesture != SidebarGesture.NONE && handler != null -> handler(gesture)
+
+                    dragging || draggedFarEnough(event.rawX) -> onOpen?.invoke()
+
+                    else -> performClick()
                 }
                 return true
             }
@@ -154,7 +174,11 @@ class SidebarHandle(context: Context) : View(context) {
 
         /** Adds the tab to the DragLayer, or updates the existing one. */
         @JvmStatic
-        fun attach(launcher: Launcher, onOpen: () -> Unit) {
+        fun attach(
+            launcher: Launcher,
+            onOpen: () -> Unit,
+            onGesture: ((SidebarGesture) -> Unit)? = null,
+        ) {
             val dragLayer = launcher.dragLayer ?: return
             val existing = dragLayer.findViewWithTag<SidebarHandle>(TAG)
             val handle = existing ?: SidebarHandle(launcher).also { created ->
@@ -162,6 +186,9 @@ class SidebarHandle(context: Context) : View(context) {
                 dragLayer.addView(created, created.layoutParamsFor(launcher))
             }
             handle.setOnOpen(onOpen)
+            // Cleared when no handler is passed, so a stale binding from a previous pass cannot
+            // fire an action the current configuration no longer has.
+            handle.setOnGesture(onGesture ?: {})
             handle.applyPreferences(launcher)
             handle.visibility = VISIBLE
         }

@@ -119,6 +119,7 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
             launch { prefs.sidebarOpacity.get().collect { reload() } }
             launch { prefs.sidebarHaptics.get().collect { reload() } }
             launch { prefs.sidebarSuggestions.get().collect { reload() } }
+            launch { prefs.sidebarGestureBindings.get().collect { reload() } }
         }
     }
 
@@ -130,11 +131,49 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
             return
         }
         apps = resolveApps(prefs.sidebarApps.firstCached())
-        SidebarHandle.attach(launcher) { SidebarView.show(launcher, apps) }
+        val bindings = SidebarGestureBindings.resolve(prefs.sidebarGestureBindings.firstCached())
+        SidebarHandle.attach(
+            launcher,
+            onOpen = { SidebarView.show(launcher, apps) },
+            onGesture = { gesture -> performGesture(gesture, bindings) },
+        )
         // Keep an already open panel in step with the new list or geometry instead of leaving
         // stale icons on screen until it is closed and reopened.
         SidebarView.refresh(launcher, apps)
         syncVisibility(launcher.stateManager.state)
+    }
+
+    /**
+     * Runs the action bound to [gesture].
+     *
+     * Every action goes through the launcher's own state manager or a public platform intent, so
+     * none of them needs a permission. An unbound direction does nothing rather than falling back
+     * to opening the panel, which is what makes "swipe down does nothing" a real option.
+     */
+    private fun performGesture(
+        gesture: SidebarGesture,
+        bindings: Map<SidebarGesture, SidebarGestureAction>,
+    ) {
+        when (SidebarGestureBindings.actionFor(bindings, gesture)) {
+            SidebarGestureAction.NONE -> Unit
+
+            SidebarGestureAction.OPEN_PANEL -> SidebarView.show(launcher, apps)
+
+            SidebarGestureAction.OPEN_ALL_APPS -> launcher.stateManager.goToState(LauncherState.ALL_APPS)
+
+            SidebarGestureAction.OPEN_SEARCH -> {
+                // The search field only exists once all-apps is laid out, so focus it after the
+                // state transition rather than trying to focus a view that is not there yet.
+                launcher.stateManager.goToState(LauncherState.ALL_APPS)
+                launcher.appsView?.searchUiManager?.editText?.requestFocus()
+            }
+
+            SidebarGestureAction.OPEN_ASSISTANT -> QuickControlAction.assistant(launcher)
+
+            SidebarGestureAction.OPEN_NOTIFICATIONS -> QuickControlAction.notifications(launcher)
+
+            SidebarGestureAction.OPEN_QUICK_SETTINGS -> QuickControlAction.quickSettings(launcher)
+        }
     }
 
     override fun onStateTransitionComplete(finalState: LauncherState) {

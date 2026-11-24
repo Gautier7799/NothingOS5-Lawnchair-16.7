@@ -31,6 +31,10 @@ enum class QuickControl(@StringRes val labelRes: Int) {
     AUTO_BRIGHTNESS(R.string.sidebar_quick_control_auto_brightness),
     DND(R.string.sidebar_quick_control_dnd),
     RINGER(R.string.sidebar_quick_control_ringer),
+    QUICK_SHARE(R.string.sidebar_quick_control_quick_share),
+    QR_SCANNER(R.string.sidebar_quick_control_qr_scanner),
+    POWER_MENU(R.string.sidebar_quick_control_power_menu),
+    SCREENSHOT(R.string.sidebar_quick_control_screenshot),
     ;
 
     companion object {
@@ -96,6 +100,20 @@ object QuickControlState {
     fun needsPolicyAccess(control: QuickControl): Boolean = control == QuickControl.DND
 
     /**
+     * Whether the control is a one-shot action rather than an on/off state.
+     *
+     * Share, QR, power and screenshot fire once and have no state to show, so they never render
+     * as "active" and never keep a subtitle.
+     */
+    fun isMomentary(control: QuickControl): Boolean = when (control) {
+        QuickControl.QUICK_SHARE, QuickControl.QR_SCANNER,
+        QuickControl.POWER_MENU, QuickControl.SCREENSHOT,
+        -> true
+
+        else -> false
+    }
+
+    /**
      * Whether a tile should look enabled.
      *
      * Torch, DND and the ringer are "active when not in their default state"; the two
@@ -103,6 +121,17 @@ object QuickControlState {
      */
     fun isActive(control: QuickControl, currentState: Int): Boolean = when (control) {
         QuickControl.RINGER -> isRingerActive(currentState)
+
+        // A momentary action has no persistent state, so it must never look toggled on.
+        in MOMENTARY -> false
+
         else -> currentState != 0
     }
+
+    private val MOMENTARY = listOf(
+        QuickControl.QUICK_SHARE,
+        QuickControl.QR_SCANNER,
+        QuickControl.POWER_MENU,
+        QuickControl.SCREENSHOT,
+    )
 }
