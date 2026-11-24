@@ -62,30 +62,6 @@ class SidebarHandle(context: Context) : View(context) {
         isClickable = true
     }
 
-    private val doubleTap = DoubleTapDetector()
-    private var gestureThresholdPx: Float = 0f
-
-    /**
-     * Whether the user bound an action to a double tap.
-     *
-     * Only then is the single tap deferred: holding a plain tap back for the 300 ms window on
-     * every launch would make the tab feel laggy for the majority who never bind one. Unbound,
-     * a tap opens the panel immediately and the detector is never armed.
-     */
-    private var doubleTapBound = false
-    private var pendingClick: Runnable? = null
-
-    /** Tells the tab whether a double-tap binding exists, so it knows to defer a single tap. */
-    fun setDoubleTapBound(bound: Boolean) {
-        doubleTapBound = bound
-        if (!bound) cancelPendingClick()
-    }
-
-    private fun cancelPendingClick() {
-        pendingClick?.let { removeCallbacks(it) }
-        pendingClick = null
-    }
-
     fun setOnOpen(listener: () -> Unit) {
         onOpen = listener
     }
@@ -112,11 +88,10 @@ class SidebarHandle(context: Context) : View(context) {
             }
 
             MotionEvent.ACTION_UP -> {
-                val threshold = gestureThreshold()
                 val gesture = SidebarGesture.classify(
                     dx = event.rawX - downX,
                     dy = event.rawY - downY,
-                    thresholdPx = threshold,
+                    thresholdPx = touchSlop.toFloat(),
                     onRightEdge = onRightEdge,
                 )
                 val handler = onGesture
@@ -128,30 +103,7 @@ class SidebarHandle(context: Context) : View(context) {
 
                     dragging || draggedFarEnough(event.rawX) -> onOpen?.invoke()
 
-                    // A tap carries no direction, so it can only be a double tap or a plain
-                    // click. With a binding in place the single-tap action waits out the window,
-                    // so a double tap does not also run it and reopen the panel.
-                    else -> when (
-                        TapOutcome.forTap(
-                            doubleTapBound = handler != null && doubleTapBound,
-                            tapCompletedDouble = handler != null && doubleTapBound &&
-                                doubleTap.onTap(event.eventTime),
-                        )
-                    ) {
-                        TapOutcome.FIRE_DOUBLE_TAP -> {
-                            cancelPendingClick()
-                            handler?.invoke(SidebarGesture.DOUBLE_TAP)
-                        }
-
-                        TapOutcome.DEFER_SINGLE_TAP -> {
-                            cancelPendingClick()
-                            val deferred = Runnable { performClick() }
-                            pendingClick = deferred
-                            postDelayed(deferred, DoubleTapDetector.DEFAULT_WINDOW_MILLIS)
-                        }
-
-                        TapOutcome.FIRE_SINGLE_TAP_NOW -> performClick()
-                    }
+                    else -> performClick()
                 }
                 return true
             }
@@ -167,19 +119,7 @@ class SidebarHandle(context: Context) : View(context) {
      * The tab is pulled inward, so the opening direction is leftwards on the right edge and
      * rightwards on the left edge; using a single sign would make the left-edge tab inert.
      */
-    private fun draggedFarEnough(rawX: Float): Boolean = SidebarMetrics.isOpenPull(rawX - downX, onRightEdge, gestureThreshold())
-
-    /** Drag distance a gesture needs, scaled by the user's sensitivity preference. */
-    private fun gestureThreshold(): Float {
-        if (gestureThresholdPx <= 0f) return touchSlop.toFloat()
-        return gestureThresholdPx
-    }
-
-    override fun onDetachedFromWindow() {
-        cancelPendingClick()
-        doubleTap.reset()
-        super.onDetachedFromWindow()
-    }
+    private fun draggedFarEnough(rawX: Float): Boolean = SidebarMetrics.isOpenPull(rawX - downX, onRightEdge, touchSlop.toFloat())
 
     override fun performClick(): Boolean {
         super.performClick()
@@ -195,11 +135,6 @@ class SidebarHandle(context: Context) : View(context) {
         val prefs = app.lawnchair.preferences2.PreferenceManager2.getInstance(launcher)
         hapticsEnabled = prefs.sidebarHaptics.firstCached(prefs)
         onRightEdge = prefs.sidebarOnRightEdge.firstCached(prefs)
-        gestureThresholdPx = SidebarGesture.thresholdForSensitivity(
-            prefs.sidebarSwipeSensitivity.firstCached(prefs),
-            touchSlop.toFloat(),
-        )
-        doubleTap.reset()
         layoutParams = layoutParamsFor(launcher)
         requestLayout()
     }
@@ -243,7 +178,6 @@ class SidebarHandle(context: Context) : View(context) {
             launcher: Launcher,
             onOpen: () -> Unit,
             onGesture: ((SidebarGesture) -> Unit)? = null,
-            onGestureHasDoubleTap: (() -> Boolean)? = null,
         ) {
             val dragLayer = launcher.dragLayer ?: return
             val existing = dragLayer.findViewWithTag<SidebarHandle>(TAG)
@@ -255,9 +189,6 @@ class SidebarHandle(context: Context) : View(context) {
             // Cleared when no handler is passed, so a stale binding from a previous pass cannot
             // fire an action the current configuration no longer has.
             handle.setOnGesture(onGesture ?: {})
-            handle.setDoubleTapBound(
-                onGesture != null && onGestureHasDoubleTap?.invoke() == true,
-            )
             handle.applyPreferences(launcher)
             handle.visibility = VISIBLE
         }

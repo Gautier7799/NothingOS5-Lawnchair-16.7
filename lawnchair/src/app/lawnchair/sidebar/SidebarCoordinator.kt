@@ -18,7 +18,6 @@ package app.lawnchair.sidebar
 
 import android.app.AppOpsManager
 import android.os.Process
-import android.view.WindowManager
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import app.lawnchair.preferences2.PreferenceManager2
@@ -121,12 +120,6 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
             launch { prefs.sidebarHaptics.get().collect { reload() } }
             launch { prefs.sidebarSuggestions.get().collect { reload() } }
             launch { prefs.sidebarGestureBindings.get().collect { reload() } }
-            launch { prefs.sidebarGesturesEnabled.get().collect { reload() } }
-            launch { prefs.sidebarSwipeSensitivity.get().collect { reload() } }
-            launch { prefs.sidebarTheme.get().collect { reload() } }
-            launch { prefs.sidebarShowLabels.get().collect { reload() } }
-            launch { prefs.sidebarShowOutline.get().collect { reload() } }
-            launch { prefs.sidebarAutoHideFullscreen.get().collect { reload() } }
         }
     }
 
@@ -138,22 +131,11 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
             return
         }
         apps = resolveApps(prefs.sidebarApps.firstCached())
-        // When the master switch is off the handler is not passed at all, so the handle falls
-        // back to "pull to open" and a stray drag cannot run the user's bindings.
-        val gesturesOn = prefs.sidebarGesturesEnabled.firstCached(prefs)
-        val bindings = SidebarGestureBindings.resolve(prefs.sidebarGestureBindings.firstCached(prefs))
+        val bindings = SidebarGestureBindings.resolve(prefs.sidebarGestureBindings.firstCached())
         SidebarHandle.attach(
             launcher,
             onOpen = { SidebarView.show(launcher, apps) },
-            onGesture = if (gesturesOn) {
-                { gesture -> performGesture(gesture, bindings) }
-            } else {
-                null
-            },
-            onGestureHasDoubleTap = {
-                SidebarGestureBindings.actionFor(bindings, SidebarGesture.DOUBLE_TAP) !=
-                    SidebarGestureAction.NONE
-            },
+            onGesture = { gesture -> performGesture(gesture, bindings) },
         )
         // Keep an already open panel in step with the new list or geometry instead of leaving
         // stale icons on screen until it is closed and reopened.
@@ -191,8 +173,6 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
             SidebarGestureAction.OPEN_NOTIFICATIONS -> QuickControlAction.notifications(launcher)
 
             SidebarGestureAction.OPEN_QUICK_SETTINGS -> QuickControlAction.quickSettings(launcher)
-
-            SidebarGestureAction.OPEN_POWER_MENU -> QuickControlAction.powerMenu(launcher)
         }
     }
 
@@ -201,19 +181,7 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
     }
 
     private fun syncVisibility(state: LauncherState) {
-        val normal = state == LauncherState.NORMAL
-        // The tab lives in the launcher window, so it is already hidden whenever another app is
-        // in front. The switch still matters for the launcher's own immersive states: showing a
-        // tab over fullscreen video or a game is the case the user asked to suppress.
-        val hiddenByFullscreen = PreferenceManager2.getInstance(launcher)
-            .sidebarAutoHideFullscreen.firstCached() && isSystemImmersive()
-        SidebarHandle.setVisible(launcher, normal && !hiddenByFullscreen)
-    }
-
-    /** Whether the launcher window is currently running fullscreen. */
-    private fun isSystemImmersive(): Boolean {
-        val flags = launcher.window?.attributes?.flags ?: return false
-        return (flags and WindowManager.LayoutParams.FLAG_FULLSCREEN) != 0
+        SidebarHandle.setVisible(launcher, state == LauncherState.NORMAL)
     }
 
     /**

@@ -22,7 +22,6 @@ import android.net.Uri
 import android.os.Process
 import android.provider.Settings
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,17 +33,13 @@ import androidx.compose.ui.res.stringResource
 import app.lawnchair.LawnchairApp
 import app.lawnchair.data.iconoverride.IconOverrideRepository
 import app.lawnchair.nexuslauncher.OverlayCallbackImpl
-import app.lawnchair.preferences.PreferenceAdapter
 import app.lawnchair.preferences.getAdapter
 import app.lawnchair.preferences.preferenceManager
 import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.preferences2.preferenceManager2
 import app.lawnchair.sidebar.QuickControl
 import app.lawnchair.sidebar.QuickControlSelection
-import app.lawnchair.sidebar.SidebarGestureAction
-import app.lawnchair.sidebar.SidebarGestureBindings
 import app.lawnchair.sidebar.SidebarMetrics
-import app.lawnchair.sidebar.SidebarTheme
 import app.lawnchair.theme.color.ColorMode
 import app.lawnchair.ui.preferences.LocalIsExpandedScreen
 import app.lawnchair.ui.preferences.components.FeedPreference
@@ -268,76 +263,6 @@ fun HomeScreenPreferences(
                     label = stringResource(R.string.sidebar_brightness_slider_label),
                     description = stringResource(R.string.sidebar_brightness_slider_description),
                 )
-                SwitchPreference(
-                    adapter = prefs2.sidebarShowLabels.getAdapter(),
-                    label = stringResource(R.string.sidebar_show_labels_label),
-                    description = stringResource(R.string.sidebar_show_labels_description),
-                )
-                SwitchPreference(
-                    adapter = prefs2.sidebarShowOutline.getAdapter(),
-                    label = stringResource(R.string.sidebar_show_outline_label),
-                    description = stringResource(R.string.sidebar_show_outline_description),
-                )
-                SwitchPreference(
-                    adapter = prefs2.sidebarAutoHideFullscreen.getAdapter(),
-                    label = stringResource(R.string.sidebar_auto_hide_fullscreen_label),
-                    description = stringResource(R.string.sidebar_auto_hide_fullscreen_description),
-                )
-                ListPreference(
-                    adapter = prefs2.sidebarTheme.getAdapter(),
-                    entries = sidebarThemeEntries,
-                    label = stringResource(R.string.sidebar_theme_label),
-                    description = stringResource(R.string.sidebar_theme_description),
-                )
-                val gesturesEnabledAdapter = prefs2.sidebarGesturesEnabled.getAdapter()
-                SwitchPreference(
-                    adapter = gesturesEnabledAdapter,
-                    label = stringResource(R.string.sidebar_gestures_enabled_label),
-                    description = stringResource(R.string.sidebar_gestures_enabled_description),
-                )
-                ExpandAndShrink(visible = gesturesEnabledAdapter.state.value) {
-                    SliderPreference(
-                        label = stringResource(R.string.sidebar_swipe_sensitivity_label),
-                        adapter = prefs2.sidebarSwipeSensitivity.getAdapter(),
-                        valueRange = 0..100,
-                        step = 10,
-                        showAsPercentage = true,
-                    )
-                }
-            }
-        }
-        val gestureBindingsAdapter = prefs2.sidebarGestureBindings.getAdapter()
-        PreferenceGroup(heading = stringResource(id = R.string.sidebar_gestures_heading)) {
-            SidebarGestureBindings.directions.forEach { direction ->
-                ListPreference(
-                    adapter = object : PreferenceAdapter<String> {
-                        // The stored value is the shared bindings string; this adapter projects
-                        // one direction out of it and writes the whole string back.
-                        override val state = object : State<String> {
-                            override val value: String
-                                get() {
-                                    val resolved = SidebarGestureBindings.resolve(
-                                        gestureBindingsAdapter.state.value,
-                                    )
-                                    return SidebarGestureBindings.actionFor(resolved, direction).name
-                                }
-                        }
-
-                        override fun onChange(newValue: String) {
-                            val current = SidebarGestureBindings.resolve(
-                                gestureBindingsAdapter.state.value,
-                            )
-                            val action = SidebarGestureAction.entries.firstOrNull {
-                                it.name.equals(newValue, ignoreCase = true)
-                            } ?: return
-                            gestureBindingsAdapter.onChange(
-                                SidebarGestureBindings.serialise(current + (direction to action)),
-                            )
-                        }
-                    },
-                    entries = sidebarGestureActionEntries,
-                    label = stringResource(direction.labelRes),
-                )
             }
         }
         PreferenceGroup(heading = stringResource(id = R.string.dossier)) {
@@ -524,36 +449,3 @@ fun HomeScreenTextColorPreference(
         modifier = modifier,
     )
 }
-
-private val sidebarThemeEntries = listOf(
-    ListPreferenceEntry(SidebarTheme.TONAL.name) { stringResource(R.string.sidebar_theme_tonal) },
-    ListPreferenceEntry(SidebarTheme.OPAQUE.name) { stringResource(R.string.sidebar_theme_opaque) },
-    ListPreferenceEntry(SidebarTheme.TRANSPARENT.name) { stringResource(R.string.sidebar_theme_transparent) },
-)
-
-private val sidebarGestureActionEntries = listOf(
-    ListPreferenceEntry(SidebarGestureAction.NONE.name) {
-        stringResource(R.string.sidebar_gesture_action_none)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_PANEL.name) {
-        stringResource(R.string.sidebar_gesture_action_open_panel)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_ALL_APPS.name) {
-        stringResource(R.string.sidebar_gesture_action_open_all_apps)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_SEARCH.name) {
-        stringResource(R.string.sidebar_gesture_action_open_search)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_ASSISTANT.name) {
-        stringResource(R.string.sidebar_gesture_action_open_assistant)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_NOTIFICATIONS.name) {
-        stringResource(R.string.sidebar_gesture_action_open_notifications)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_QUICK_SETTINGS.name) {
-        stringResource(R.string.sidebar_gesture_action_open_quick_settings)
-    },
-    ListPreferenceEntry(SidebarGestureAction.OPEN_POWER_MENU.name) {
-        stringResource(R.string.sidebar_gesture_action_open_power_menu)
-    },
-)
