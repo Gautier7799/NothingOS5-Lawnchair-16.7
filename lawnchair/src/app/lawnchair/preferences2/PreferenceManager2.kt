@@ -447,6 +447,42 @@ class PreferenceManager2 @Inject constructor(
         defaultValue = false,
     )
 
+    /** Panel paint style: `TONAL` (wallpaper surface), `OPAQUE` or `TRANSPARENT`. */
+    val sidebarTheme = preference(
+        key = stringPreferencesKey(name = "sidebar_theme"),
+        defaultValue = app.lawnchair.sidebar.SidebarTheme.TONAL.name,
+    )
+
+    /** Whether app icons carry a text label underneath. */
+    val sidebarShowLabels = preference(
+        key = booleanPreferencesKey(name = "sidebar_show_labels"),
+        defaultValue = false,
+    )
+
+    /** Whether the panel is drawn with a 1 dp outline. */
+    val sidebarShowOutline = preference(
+        key = booleanPreferencesKey(name = "sidebar_show_outline"),
+        defaultValue = true,
+    )
+
+    /** Whether the tab hides itself while another app is fullscreen. */
+    val sidebarAutoHideFullscreen = preference(
+        key = booleanPreferencesKey(name = "sidebar_auto_hide_fullscreen"),
+        defaultValue = false,
+    )
+
+    /** Drag distance needed before a gesture fires, as a percentage; higher is shorter. */
+    val sidebarSwipeSensitivity = preference(
+        key = intPreferencesKey(name = "sidebar_swipe_sensitivity"),
+        defaultValue = 50,
+    )
+
+    /** Whether gesture bindings are honoured on the handle at all. */
+    val sidebarGesturesEnabled = preference(
+        key = booleanPreferencesKey(name = "sidebar_gestures_enabled"),
+        defaultValue = true,
+    )
+
     val hotseatQsbProvider = preference(
         key = stringPreferencesKey(name = "dock_search_bar_provider"),
         defaultValue = getRemoteDefault("dock_search_bar_provider")?.let {

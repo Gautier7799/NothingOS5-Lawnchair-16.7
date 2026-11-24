@@ -16,6 +16,9 @@
 
 package app.lawnchair.sidebar
 
+import androidx.annotation.StringRes
+import com.android.launcher3.R
+
 /**
  * Gestures that can be bound to the sidebar handle.
  *
@@ -46,6 +49,9 @@ enum class SidebarGestureAction {
     /** Opens quick settings. */
     OPEN_QUICK_SETTINGS,
 
+    /** Opens the notification shade via the platform's own shade intent. */
+    OPEN_POWER_MENU,
+
     ;
 
     companion object {
@@ -59,12 +65,18 @@ enum class SidebarGestureAction {
  *
  * Kept Android-free so the arithmetic is unit tested. A drag has to pass a distance threshold
  * before it counts at all, which is what stops a tap or a jitter from firing an action.
+ *
+ * [DOUBLE_TAP] is not produced by [classify]: it comes from [DoubleTapDetector], because a tap
+ * has no direction and can only be recognised over time.
  */
-enum class SidebarGesture {
-    NONE,
-    SWIPE_IN,
-    SWIPE_UP,
-    SWIPE_DOWN,
+enum class SidebarGesture(@get:StringRes val labelRes: Int) {
+    NONE(0),
+    SWIPE_IN(R.string.sidebar_gesture_swipe_in_label),
+    SWIPE_UP(R.string.sidebar_gesture_swipe_up_label),
+    SWIPE_DOWN(R.string.sidebar_gesture_swipe_down_label),
+
+    /** A second tap inside the double-tap window. Not produced by [classify]. */
+    DOUBLE_TAP(R.string.sidebar_gesture_double_tap_label),
     ;
 
     companion object {
@@ -88,6 +100,19 @@ enum class SidebarGesture {
             }
             return if (dy < 0f) SWIPE_UP else SWIPE_DOWN
         }
+
+        /**
+         * Converts a 0-100 sensitivity into a drag threshold.
+         *
+         * Higher sensitivity means a shorter drag already counts, so the threshold falls. The
+         * range is deliberately narrow at both ends: at 0 a threshold so large the handle feels
+         * dead, at 100 one so small that a shaky finger fires gestures.
+         */
+        fun thresholdForSensitivity(sensitivity: Int, basePx: Float): Float {
+            val clamped = sensitivity.coerceIn(0, 100)
+            val factor = 2f - (clamped / 100f) * 1.65f
+            return basePx * factor
+        }
     }
 }
 
@@ -105,6 +130,7 @@ object SidebarGestureBindings {
         SidebarGesture.SWIPE_IN,
         SidebarGesture.SWIPE_UP,
         SidebarGesture.SWIPE_DOWN,
+        SidebarGesture.DOUBLE_TAP,
     )
 
     private const val SEPARATOR = ","
@@ -115,6 +141,7 @@ object SidebarGestureBindings {
         SidebarGesture.SWIPE_IN to SidebarGestureAction.OPEN_PANEL,
         SidebarGesture.SWIPE_UP to SidebarGestureAction.NONE,
         SidebarGesture.SWIPE_DOWN to SidebarGestureAction.NONE,
+        SidebarGesture.DOUBLE_TAP to SidebarGestureAction.NONE,
     )
 
     /** Parses [saved] into a binding for every direction, falling back to [defaults]. */

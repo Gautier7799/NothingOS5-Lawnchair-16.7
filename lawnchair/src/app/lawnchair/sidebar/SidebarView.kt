@@ -156,10 +156,16 @@ class SidebarView @JvmOverloads constructor(
             panel.layoutParams = params
         }
 
+        val appearance = SidebarAppearance(
+            theme = SidebarTheme.resolve(prefs.sidebarTheme.firstCached(prefs)),
+            showLabels = prefs.sidebarShowLabels.firstCached(prefs),
+            showOutline = prefs.sidebarShowOutline.firstCached(prefs),
+            autoHideFullscreen = prefs.sidebarAutoHideFullscreen.firstCached(prefs),
+        )
         panel.background = GradientDrawable().apply {
             setColor(CaddyMaterialYou.surfaceContainer(context))
             cornerRadius = dp(SidebarMetrics.PANEL_RADIUS_DP).toFloat()
-            setStroke(dp(1), CaddyMaterialYou.outlineVariant(context))
+            if (appearance.showOutline) setStroke(dp(1), CaddyMaterialYou.outlineVariant(context))
         }
 
         // Only arm the open animation when the panel is closed. Re-applying the appearance on a
@@ -167,7 +173,10 @@ class SidebarView @JvmOverloads constructor(
         // changes — used to reset it to fully transparent and slid off screen, leaving a blank
         // gap where the panel had been.
         if (isOpen) {
-            panel.alpha = SidebarMetrics.opacityFraction(prefs.sidebarOpacity.firstCached())
+            panel.alpha = SidebarAppearance.effectiveOpacity(
+                appearance.theme,
+                prefs.sidebarOpacity.firstCached(prefs),
+            )
             panel.translationX = 0f
             scrim.alpha = 1f
         } else {
@@ -384,7 +393,14 @@ class SidebarView @JvmOverloads constructor(
         val icon = LayoutInflater.from(context)
             .inflate(R.layout.all_apps_icon, cell, false) as BubbleTextView
         icon.applyFromApplicationInfo(app)
-        icon.setTextVisibility(false)
+        val showLabels = PreferenceManager2.getInstance(launcher).sidebarShowLabels.firstCached()
+        icon.setTextVisibility(showLabels)
+        if (showLabels) {
+            val columns = SidebarMetrics.clampColumns(
+                PreferenceManager2.getInstance(launcher).sidebarColumns.firstCached(),
+            )
+            icon.textSize = SidebarAppearance.labelSizeSp(columns).toFloat()
+        }
         icon.setLongPressTimeoutFactor(1f)
         icon.contentDescription = app.title
         icon.gravity = Gravity.CENTER

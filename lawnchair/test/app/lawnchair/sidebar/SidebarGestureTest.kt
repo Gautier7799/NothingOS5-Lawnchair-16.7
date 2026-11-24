@@ -17,6 +17,7 @@
 package app.lawnchair.sidebar
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Gesture classification decides which action fires, so its arithmetic is pinned here. */
@@ -112,6 +113,7 @@ class SidebarGestureTest {
             SidebarGesture.SWIPE_IN to SidebarGestureAction.OPEN_SEARCH,
             SidebarGesture.SWIPE_UP to SidebarGestureAction.OPEN_ASSISTANT,
             SidebarGesture.SWIPE_DOWN to SidebarGestureAction.OPEN_NOTIFICATIONS,
+            SidebarGesture.DOUBLE_TAP to SidebarGestureAction.OPEN_PANEL,
         )
         val saved = SidebarGestureBindings.serialise(original)
         assertEquals(original, SidebarGestureBindings.resolve(saved))
@@ -161,8 +163,84 @@ class SidebarGestureTest {
     @Test
     fun `serialised bindings are stable and ordered`() {
         val saved = SidebarGestureBindings.serialise(SidebarGestureBindings.defaults)
-        assertEquals("swipe_in:OPEN_PANEL,swipe_up:NONE,swipe_down:NONE", saved)
+        assertEquals(
+            "swipe_in:OPEN_PANEL,swipe_up:NONE,swipe_down:NONE,double_tap:NONE",
+            saved,
+        )
         // Re-serialising a parsed value produces the same string, so the file never churns.
         assertEquals(saved, SidebarGestureBindings.serialise(SidebarGestureBindings.resolve(saved)))
+    }
+
+    @Test
+    fun `double tap defaults to doing nothing`() {
+        val bindings = SidebarGestureBindings.resolve(null)
+        assertEquals(
+            SidebarGestureAction.NONE,
+            SidebarGestureBindings.actionFor(bindings, SidebarGesture.DOUBLE_TAP),
+        )
+    }
+
+    @Test
+    fun `double tap round-trips through serialisation`() {
+        val saved = SidebarGestureBindings.serialise(
+            mapOf(SidebarGesture.DOUBLE_TAP to SidebarGestureAction.OPEN_SEARCH),
+        )
+        assertTrue(saved.contains("double_tap"))
+        val restored = SidebarGestureBindings.resolve(saved)
+        assertEquals(
+            SidebarGestureAction.OPEN_SEARCH,
+            SidebarGestureBindings.actionFor(restored, SidebarGesture.DOUBLE_TAP),
+        )
+    }
+
+    @Test
+    fun `power menu round-trips through serialisation`() {
+        val saved = SidebarGestureBindings.serialise(
+            mapOf(SidebarGesture.SWIPE_UP to SidebarGestureAction.OPEN_POWER_MENU),
+        )
+        val restored = SidebarGestureBindings.resolve(saved)
+        assertEquals(
+            SidebarGestureAction.OPEN_POWER_MENU,
+            SidebarGestureBindings.actionFor(restored, SidebarGesture.SWIPE_UP),
+        )
+    }
+
+    @Test
+    fun `higher sensitivity lowers the drag threshold`() {
+        val low = SidebarGesture.thresholdForSensitivity(0, 100f)
+        val mid = SidebarGesture.thresholdForSensitivity(50, 100f)
+        val high = SidebarGesture.thresholdForSensitivity(100, 100f)
+        assertTrue(low > mid)
+        assertTrue(mid > high)
+        assertTrue(high > 0f)
+    }
+
+    @Test
+    fun `sensitivity is clamped outside 0 to 100`() {
+        assertEquals(
+            SidebarGesture.thresholdForSensitivity(0, 100f),
+            SidebarGesture.thresholdForSensitivity(-40, 100f),
+            0.0001f,
+        )
+        assertEquals(
+            SidebarGesture.thresholdForSensitivity(100, 100f),
+            SidebarGesture.thresholdForSensitivity(400, 100f),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `a shorter drag fires a gesture at high sensitivity but not at low`() {
+        val drag = 50
+        val high = SidebarGesture.thresholdForSensitivity(100, 100f)
+        val low = SidebarGesture.thresholdForSensitivity(0, 100f)
+        assertEquals(
+            SidebarGesture.SWIPE_UP,
+            SidebarGesture.classify(0f, -drag.toFloat(), high, true),
+        )
+        assertEquals(
+            SidebarGesture.NONE,
+            SidebarGesture.classify(0f, -drag.toFloat(), low, true),
+        )
     }
 }
