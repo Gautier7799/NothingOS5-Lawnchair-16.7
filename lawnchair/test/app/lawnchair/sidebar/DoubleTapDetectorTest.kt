@@ -16,6 +16,7 @@
 
 package app.lawnchair.sidebar
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -70,5 +71,51 @@ class DoubleTapDetectorTest {
         detector.onTap(0L)
         detector.reset()
         assertFalse(detector.onTap(50L))
+    }
+
+    @Test
+    fun `with no binding a tap fires immediately and is never deferred`() {
+        assertEquals(
+            TapOutcome.FIRE_SINGLE_TAP_NOW,
+            TapOutcome.forTap(doubleTapBound = false, tapCompletedDouble = false),
+        )
+    }
+
+    @Test
+    fun `with a binding the first tap is deferred`() {
+        assertEquals(
+            TapOutcome.DEFER_SINGLE_TAP,
+            TapOutcome.forTap(doubleTapBound = true, tapCompletedDouble = false),
+        )
+    }
+
+    @Test
+    fun `a completed double tap fires the binding instead of the single tap`() {
+        assertEquals(
+            TapOutcome.FIRE_DOUBLE_TAP,
+            TapOutcome.forTap(doubleTapBound = true, tapCompletedDouble = true),
+        )
+    }
+
+    @Test
+    fun `an unbound double tap cannot fire, even if the detector completed`() {
+        // The view cannot reach the detector without a handler, but pinning the rule stops a
+        // future refactor from firing a binding the user never set.
+        assertEquals(
+            TapOutcome.FIRE_SINGLE_TAP_NOW,
+            TapOutcome.forTap(doubleTapBound = false, tapCompletedDouble = true),
+        )
+    }
+
+    @Test
+    fun `two taps with a binding produce exactly one double tap and one deferral`() {
+        val detector = DoubleTapDetector()
+        val outcomes = listOf(1_000L, 1_120L).map { t ->
+            TapOutcome.forTap(doubleTapBound = true, tapCompletedDouble = detector.onTap(t))
+        }
+        assertEquals(
+            listOf(TapOutcome.DEFER_SINGLE_TAP, TapOutcome.FIRE_DOUBLE_TAP),
+            outcomes,
+        )
     }
 }

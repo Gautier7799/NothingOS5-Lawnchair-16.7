@@ -65,6 +65,27 @@ class SidebarHandle(context: Context) : View(context) {
     private val doubleTap = DoubleTapDetector()
     private var gestureThresholdPx: Float = 0f
 
+    /**
+     * Whether the user bound an action to a double tap.
+     *
+     * Only then is the single tap deferred: holding a plain tap back for the 300 ms window on
+     * every launch would make the tab feel laggy for the majority who never bind one. Unbound,
+     * a tap opens the panel immediately and the detector is never armed.
+     */
+    private var doubleTapBound = false
+    private var pendingClick: Runnable? = null
+
+    /** Tells the tab whether a double-tap binding exists, so it knows to defer a single tap. */
+    fun setDoubleTapBound(bound: Boolean) {
+        doubleTapBound = bound
+        if (!bound) cancelPendingClick()
+    }
+
+    private fun cancelPendingClick() {
+        pendingClick?.let { removeCallbacks(it) }
+        pendingClick = null
+    }
+
     fun setOnOpen(listener: () -> Unit) {
         onOpen = listener
     }
@@ -108,10 +129,29 @@ class SidebarHandle(context: Context) : View(context) {
                     dragging || draggedFarEnough(event.rawX) -> onOpen?.invoke()
 
                     // A tap carries no direction, so it can only be a double tap or a plain
-                    // click; the detector decides which.
-                    handler != null && doubleTap.onTap(event.eventTime) -> handler(SidebarGesture.DOUBLE_TAP)
+                    // click. With a binding in place the single-tap action waits out the window,
+                    // so a double tap does not also run it and reopen the panel.
+                    else -> when (
+                        TapOutcome.forTap(
+                            doubleTapBound = handler != null && doubleTapBound,
+                            tapCompletedDouble = handler != null && doubleTapBound &&
+                                doubleTap.onTap(event.eventTime),
+                        )
+                    ) {
+                        TapOutcome.FIRE_DOUBLE_TAP -> {
+                            cancelPendingClick()
+                            handler?.invoke(SidebarGesture.DOUBLE_TAP)
+                        }
 
-                    else -> performClick()
+                        TapOutcome.DEFER_SINGLE_TAP -> {
+                            cancelPendingClick()
+                            val deferred = Runnable { performClick() }
+                            pendingClick = deferred
+                            postDelayed(deferred, DoubleTapDetector.DEFAULT_WINDOW_MILLIS)
+                        }
+
+                        TapOutcome.FIRE_SINGLE_TAP_NOW -> performClick()
+                    }
                 }
                 return true
             }
@@ -133,6 +173,12 @@ class SidebarHandle(context: Context) : View(context) {
     private fun gestureThreshold(): Float {
         if (gestureThresholdPx <= 0f) return touchSlop.toFloat()
         return gestureThresholdPx
+    }
+
+    override fun onDetachedFromWindow() {
+        cancelPendingClick()
+        doubleTap.reset()
+        super.onDetachedFromWindow()
     }
 
     override fun performClick(): Boolean {
@@ -197,6 +243,7 @@ class SidebarHandle(context: Context) : View(context) {
             launcher: Launcher,
             onOpen: () -> Unit,
             onGesture: ((SidebarGesture) -> Unit)? = null,
+            onGestureHasDoubleTap: (() -> Boolean)? = null,
         ) {
             val dragLayer = launcher.dragLayer ?: return
             val existing = dragLayer.findViewWithTag<SidebarHandle>(TAG)
@@ -208,6 +255,9 @@ class SidebarHandle(context: Context) : View(context) {
             // Cleared when no handler is passed, so a stale binding from a previous pass cannot
             // fire an action the current configuration no longer has.
             handle.setOnGesture(onGesture ?: {})
+            handle.setDoubleTapBound(
+                onGesture != null && onGestureHasDoubleTap?.invoke() == true,
+            )
             handle.applyPreferences(launcher)
             handle.visibility = VISIBLE
         }

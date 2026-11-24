@@ -56,3 +56,35 @@ class DoubleTapDetector(
         const val DEFAULT_WINDOW_MILLIS = 300L
     }
 }
+
+/**
+ * What a tap on the tab should do.
+ *
+ * Extracted from the view so the branch order is testable: the expensive mistake here is a
+ * double tap also running the single-tap action, which opens the panel and then closes it.
+ */
+enum class TapOutcome {
+    /** Run the double-tap binding now. */
+    FIRE_DOUBLE_TAP,
+
+    /** Wait out the double-tap window before running the single-tap action. */
+    DEFER_SINGLE_TAP,
+
+    /** No binding exists; run the single-tap action immediately. */
+    FIRE_SINGLE_TAP_NOW,
+    ;
+
+    companion object {
+        /**
+         * Decides what [tap] should do, given whether a double-tap binding exists.
+         *
+         * When nothing is bound a tap is never held back: a 300 ms delay on every launch is a
+         * cost paid by everyone to serve the few who bind a double tap.
+         */
+        fun forTap(doubleTapBound: Boolean, tapCompletedDouble: Boolean): TapOutcome = when {
+            !doubleTapBound -> FIRE_SINGLE_TAP_NOW
+            tapCompletedDouble -> FIRE_DOUBLE_TAP
+            else -> DEFER_SINGLE_TAP
+        }
+    }
+}

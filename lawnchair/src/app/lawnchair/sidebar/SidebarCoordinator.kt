@@ -150,6 +150,10 @@ class SidebarCoordinator(private val launcher: Launcher) : StateManager.StateLis
             } else {
                 null
             },
+            onGestureHasDoubleTap = {
+                SidebarGestureBindings.actionFor(bindings, SidebarGesture.DOUBLE_TAP) !=
+                    SidebarGestureAction.NONE
+            },
         )
         // Keep an already open panel in step with the new list or geometry instead of leaving
         // stale icons on screen until it is closed and reopened.
