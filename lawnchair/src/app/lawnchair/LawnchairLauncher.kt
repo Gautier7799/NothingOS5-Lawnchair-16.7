@@ -93,6 +93,7 @@ import com.kieronquinn.app.smartspacer.sdk.client.SmartspacerClient
 import com.patrykmichalik.opto.core.onEach
 import dev.kdrag0n.monet.theme.ColorScheme
 import java.util.stream.Stream
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -258,7 +259,10 @@ class LawnchairLauncher : QuickstepLauncher() {
 
         reloadIconsIfNeeded()
 
-        AppDatabase.INSTANCE.get(this).checkpointSync()
+        lifecycleScope.launch(Executors.DATA_HELPER_EXECUTOR.asCoroutineDispatcher()) {
+            AppDatabase.INSTANCE.get(this@LawnchairLauncher).checkpoint()
+            WallpaperService.INSTANCE.get(this@LawnchairLauncher).refreshTopWallpapers()
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {

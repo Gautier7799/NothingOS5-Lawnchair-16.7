@@ -45,6 +45,7 @@ import androidx.profileinstaller.ProfileInstaller
 import app.lawnchair.backup.LawnchairBackup
 import app.lawnchair.flowerpot.Flowerpot
 import app.lawnchair.preferences.PreferenceManager
+import app.lawnchair.preferences2.PreferenceManager2
 import app.lawnchair.ui.ModalBottomSheetContent
 import app.lawnchair.ui.preferences.destinations.openAppInfo
 import app.lawnchair.util.DecorReattachGuard
@@ -79,6 +80,24 @@ class LawnchairApp : LauncherApplication() {
         // Framework crash workaround on Android 15 and below, see DecorReattachGuard.
         DecorReattachGuard.install(this)
         scheduleBaselineProfileInstall()
+        warmUpPreferences()
+    }
+
+    /**
+     * [PreferenceManager2] initializes its cache with a blocking DataStore read, and the launcher
+     * reads that cache from `onCreate`. Building the singleton here, off the main thread and before
+     * any activity exists, moves the disk read out of the startup path while keeping the exact same
+     * initial values. Dagger creates the singleton under a lock, so the later main-thread access
+     * reuses this instance instead of reading again.
+     */
+    private fun warmUpPreferences() {
+        Executors.ORDERED_BG_EXECUTOR.execute {
+            try {
+                PreferenceManager2.getInstance(this)
+            } catch (e: Exception) {
+                Log.w(TAG, "Preference warm-up failed", e)
+            }
+        }
     }
 
     /**

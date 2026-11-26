@@ -36,7 +36,7 @@ sealed class WallpaperManagerCompat(val context: Context) {
         // Querying/saving wallpapers touches Room, so keep it off the main thread
         // (notifyChange is invoked from the WallpaperManager color callback on the main looper).
         scope.launch {
-            if (service.getTopWallpapers().isEmpty()) {
+            if (service.dao.getTopWallpapers().isEmpty()) {
                 service.saveWallpaper(wallpaperManager)
             }
         }

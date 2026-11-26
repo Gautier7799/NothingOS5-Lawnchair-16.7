@@ -25,16 +25,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun folderDao(): FolderDao
 
+    /**
+     * The three DAOs share one SQLite connection, so a single checkpoint covers all of them.
+     * Running it once per DAO made startup pay for the same full WAL flush three times.
+     */
     suspend fun checkpoint() {
         iconOverrideDao().checkpoint(SimpleSQLiteQuery("pragma wal_checkpoint(full)"))
-        wallpaperDao().checkpoint(SimpleSQLiteQuery("pragma wal_checkpoint(full)"))
-        folderDao().checkpoint(SimpleSQLiteQuery("pragma wal_checkpoint(full)"))
-    }
-
-    fun checkpointSync() {
-        runBlocking {
-            checkpoint()
-        }
     }
 
     companion object {
