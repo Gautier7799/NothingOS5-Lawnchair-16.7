@@ -241,8 +241,6 @@ object CaddyCardRenderer {
                 app,
                 iconSize,
                 iconBinder,
-                fitGridToHost,
-                if (explicitCell) cellSizePx else 0,
             )
         }
         // iOS App Library places the category name under its icons; the drawer and workspace keep
@@ -265,8 +263,6 @@ object CaddyCardRenderer {
         app: AppInfo,
         iconSize: Int,
         iconBinder: (BubbleTextView, AppInfo) -> Unit,
-        fitGridToHost: Boolean,
-        cellSizePx: Int,
     ) {
         // Use the same launcher icon widget as the default drawer. Its tag,
         // popup anchor, and long-press lifecycle are understood by Lawnchair's
@@ -289,31 +285,32 @@ object CaddyCardRenderer {
         cell.clipToPadding = false
         icon.clipToOutline = false
 
-        if (fitGridToHost && cellSizePx > 0) {
-            // Shrink the drawable itself with setIconSizeOverride and give the icon a viewport
-            // exactly its own size, centered in the cell. Scaling the whole view instead left it
-            // laid out at the native (larger) size, so neighbouring cells' icons overlapped in the
-            // middle of the card; overriding the drawable bounds keeps every icon inside its cell.
-            icon.setIconSizeOverride(iconSize)
-            icon.setPadding(0, 0, 0, 0)
-            cell.addView(
-                icon,
-                FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER),
-            )
-            return
-        }
-
-        // Drawer card: keep the original full-cell layout with a vertical inset.
-        val topInset = Math.max(0, (cell.layoutParams?.height ?: 0) - icon.iconSize) / 2
-        icon.setPadding(icon.paddingLeft, topInset, icon.paddingRight, 0)
+        // Shrink the drawable itself with setIconSizeOverride and give the icon a viewport
+        // exactly its own size, centered in the cell. Scaling the whole view instead left it
+        // laid out at the native (larger) size, so neighbouring cells' icons overlapped in the
+        // middle of the card; overriding the drawable bounds keeps every icon inside its cell.
+        icon.setIconSizeOverride(iconSize)
+        icon.setPadding(0, 0, 0, 0)
         cell.addView(
             icon,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER,
-            ),
+            FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER),
         )
+        // Drawer cells are wider than they are tall and their width follows the drawer's
+        // apps-per-row setting, so the requested size can exceed the measured cell. Clamp the
+        // icon to the shorter edge instead of letting the cell clip it on both sides.
+        cell.addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            val width = right - left
+            val height = bottom - top
+            if (width == oldRight - oldLeft && height == oldBottom - oldTop) return@addOnLayoutChangeListener
+            val fitted = CaddyCardMetrics.previewIconSizePx(width, height, iconSize)
+            if (fitted <= 0 || fitted == icon.iconSize) return@addOnLayoutChangeListener
+            icon.setIconSizeOverride(fitted)
+            (icon.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                lp.width = fitted
+                lp.height = fitted
+                icon.layoutParams = lp
+            }
+        }
     }
 
     /**

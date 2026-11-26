@@ -40,4 +40,19 @@ object CaddyCardMetrics {
         val ratio = fillRatio.coerceIn(MIN_FILL_RATIO, MAX_FILL_RATIO)
         return (cellSizePx * ratio).toInt()
     }
+
+    /**
+     * The largest square icon that fits a cell of [cellWidthPx] x [cellHeightPx], capped at
+     * [requestedSizePx].
+     *
+     * The result is always square and never exceeds either cell edge, so an icon can never be
+     * cropped on one axis. Caddy's drawer cells are wider than they are tall and their width
+     * depends on the drawer's apps-per-row setting, so a fixed icon size overflowed the cell
+     * on narrow configurations and the hosting view clipped both sides of the icon.
+     */
+    fun previewIconSizePx(cellWidthPx: Int, cellHeightPx: Int, requestedSizePx: Int): Int {
+        if (requestedSizePx <= 0) return 0
+        if (cellWidthPx <= 0 || cellHeightPx <= 0) return requestedSizePx
+        return minOf(requestedSizePx, cellWidthPx, cellHeightPx)
+    }
 }
