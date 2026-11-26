@@ -33,15 +33,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Generate and bundle Lawnicons resources
-        run: |
-          git clone https://github.com/LawnchairLauncher/lawnicons.git /tmp/lawnicons
-          git -C /tmp/lawnicons checkout "$(cat scripts/lawnicons-revision.txt)"
-          /tmp/lawnicons/gradlew -p /tmp/lawnicons :svg-processor:run
-          python3 scripts/merge_lawnicons.py /tmp/lawnicons
-
       - name: Check formatting
         run: ./gradlew spotlessCheck --stacktrace
+
+      - name: Run Lawnicons merge script tests
+        run: python3 scripts/test_merge_lawnicons.py
 
       - name: Run Lawnchair unit tests
         run: ./gradlew testLawnWithQuickstepGithubDebugUnitTest --stacktrace

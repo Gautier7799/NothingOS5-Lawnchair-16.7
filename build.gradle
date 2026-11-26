@@ -3,6 +3,20 @@ import com.android.build.gradle.api.AndroidBasePlugin
 import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.android.application)
@@ -149,6 +163,50 @@ final def majorVersion = versionDisplayName.split("\\.")[0]
 
 final def quickstepMinSdk = "35"
 final def quickstepMaxSdk = "36"
+
+// Lawnicons are generated from a pinned upstream revision at build time instead of
+// being committed: the generated drawables are ~100 MB of files. The merged tree
+// has to be a complete copy of lawnchair/res because AGP rejects duplicate
+// resource names spread across two source directories.
+abstract class PrepareLawniconsResources extends DefaultTask {
+    @InputFile
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract RegularFileProperty getRevisionFile()
+
+    @Input
+    abstract Property<String> getScriptsDir()
+
+    @InputDirectory
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract DirectoryProperty getBaseResourcesDirectory()
+
+    @Internal
+    abstract DirectoryProperty getWorkDirectory()
+
+    @OutputDirectory
+    abstract DirectoryProperty getOutputDirectory()
+
+    @Inject
+    abstract ExecOperations getExecOperations()
+
+    @TaskAction
+    void prepare() {
+        def scripts = new File(scriptsDir.get())
+        def output = outputDirectory.get().asFile
+        def work = workDirectory.get().asFile
+        work.mkdirs()
+        execOperations.exec { spec ->
+            spec.executable("bash")
+            spec.args(
+                new File(scripts, "prepare_lawnicons.sh").absolutePath,
+                revisionFile.get().asFile.absolutePath,
+                new File(work, "source").absolutePath,
+                output.absolutePath,
+            )
+            spec.environment("JAVA_HOME", System.getProperty("java.home"))
+        }
+    }
+}
 
 android {
     namespace "com.android.launcher3"
@@ -310,7 +368,10 @@ android {
             test.java.srcDirs = ['lawnchair/test']
             test.kotlin.directories.add('lawnchair/test')
             aidl.srcDirs = ['lawnchair/aidl']
-            res.srcDirs = ['lawnchair/res', 'platform_frameworks_libs_systemui/animationlib/res']
+            // lawnchair/res is added per variant through addGeneratedSourceDirectory
+            // (see androidComponents below); AGP rejects the same resource name from
+            // two source directories, so Lawnicons cannot be a sibling directory.
+            res.srcDirs = ['platform_frameworks_libs_systemui/animationlib/res']
             manifest.srcFile "lawnchair/AndroidManifest.xml"
             assets {
                 srcDirs 'lawnchair/assets'
@@ -356,6 +417,18 @@ androidComponents {
         variant.outputs.forEach { output ->
             output.outputFileName.set("Lawnchair.${output.versionName.get()}.$channel.${variant.buildType}.apk")
         }
+
+        // Lawnicons are merged into a generated copy of lawnchair/res and registered
+        // as a generated resource directory so AGP wires the task dependency itself.
+        variant.sources.res?.addGeneratedSourceDirectory(
+            tasks.register("prepare${variant.name.replaceFirst(/./) { it.toUpperCase() }}LawniconsResources", PrepareLawniconsResources) {
+                revisionFile.set(layout.projectDirectory.file("scripts/lawnicons-revision.txt"))
+                scriptsDir.set(layout.projectDirectory.dir("scripts").asFile.absolutePath)
+                baseResourcesDirectory.set(layout.projectDirectory.dir("lawnchair/res"))
+                workDirectory.set(layout.buildDirectory.dir("lawnicons"))
+            },
+            PrepareLawniconsResources::getOutputDirectory,
+        )
 
         // Lawnchair-TODO: A better way to sync proto file to the IDE preventing missing or outdated result. Please remove if this is the best solution we have right now
         def capitalizedVariantName = variant.name.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + variant.name.substring(1)
