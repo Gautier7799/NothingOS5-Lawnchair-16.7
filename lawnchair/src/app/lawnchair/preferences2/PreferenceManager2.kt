@@ -112,6 +112,12 @@ class PreferenceManager2 @Inject constructor(
 
     override val preferencesDataStore = context.preferencesDataStore
 
+    /**
+     * Seeded with a blocking read so that `init` and every `firstCached` caller see real values on
+     * their very first access; `init` depends on that to apply the icon shape before any icon is
+     * built. [LawnchairApp] builds this object on a background thread at startup so the read does
+     * not land in `onCreate`.
+     */
     @Volatile
     private var cachedPreferences: Preferences = runBlocking {
         preferencesDataStore.data.first()

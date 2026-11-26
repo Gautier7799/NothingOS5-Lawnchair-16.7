@@ -17,7 +17,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
 import javax.inject.Inject
-import kotlinx.coroutines.runBlocking
 
 @LauncherAppSingleton
 class WallpaperService @Inject constructor(
@@ -87,6 +86,8 @@ class WallpaperService @Inject constructor(
             )
             dao.insert(wallpaper)
         }
+
+        refreshTopWallpapers()
     }
 
     suspend fun updateWallpaperRank(selectedWallpaper: Wallpaper) {
@@ -100,11 +101,21 @@ class WallpaperService @Inject constructor(
                 dao.updateRank(wallpaper.rank)
             }
         }
+
+        refreshTopWallpapers()
     }
 
-    fun getTopWallpapers(): List<Wallpaper> = runBlocking {
-        val wallpapers = dao.getTopWallpapers()
-        wallpapers.ifEmpty { emptyList() }
+    /**
+     * The long-press popup needs the list synchronously to pick its layout, and it used to block
+     * the main thread on a Room query. The cache is primed in the background at startup and
+     * refreshed after every write, so readers never touch the database.
+     */
+    private val wallpaperCache = WallpaperCache()
+
+    fun getTopWallpapers(): List<Wallpaper> = wallpaperCache.get()
+
+    suspend fun refreshTopWallpapers() {
+        wallpaperCache.update(dao.getTopWallpapers())
     }
 
     private fun deleteWallpaperFile(imagePath: String) {

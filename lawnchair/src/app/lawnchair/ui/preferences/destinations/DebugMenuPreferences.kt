@@ -7,6 +7,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.preferences.core.Preferences
@@ -31,7 +32,7 @@ import com.android.launcher3.settings.SettingsActivity.DEVELOPER_OPTIONS_KEY
 import com.android.launcher3.settings.SettingsActivity.EXTRA_FRAGMENT_HIGHLIGHT_KEY
 import com.android.systemui.shared.system.BlurUtils
 import com.patrykmichalik.opto.domain.Preference
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 
 /**
  * A screen to house unfinished preferences and debug flags
@@ -44,6 +45,7 @@ fun DebugMenuPreferences(
     val prefs = preferenceManager()
     val prefs2 = preferenceManager2()
     val liveInfoManager = liveInformationManager()
+    val scope = rememberCoroutineScope()
     val flags = remember { prefs.debugFlags }
     val flags2 = remember { prefs2.debugFlags }
     val textFlags = remember { prefs2.textFlags }
@@ -99,7 +101,7 @@ fun DebugMenuPreferences(
                 ClickablePreference(
                     label = "Reset live information",
                     onClick = {
-                        runBlocking {
+                        scope.launch {
                             liveInfoManager.liveInformation.set(LiveInformation())
                             liveInfoManager.dismissedAnnouncementIds.set(emptySet())
                         }
