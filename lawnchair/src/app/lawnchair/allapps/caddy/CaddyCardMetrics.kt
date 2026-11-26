@@ -55,4 +55,16 @@ object CaddyCardMetrics {
         if (cellWidthPx <= 0 || cellHeightPx <= 0) return requestedSizePx
         return minOf(requestedSizePx, cellWidthPx, cellHeightPx)
     }
+
+    /**
+     * The top padding that centres an [iconSizePx] square icon in a [cellHeightPx] tall cell.
+     *
+     * The drawer card's icon view fills its cell, so the drawable has to be pushed down by hand
+     * instead of relying on the view's own gravity. An icon taller than the cell (or a cell that
+     * has not been measured yet) collapses to 0 so nothing is clipped above the card.
+     */
+    fun centeredTopInsetPx(cellHeightPx: Int, iconSizePx: Int): Int {
+        if (cellHeightPx <= 0 || iconSizePx <= 0) return 0
+        return ((cellHeightPx - iconSizePx) / 2).coerceAtLeast(0)
+    }
 }

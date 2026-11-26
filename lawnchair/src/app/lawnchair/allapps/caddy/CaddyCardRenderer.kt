@@ -285,31 +285,32 @@ object CaddyCardRenderer {
         cell.clipToPadding = false
         icon.clipToOutline = false
 
-        // Shrink the drawable itself with setIconSizeOverride and give the icon a viewport
-        // exactly its own size, centered in the cell. Scaling the whole view instead left it
-        // laid out at the native (larger) size, so neighbouring cells' icons overlapped in the
-        // middle of the card; overriding the drawable bounds keeps every icon inside its cell.
+        // Fill the cell and size the drawable from the cell as measured. A fixed
+        // iconSize x iconSize viewport was wider than the drawer's cell at high apps-per-row
+        // settings, so the cell clipped the icon on both sides and it read as squeezed.
         icon.setIconSizeOverride(iconSize)
         icon.setPadding(0, 0, 0, 0)
         cell.addView(
             icon,
-            FrameLayout.LayoutParams(iconSize, iconSize, Gravity.CENTER),
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER,
+            ),
         )
         // Drawer cells are wider than they are tall and their width follows the drawer's
-        // apps-per-row setting, so the requested size can exceed the measured cell. Clamp the
-        // icon to the shorter edge instead of letting the cell clip it on both sides.
+        // apps-per-row setting, so the requested size can exceed the measured cell. Derive the
+        // drawable size from the real bounds and centre it vertically in the cell.
         cell.addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
             val width = right - left
             val height = bottom - top
             if (width == oldRight - oldLeft && height == oldBottom - oldTop) return@addOnLayoutChangeListener
-            val fitted = CaddyCardMetrics.previewIconSizePx(width, height, iconSize)
-            if (fitted <= 0 || fitted == icon.iconSize) return@addOnLayoutChangeListener
-            icon.setIconSizeOverride(fitted)
-            (icon.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
-                lp.width = fitted
-                lp.height = fitted
-                icon.layoutParams = lp
-            }
+            val size = CaddyCardMetrics.previewIconSizePx(width, height, iconSize)
+            if (size <= 0) return@addOnLayoutChangeListener
+            val topInset = CaddyCardMetrics.centeredTopInsetPx(height, size)
+            if (size == icon.iconSize && topInset == icon.paddingTop) return@addOnLayoutChangeListener
+            icon.setIconSizeOverride(size)
+            icon.setPadding(0, topInset, 0, 0)
         }
     }
 

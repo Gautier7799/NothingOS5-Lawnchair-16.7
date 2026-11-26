@@ -74,4 +74,22 @@ class CaddyCardMetricsTest {
         assertThat(CaddyCardMetrics.previewIconSizePx(0, 0, 150)).isEqualTo(150)
         assertThat(CaddyCardMetrics.previewIconSizePx(200, 0, 150)).isEqualTo(150)
     }
+
+    @Test
+    fun centeredTopInsetPx_centresTheIconInTheCell() {
+        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 64, iconSizePx = 40)).isEqualTo(12)
+        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 100, iconSizePx = 50)).isEqualTo(25)
+    }
+
+    @Test
+    fun centeredTopInsetPx_isZeroWhenTheIconFillsOrExceedsTheCell() {
+        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 40, iconSizePx = 40)).isEqualTo(0)
+        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 40, iconSizePx = 64)).isEqualTo(0)
+    }
+
+    @Test
+    fun centeredTopInsetPx_isZeroBeforeTheCellIsMeasured() {
+        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 0, iconSizePx = 40)).isEqualTo(0)
+        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 64, iconSizePx = 0)).isEqualTo(0)
+    }
 }
