@@ -240,6 +240,7 @@ import java.util.stream.Stream;
 
 import app.lawnchair.LawnchairApp;
 import app.lawnchair.compat.LawnchairQuickstepCompat;
+import app.lawnchair.util.PredictionBinding;
 
 public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
         SystemShortcut.BubbleActivityStarter {
@@ -253,6 +254,8 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
     private PredictedContainerInfo mAllAppsPredictions;
     // LC-Note: Lawnchair Prediction
     private PredictedContainerInfo mHotseatPredictions;
+    /** The predictions currently bound to the dock, used to skip rebinding an unchanged list. */
+    private List<ItemInfo> mAppliedHotseatPredictions;
     private HotseatPredictionController mHotseatPredictionController;
     private DepthController mDepthController;
     private QuickstepTransitionManager mAppTransitionManager;
@@ -473,8 +476,24 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
             }
         }
         if (mHotseatPredictionController != null && mHotseatPredictions != null) {
-            mHotseatPredictionController.setPredictedItems(mHotseatPredictions);
+            applyHotseatPredictions(mHotseatPredictions);
         }
+    }
+
+    /**
+     * Pushes [info] to the dock, unless exactly these items are already bound. The launcher reaches
+     * this from both the resume path and the model refresh; re-applying an unchanged list makes
+     * every dock icon re-inflate and redraw, which the user sees as a flicker on returning home.
+     */
+    // LC-Note: Lawnchair Prediction
+    private void applyHotseatPredictions(PredictedContainerInfo info) {
+        List<ItemInfo> items = info.getContents();
+        if (!PredictionBinding.shouldRebind(mAppliedHotseatPredictions, items)) {
+            return;
+        }
+        mHotseatPredictionController.setPredictedItems(info);
+        // Snapshot: the container prunes its live list in place when apps are uninstalled.
+        mAppliedHotseatPredictions = new ArrayList<>(items);
     }
 
     @Override
@@ -624,7 +643,7 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
             case Favorites.CONTAINER_HOTSEAT_PREDICTION:
                 mHotseatPredictions = info;
                 if (mHotseatPredictionController != null) {
-                    mHotseatPredictionController.setPredictedItems(info);
+                    applyHotseatPredictions(info);
                 }
                 break;
             case Favorites.CONTAINER_WIDGETS_PREDICTION:
