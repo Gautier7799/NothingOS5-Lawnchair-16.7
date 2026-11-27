@@ -42,29 +42,31 @@ object CaddyCardMetrics {
     }
 
     /**
-     * The largest square icon that fits a cell of [cellWidthPx] x [cellHeightPx], capped at
-     * [requestedSizePx].
+     * The factor that scales a [nativeSizePx] square icon down so it renders at
+     * [targetSizePx], further clamped to a [cellWidthPx] x [cellHeightPx] cell.
      *
-     * The result is always square and never exceeds either cell edge, so an icon can never be
-     * cropped on one axis. Caddy's drawer cells are wider than they are tall and their width
-     * depends on the drawer's apps-per-row setting, so a fixed icon size overflowed the cell
-     * on narrow configurations and the hosting view clipped both sides of the icon.
-     */
-    fun previewIconSizePx(cellWidthPx: Int, cellHeightPx: Int, requestedSizePx: Int): Int {
-        if (requestedSizePx <= 0) return 0
-        if (cellWidthPx <= 0 || cellHeightPx <= 0) return requestedSizePx
-        return minOf(requestedSizePx, cellWidthPx, cellHeightPx)
-    }
-
-    /**
-     * The top padding that centres an [iconSizePx] square icon in a [cellHeightPx] tall cell.
+     * The preview icon is scaled as a View rather than by overriding the drawable bounds:
+     * `BubbleTextView.applyCompoundDrawables()` sets the bounds, then calls `updateIcon()` ->
+     * `TextView.setCompoundDrawables()`, and a compound drawable's bounds are reset to its
+     * intrinsic size. A bounds override is therefore discarded and the drawable is drawn at its
+     * native size, which is wider than a narrow drawer cell, so the cell crops both sides and the
+     * icon reads as squeezed and non-circular. A View scale is applied at draw time and nothing in
+     * TextView resets it.
      *
-     * The drawer card's icon view fills its cell, so the drawable has to be pushed down by hand
-     * instead of relying on the view's own gravity. An icon taller than the cell (or a cell that
-     * has not been measured yet) collapses to 0 so nothing is clipped above the card.
+     * [targetSizePx] is the size the card wants (a fraction of the cell); the result never
+     * exceeds it, so a caller's fill ratio is preserved, and never exceeds the cell on either
+     * axis, so the icon cannot be cropped.
      */
-    fun centeredTopInsetPx(cellHeightPx: Int, iconSizePx: Int): Int {
-        if (cellHeightPx <= 0 || iconSizePx <= 0) return 0
-        return ((cellHeightPx - iconSizePx) / 2).coerceAtLeast(0)
+    fun iconScale(
+        cellWidthPx: Int,
+        cellHeightPx: Int,
+        nativeSizePx: Int,
+        targetSizePx: Int = nativeSizePx,
+    ): Float {
+        if (nativeSizePx <= 0) return 1f
+        if (cellWidthPx <= 0 || cellHeightPx <= 0) return 1f
+        val target = if (targetSizePx > 0) targetSizePx else nativeSizePx
+        val fitted = minOf(target, cellWidthPx, cellHeightPx)
+        return (fitted.toFloat() / nativeSizePx).coerceIn(0f, 1f)
     }
 }
