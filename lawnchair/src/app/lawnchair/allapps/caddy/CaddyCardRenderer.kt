@@ -118,11 +118,11 @@ object CaddyCardRenderer {
         // The workspace card paints its own surface so it survives content rebuilds; drawing a
         // second surface here would stack two rounded rectangles and double the outline.
         if (drawSurface) card.background = background
-        // Drawer previews stay clipped to their rounded outline. Workspace previews use
-        // native-size BubbleTextView children scaled into smaller cells; clipping those
-        // transformed children to the rounded outline crops adaptive-icon edges. Keep the
-        // rounded background, but do not use it as a content clip on workspace cards.
-        card.clipToOutline = !fitGridToHost
+        // Never clip the card's content to its rounded outline. An outline clip is a rounded
+        // mask at the card's corner radius, so an icon near an edge loses its outer pixels and
+        // reads as a squeezed, non-circular icon. The card keeps its rounded background; only
+        // the content clip is dropped.
+        card.clipToOutline = false
         card.elevation = dp(context, if (fitGridToHost) 3f else 1f).toFloat()
         host.addView(
             card,
@@ -281,37 +281,58 @@ object CaddyCardRenderer {
         // center only the actual drawable using BubbleTextView's native icon size.
         icon.setCenterVertically(false)
         icon.gravity = Gravity.CENTER
+        // all_apps_icon.xml attaches all_apps_fastscroll_icon_anim, which animates scaleX/scaleY
+        // to 1 and 1.15. That writes the same properties the cell fit uses, so it would wipe the
+        // fit on the next state change and draw the icon at its native size again.
+        icon.stateListAnimator = null
         cell.clipChildren = false
         cell.clipToPadding = false
         icon.clipToOutline = false
 
-        // Fill the cell and size the drawable from the cell as measured. A fixed
-        // iconSize x iconSize viewport was wider than the drawer's cell at high apps-per-row
-        // settings, so the cell clipped the icon on both sides and it read as squeezed.
-        icon.setIconSizeOverride(iconSize)
+        // Give the icon view a box exactly the size the drawable is drawn at, so the drawable
+        // never overflows its own view, then scale that view down to the cell.
+        //
+        // Overriding the drawable bounds (setIconSizeOverride) cannot work here:
+        // BubbleTextView.applyCompoundDrawables() sets the bounds, then calls updateIcon() ->
+        // TextView.setCompoundDrawables(), and a compound drawable's bounds are reset to its
+        // intrinsic size. The override is discarded, the drawable is drawn at its intrinsic size,
+        // and a drawer cell narrower than that crops both sides. A View scale is applied at draw
+        // time and nothing in TextView resets it.
+        //
+        // BaseIcon.AllApps pads 8dp left/right and TextView draws a compound drawable starting at
+        // the left padding, so that padding would push the drawable past the view's right edge.
         icon.setPadding(0, 0, 0, 0)
+        var boxSize = drawableSizePx(icon)
         cell.addView(
             icon,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER,
-            ),
+            FrameLayout.LayoutParams(boxSize, boxSize, Gravity.CENTER),
         )
-        // Drawer cells are wider than they are tall and their width follows the drawer's
-        // apps-per-row setting, so the requested size can exceed the measured cell. Derive the
-        // drawable size from the real bounds and centre it vertically in the cell.
         cell.addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            // A high-resolution icon can replace the placeholder after the first layout, which
+            // changes the drawable size; re-sync the box so the view never crops the drawable.
+            val current = drawableSizePx(icon)
+            if (current != boxSize) {
+                boxSize = current
+                (icon.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                    lp.width = current
+                    lp.height = current
+                    icon.layoutParams = lp
+                }
+            }
             val width = right - left
             val height = bottom - top
-            if (width == oldRight - oldLeft && height == oldBottom - oldTop) return@addOnLayoutChangeListener
-            val size = CaddyCardMetrics.previewIconSizePx(width, height, iconSize)
-            if (size <= 0) return@addOnLayoutChangeListener
-            val topInset = CaddyCardMetrics.centeredTopInsetPx(height, size)
-            if (size == icon.iconSize && topInset == icon.paddingTop) return@addOnLayoutChangeListener
-            icon.setIconSizeOverride(size)
-            icon.setPadding(0, topInset, 0, 0)
+            val scale = CaddyCardMetrics.iconScale(width, height, boxSize, iconSize)
+            if (scale == icon.scaleX && scale == icon.scaleY) return@addOnLayoutChangeListener
+            icon.scaleX = scale
+            icon.scaleY = scale
         }
+    }
+
+    /** The size the icon's drawable is drawn at: its intrinsic size, or the view's icon size. */
+    private fun drawableSizePx(icon: BubbleTextView): Int {
+        val intrinsic = icon.icon?.intrinsicWidth ?: 0
+        if (intrinsic > 0) return intrinsic
+        return icon.iconSize.takeIf { it > 0 } ?: 1
     }
 
     /**

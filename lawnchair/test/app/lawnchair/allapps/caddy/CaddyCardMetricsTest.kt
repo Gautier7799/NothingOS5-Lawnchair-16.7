@@ -49,47 +49,104 @@ class CaddyCardMetricsTest {
     }
 
     @Test
-    fun previewIconSizePx_keepsTheRequestedSizeWhenTheCellIsLargeEnough() {
-        assertThat(CaddyCardMetrics.previewIconSizePx(400, 300, 150)).isEqualTo(150)
+    fun iconScale_shrinksANativeIconIntoANarrowDrawerCell() {
+        // Regression for the squeezed Caddy icons: a two-column card at six apps per row
+        // leaves a 118px cell for a 168px native icon. The view must shrink to 118/168 so the
+        // drawable never overflows its view and the cell cannot crop its sides.
+        val scale = CaddyCardMetrics.iconScale(
+            cellWidthPx = 118,
+            cellHeightPx = 168,
+            nativeSizePx = 168,
+        )
+        assertThat(scale).isWithin(1e-6f).of(118f / 168f)
+        assertThat(168 * scale).isWithin(1e-3f).of(118f)
     }
 
     @Test
-    fun previewIconSizePx_shrinksToTheNarrowerCellEdge() {
-        // A drawer card cell is wider than it is tall; the icon must never exceed either edge,
-        // otherwise the cell clips the icon on the sides and it looks squeezed.
-        assertThat(CaddyCardMetrics.previewIconSizePx(cellWidthPx = 90, cellHeightPx = 300, requestedSizePx = 150))
-            .isEqualTo(90)
-        assertThat(CaddyCardMetrics.previewIconSizePx(cellWidthPx = 300, cellHeightPx = 70, requestedSizePx = 150))
-            .isEqualTo(70)
+    fun iconScale_shrinksToTheNarrowerCellEdge() {
+        // Whichever edge is smaller wins, so the icon is never cropped on either axis.
+        assertThat(CaddyCardMetrics.iconScale(90, 300, 168)).isWithin(1e-6f).of(90f / 168f)
+        assertThat(CaddyCardMetrics.iconScale(300, 70, 168)).isWithin(1e-6f).of(70f / 168f)
     }
 
     @Test
-    fun previewIconSizePx_isZeroWhenThereIsNoIcon() {
-        assertThat(CaddyCardMetrics.previewIconSizePx(200, 200, 0)).isEqualTo(0)
+    fun iconScale_neverEnlargesAnIconThatAlreadyFits() {
+        assertThat(CaddyCardMetrics.iconScale(cellWidthPx = 400, cellHeightPx = 300, nativeSizePx = 168))
+            .isEqualTo(1f)
+        assertThat(CaddyCardMetrics.iconScale(cellWidthPx = 168, cellHeightPx = 168, nativeSizePx = 168))
+            .isEqualTo(1f)
     }
 
     @Test
-    fun previewIconSizePx_keepsTheRequestedSizeBeforeTheCellIsMeasured() {
-        // A not-yet-measured cell must not collapse the icon to zero.
-        assertThat(CaddyCardMetrics.previewIconSizePx(0, 0, 150)).isEqualTo(150)
-        assertThat(CaddyCardMetrics.previewIconSizePx(200, 0, 150)).isEqualTo(150)
+    fun iconScale_leavesTheIconAloneBeforeTheCellIsMeasured() {
+        // A cell that has not been laid out yet must not collapse the icon to nothing.
+        assertThat(CaddyCardMetrics.iconScale(0, 0, 168)).isEqualTo(1f)
+        assertThat(CaddyCardMetrics.iconScale(200, 0, 168)).isEqualTo(1f)
+        assertThat(CaddyCardMetrics.iconScale(200, 200, 0)).isEqualTo(1f)
     }
 
     @Test
-    fun centeredTopInsetPx_centresTheIconInTheCell() {
-        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 64, iconSizePx = 40)).isEqualTo(12)
-        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 100, iconSizePx = 50)).isEqualTo(25)
+    fun iconScale_isAlwaysASquareScaleBetweenZeroAndOne() {
+        for (cell in 1..200 step 7) {
+            val scale = CaddyCardMetrics.iconScale(cell, cell, 168)
+            assertThat(scale).isAtLeast(0f)
+            assertThat(scale).isAtMost(1f)
+        }
     }
 
     @Test
-    fun centeredTopInsetPx_isZeroWhenTheIconFillsOrExceedsTheCell() {
-        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 40, iconSizePx = 40)).isEqualTo(0)
-        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 40, iconSizePx = 64)).isEqualTo(0)
+    fun iconScale_honoursTheTargetSizeWhenTheCellIsRoomierThanTheTarget() {
+        // A card asks for 86% of a 200px cell: the icon must render at 172px, not fill the cell.
+        // The native size is larger than the target here, so the target is what limits it.
+        val scale = CaddyCardMetrics.iconScale(
+            cellWidthPx = 200,
+            cellHeightPx = 200,
+            nativeSizePx = 300,
+            targetSizePx = 172,
+        )
+        assertThat(300 * scale).isWithin(1e-3f).of(172f)
+        assertThat(scale).isLessThan(1f)
     }
 
     @Test
-    fun centeredTopInsetPx_isZeroBeforeTheCellIsMeasured() {
-        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 0, iconSizePx = 40)).isEqualTo(0)
-        assertThat(CaddyCardMetrics.centeredTopInsetPx(cellHeightPx = 64, iconSizePx = 0)).isEqualTo(0)
+    fun iconScale_neverUpscalesPastTheNativeSize() {
+        // A target larger than the native icon must not stretch it; a 168px drawable stays 168px.
+        val scale = CaddyCardMetrics.iconScale(
+            cellWidthPx = 400,
+            cellHeightPx = 400,
+            nativeSizePx = 168,
+            targetSizePx = 172,
+        )
+        assertThat(scale).isEqualTo(1f)
+    }
+
+    @Test
+    fun iconScale_prefersTheCellOverAnOversizedTarget() {
+        // A target wider than the cell must still be clamped to the cell, never cropped.
+        val scale = CaddyCardMetrics.iconScale(
+            cellWidthPx = 100,
+            cellHeightPx = 200,
+            nativeSizePx = 168,
+            targetSizePx = 400,
+        )
+        assertThat(168 * scale).isWithin(1e-3f).of(100f)
+    }
+
+    @Test
+    fun iconScale_neverRendersLargerThanEitherCellEdge() {
+        // The regression guard: whatever the native size, target and cell, the drawn icon
+        // always fits inside the cell on both axes.
+        val natives = listOf(48, 108, 168, 192, 256)
+        val cells = listOf(60, 96, 118, 126, 168, 200, 320)
+        val targets = listOf(0, 40, 56, 100, 172, 400)
+        for (native in natives) {
+            for (cell in cells) {
+                for (target in targets) {
+                    val scale = CaddyCardMetrics.iconScale(cell, cell, native, target)
+                    val rendered = native * scale
+                    assertThat(rendered).isAtMost(cell.toFloat() + 1e-3f)
+                }
+            }
+        }
     }
 }
