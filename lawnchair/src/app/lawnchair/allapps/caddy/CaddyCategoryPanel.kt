@@ -222,16 +222,56 @@ class CaddyCategoryPanel @JvmOverloads constructor(
         }
         icon.setOnLongClickListener { view -> startAppDrag(view) }
         icon.setCenterVertically(false)
-        val inset = maxOf(0, (dp(68f) - icon.iconSize) / 2)
-        icon.setPadding(icon.paddingLeft, inset, icon.paddingRight, 0)
+        // all_apps_icon.xml attaches all_apps_fastscroll_icon_anim, which writes scaleX/scaleY
+        // (1 and 1.15). That would wipe the fit below on the next state change.
+        icon.stateListAnimator = null
         icon.gravity = Gravity.CENTER
         iconFrame.clipChildren = false
         iconFrame.clipToPadding = false
         icon.clipToOutline = false
+
+        // Same defect that was fixed for the card preview in #79, still present here: the icon
+        // view was given a fixed 68dp box while the drawable inside it is drawn at its own
+        // intrinsic size (the all-apps bitmap, typically 168px). BaseIcon.AllApps also pads 8dp
+        // left and right, and TextView starts a compound drawable at the left padding, so the
+        // drawable began 8dp in and extended far past the box, cropping both sides and making
+        // the icon read as a square/angular blob instead of a circle.
+        //
+        // The padding override that used to sit here (setIconSizeOverride via setPadding) could
+        // never work: BubbleTextView.applyCompoundDrawables() sets the drawable bounds and then
+        // calls updateIcon() -> TextView.setCompoundDrawables(), which resets a compound
+        // drawable's bounds to its intrinsic size.
+        //
+        // Give the view a box exactly the drawable's drawn size so nothing can overflow, then
+        // scale the view down into the cell. A View scale is applied at draw time and nothing in
+        // TextView resets it.
+        icon.setPadding(0, 0, 0, 0)
+        var boxSize = drawableSizePx(icon)
         iconFrame.addView(
             icon,
-            FrameLayout.LayoutParams(dp(68f), dp(68f), Gravity.CENTER),
+            FrameLayout.LayoutParams(boxSize, boxSize, Gravity.CENTER),
         )
+        iconFrame.addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            // A high-resolution icon can replace the placeholder after the first layout and
+            // change the drawable size; re-sync the box so the view never crops the drawable.
+            val current = drawableSizePx(icon)
+            if (current != boxSize) {
+                boxSize = current
+                (icon.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                    lp.width = current
+                    lp.height = current
+                    icon.layoutParams = lp
+                }
+            }
+            val scale = CaddyCardMetrics.iconScale(
+                cellWidthPx = right - left,
+                cellHeightPx = bottom - top,
+                nativeSizePx = boxSize,
+            )
+            if (scale == icon.scaleX && scale == icon.scaleY) return@addOnLayoutChangeListener
+            icon.scaleX = scale
+            icon.scaleY = scale
+        }
 
         val label = TextView(context)
         label.text = app.title
@@ -252,6 +292,13 @@ class CaddyCategoryPanel @JvmOverloads constructor(
 
     private fun cellParams(cellWidth: Int) = LinearLayout.LayoutParams(cellWidth, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
         setMargins(dp(2f), dp(2f), dp(2f), dp(2f))
+    }
+
+    /** The size the icon's drawable is drawn at: its intrinsic size, or the view's icon size. */
+    private fun drawableSizePx(icon: BubbleTextView): Int {
+        val intrinsic = icon.icon?.intrinsicWidth ?: 0
+        if (intrinsic > 0) return intrinsic
+        return icon.iconSize.takeIf { it > 0 } ?: 1
     }
 
     /** An empty cell, so a short last row keeps the same column widths. */
