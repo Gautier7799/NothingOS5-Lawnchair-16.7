@@ -56,6 +56,20 @@ object CaddyCategoryEngine {
         com.android.launcher3.util.ComponentKey(component, app.user).toString()
     } ?: "${app.user.hashCode()}:${app.targetPackage}"
 
+    /**
+     * Key for deciding whether two app lists render identically.
+     *
+     * [appKey] alone is not enough: swapping the icon pack keeps every component key but replaces
+     * every bitmap, so a card judged "unchanged" would keep drawing the old icons until the
+     * launcher restarted. `IconCache` returns the same `BitmapInfo` instance for an unchanged
+     * icon, so its identity distinguishes a real icon change from a rebuilt `AppInfo`.
+     */
+    fun appContentKey(app: com.android.launcher3.model.data.AppInfo): String = CaddyCardIdentity.appContentKey(
+        componentKey = appKey(app),
+        bitmapIdentity = System.identityHashCode(app.bitmap),
+        title = app.title,
+    )
+
     fun <T, K : Any> buildGroups(
         allApps: List<T>,
         categorizedApps: Map<String, List<T>>,

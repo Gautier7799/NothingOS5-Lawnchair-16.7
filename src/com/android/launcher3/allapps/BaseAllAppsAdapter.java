@@ -219,10 +219,30 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
         }
 
         /**
-         * Returns true if the items represent the same object
+         * Returns true if the items represent the same object.
+         *
+         * Caddy cards are all one viewType and one class, so the type check alone matched every
+         * card against every other. DiffUtil then could not track a card across a reorder and
+         * matched them by position, so cards traded contents on every refresh. Compare the card
+         * identity instead.
          */
         public boolean isSameAs(AdapterItem other) {
-            return (other.viewType == viewType) && (other.getClass() == getClass());
+            if (!(other.viewType == viewType) || !(other.getClass() == getClass())) {
+                return false;
+            }
+            if (viewType == VIEW_TYPE_CADDY_CATEGORY) {
+                return caddyIdentity().equals(other.caddyIdentity());
+            }
+            return true;
+        }
+
+        /**
+         * Stable identity of this Caddy card, distinguishing a category from the utility cards
+         * and one category from another. Only meaningful for {@link #VIEW_TYPE_CADDY_CATEGORY}.
+         */
+        public String caddyIdentity() {
+            return app.lawnchair.allapps.caddy.CaddyCardIdentity.INSTANCE.of(
+                    caddyIsSearchActions, caddyIsAddCategory, caddyTitle);
         }
 
         /**
@@ -231,15 +251,15 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
          */
         public boolean isContentSame(AdapterItem other) {
             if (viewType == VIEW_TYPE_CADDY_CATEGORY) {
-                // Compare apps by stable key: Launcher AppInfo has no equals(), so the default
-                // identity-based List.equals marked freshly rebuilt but identical cards as changed.
-                // That forced DiffUtil to rebind every Caddy card (and reload its icon drawables)
-                // on each drawer refresh, which made the preview icons flicker.
+                // Compare apps by a content key: launcher AppInfo has no equals(), so identity
+                // comparison marked freshly rebuilt but identical cards as changed and rebound
+                // every card. The content key also carries the icon bitmap's identity, so
+                // switching the icon pack still rebinds the card.
                 return itemInfo == null && other.itemInfo == null
                         && java.util.Objects.equals(caddyTitle, other.caddyTitle)
                         && app.lawnchair.allapps.caddy.CaddyCategoryEngine.INSTANCE.sameByKey(
                                 caddyApps, other.caddyApps,
-                                app.lawnchair.allapps.caddy.CaddyCategoryEngine.INSTANCE::appKey)
+                                app.lawnchair.allapps.caddy.CaddyCategoryEngine.INSTANCE::appContentKey)
                         && caddyIsSearchActions == other.caddyIsSearchActions
                         && caddyIsAddCategory == other.caddyIsAddCategory;
             }
@@ -465,7 +485,10 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             case VIEW_TYPE_CADDY_CATEGORY: {
                 AdapterItem caddyItem = mApps.getAdapterItems().get(position);
                 ViewGroup.LayoutParams caddyParams = holder.itemView.getLayoutParams();
-                if (caddyParams != null) {
+                if (caddyParams != null && caddyParams.height != dp(184)) {
+                    // Reassign only when the height actually differs: setLayoutParams always
+                    // calls requestLayout, so doing it per bind re-measured the whole drawer
+                    // even though the card already had the right height.
                     caddyParams.height = dp(184);
                     holder.itemView.setLayoutParams(caddyParams);
                 }
