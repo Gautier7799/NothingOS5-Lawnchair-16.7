@@ -360,7 +360,9 @@ public class AlphabeticalAppsList<T extends Context & ActivityContext> implement
         }
 
         if (mAdapter != null) {
-            DiffUtil.calculateDiff(new MyDiffCallback(oldItems, mAdapterItems), false)
+            // Detect moves so a card that changed position (opening a category moves it to the
+            // front) is moved rather than removed and rebuilt, which would re-inflate its icons.
+            DiffUtil.calculateDiff(new MyDiffCallback(oldItems, mAdapterItems), true)
                     .dispatchUpdatesTo(mAdapter);
         }
     }
