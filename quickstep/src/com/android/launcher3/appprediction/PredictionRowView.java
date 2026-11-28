@@ -218,19 +218,21 @@ public class PredictionRowView<T extends Context & ActivityContext>
         applyPredictionApps();
     }
 
-    /** Pause the prediction row UI update */
+    /**
+     * Pause the prediction row UI update.
+     *
+     * Un-pausing must not force a rebind: the launcher calls this on every resume and after every
+     * activity transition, always with the same predictions. A forced rebind re-inflates each icon,
+     * which is what made the suggestions appear and disappear.
+     */
     public void setPredictionUiUpdatePaused(boolean predictionUiUpdatePaused) {
         mPredictionUiUpdatePaused = predictionUiUpdatePaused;
         if (!mPredictionUiUpdatePaused) {
-            applyPredictionApps(true /* force */);
+            applyPredictionApps();
         }
     }
 
     private void applyPredictionApps() {
-        applyPredictionApps(false /* force */);
-    }
-
-    private void applyPredictionApps(boolean force) {
         if (mPredictionUiUpdatePaused) {
             return;
         }
@@ -241,11 +243,15 @@ public class PredictionRowView<T extends Context & ActivityContext>
         // icons appear to flicker. Skip the rebind when the predicted set is unchanged.
         List<String> newKeys = new ArrayList<>(mPredictedApps.size());
         for (WorkspaceItemInfo info : mPredictedApps) {
-            newKeys.add(info.getTargetComponent() == null
+            String target = info.getTargetComponent() == null
                     ? String.valueOf(info.getTargetPackage())
-                    : info.getTargetComponent().flattenToString() + "@" + info.user.hashCode());
+                    : info.getTargetComponent().flattenToString();
+            newKeys.add(app.lawnchair.util.PredictionRowBinding.key(
+                    target, info.user.hashCode(), System.identityHashCode(info.bitmap),
+                    info.title));
         }
-        if (!force && newKeys.equals(mAppliedPredictionKeys) && getChildCount() == mNumPredictedAppsPerRow) {
+        if (!app.lawnchair.util.PredictionRowBinding.shouldRebind(
+                mAppliedPredictionKeys, newKeys, getChildCount(), mNumPredictedAppsPerRow)) {
             return;
         }
         mAppliedPredictionKeys = newKeys;
