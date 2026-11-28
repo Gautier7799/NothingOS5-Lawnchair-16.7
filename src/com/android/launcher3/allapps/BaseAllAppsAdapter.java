@@ -777,6 +777,22 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                                 "caddy_custom_categories", Context.MODE_PRIVATE);
                 JSONArray categories = new JSONArray(
                         preferences.getString("categories", "[]"));
+
+                // Category cards are keyed on title, so a duplicate would share its DiffUtil
+                // identity with the existing card and the two could trade contents on refresh.
+                java.util.ArrayList<String> existingTitles = new java.util.ArrayList<>();
+                for (int i = 0; i < categories.length(); i++) {
+                    JSONObject stored = categories.optJSONObject(i);
+                    if (stored != null) existingTitles.add(stored.optString("title"));
+                }
+                if (app.lawnchair.allapps.caddy.CaddyCardIdentity.INSTANCE
+                        .duplicateOf(existingTitles, title) != null) {
+                    android.widget.Toast.makeText(mActivityContext,
+                            "A category with this name already exists",
+                            android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
                 JSONObject category = new JSONObject();
                 category.put("title", title);
                 JSONArray apps = new JSONArray();
