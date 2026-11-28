@@ -143,9 +143,13 @@ class WallpaperService @Inject constructor(
         return imageFile.absolutePath
     }
 
-    override fun close() {
-        TODO("Not yet implemented")
-    }
+    /**
+     * A singleton owned by the app component holds nothing to release: the DAO belongs to the
+     * app-wide database and the cache is read by the long-press popup for the life of the process.
+     * [SafeCloseable] requires this method not to throw, so it must not stay unimplemented.
+     */
+    override fun close() = Unit
+
     companion object {
         @JvmField
         val INSTANCE = DaggerSingletonObject(LauncherAppComponent::getWallpaperService)

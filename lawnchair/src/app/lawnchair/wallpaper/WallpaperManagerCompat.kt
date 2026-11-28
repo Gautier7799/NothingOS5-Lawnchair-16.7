@@ -18,7 +18,12 @@ sealed class WallpaperManagerCompat(val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val colorHints: Int get() = wallpaperColors?.colorHints ?: 0
     val wallpaperManager: WallpaperManager = context.requireSystemService()
-    val service = WallpaperService(context)
+
+    // Must be the app-scoped singleton: it owns the wallpapers cache that
+    // LawnchairLauncher reads to pick the long-press popup layout. A second instance
+    // (the previous `WallpaperService(context)`) refreshed its own private cache, so
+    // the popup kept seeing "no wallpapers saved" after the first save.
+    val service: WallpaperService = WallpaperService.INSTANCE.get(context)
 
     abstract val wallpaperColors: WallpaperColorsCompat?
 

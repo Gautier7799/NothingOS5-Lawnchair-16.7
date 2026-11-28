@@ -84,6 +84,38 @@ class CaddyCardIdentityTest {
     }
 
     @Test
+    fun duplicateCategoryTitleIsReported() {
+        // Two categories sharing a title get the same DiffUtil identity, so the editor refuses
+        // to create the second one.
+        assertThat(CaddyCardIdentity.duplicateOf(listOf("Media", "Games"), "Media"))
+            .isEqualTo("Media")
+    }
+
+    @Test
+    fun aFreeCategoryTitleIsNotBlocked() {
+        assertThat(CaddyCardIdentity.duplicateOf(listOf("Media", "Games"), "Tools")).isNull()
+    }
+
+    @Test
+    fun duplicateDetectionIgnoresSurroundingWhitespace() {
+        // category() trims, so " Media " and "Media" would otherwise render the same card.
+        assertThat(CaddyCardIdentity.duplicateOf(listOf("Media"), "  Media  ")).isEqualTo("Media")
+    }
+
+    @Test
+    fun anEmptyTitleIsNotACollision() {
+        // The empty-name case is rejected earlier with its own message; it must not be
+        // reported as a duplicate.
+        assertThat(CaddyCardIdentity.duplicateOf(listOf("Media"), "")).isNull()
+        assertThat(CaddyCardIdentity.duplicateOf(listOf("Media"), null)).isNull()
+    }
+
+    @Test
+    fun theFirstCategoryOfItsNameIsNotADuplicate() {
+        assertThat(CaddyCardIdentity.duplicateOf(emptyList(), "Media")).isNull()
+    }
+
+    @Test
     fun appContentKeyIsStableForAnUnchangedApp() {
         assertThat(CaddyCardIdentity.appContentKey("a#0", 42, "App A"))
             .isEqualTo(CaddyCardIdentity.appContentKey("a#0", 42, "App A"))

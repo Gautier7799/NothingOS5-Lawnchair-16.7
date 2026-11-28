@@ -34,7 +34,12 @@ object CaddyCardIdentity {
 
     const val CATEGORY_PREFIX = "category:"
 
-    /** Identity of a category card. The title is trimmed so whitespace cannot split a card. */
+    /**
+     * Identity of a category card. The title is trimmed so whitespace cannot split a card.
+     *
+     * Two categories with the same trimmed title are indistinguishable to `DiffUtil`, so the
+     * editor refuses to create a duplicate (see [duplicateOf]).
+     */
     fun category(title: CharSequence?): String = CATEGORY_PREFIX + title?.toString().orEmpty().trim()
 
     /**
@@ -47,6 +52,24 @@ object CaddyCardIdentity {
         isSearchActions -> "search-actions"
         isAddCategory -> "add-category"
         else -> category(title)
+    }
+
+    /**
+     * Returns the existing title that [candidate] collides with, or null when it is free.
+     *
+     * Category cards are identified by title alone, so two categories sharing a title get the
+     * same `DiffUtil` identity and can trade contents on refresh — the same failure mode PR #82
+     * fixed for reordering. The editor therefore refuses to save a duplicate. Comparison uses the
+     * same normalisation as [category] so a difference in surrounding whitespace cannot slip a
+     * duplicate past the check. Previously saved duplicates are tolerated for backwards
+     * compatibility: an idle category keeps its card, it only blocks creating another.
+     *
+     * [existingTitles] are the titles already stored; [candidate] is the raw editor input.
+     */
+    fun duplicateOf(existingTitles: List<String>, candidate: CharSequence?): String? {
+        val wanted = candidate?.toString().orEmpty().trim()
+        if (wanted.isEmpty()) return null
+        return existingTitles.firstOrNull { it.trim() == wanted }
     }
 
     /**
